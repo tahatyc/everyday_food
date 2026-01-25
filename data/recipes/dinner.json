@@ -1,0 +1,503 @@
+[
+  {
+    "id": "spaghetti-bolognese-001",
+    "title": "Classic Spaghetti Bolognese",
+    "description": "Rich and hearty Italian meat sauce served over perfectly cooked spaghetti",
+    "prepTime": 15,
+    "cookTime": 45,
+    "servings": 6,
+    "difficulty": "medium",
+    "cuisine": "Italian",
+    "mealType": ["dinner"],
+    "diet": [],
+    "ingredients": [
+      {
+        "name": "spaghetti",
+        "amount": 1,
+        "unit": "lb",
+        "preparation": null,
+        "isOptional": false,
+        "group": "Pasta"
+      },
+      {
+        "name": "ground beef",
+        "amount": 1,
+        "unit": "lb",
+        "preparation": "80/20 blend",
+        "isOptional": false,
+        "group": "Sauce"
+      },
+      {
+        "name": "Italian sausage",
+        "amount": 0.5,
+        "unit": "lb",
+        "preparation": "casings removed",
+        "isOptional": false,
+        "group": "Sauce"
+      },
+      {
+        "name": "onion",
+        "amount": 1,
+        "unit": "large",
+        "preparation": "diced",
+        "isOptional": false,
+        "group": "Sauce"
+      },
+      {
+        "name": "carrots",
+        "amount": 2,
+        "unit": "medium",
+        "preparation": "finely diced",
+        "isOptional": false,
+        "group": "Sauce"
+      },
+      {
+        "name": "celery",
+        "amount": 2,
+        "unit": "stalks",
+        "preparation": "finely diced",
+        "isOptional": false,
+        "group": "Sauce"
+      },
+      {
+        "name": "garlic",
+        "amount": 4,
+        "unit": "cloves",
+        "preparation": "minced",
+        "isOptional": false,
+        "group": "Sauce"
+      },
+      {
+        "name": "crushed tomatoes",
+        "amount": 28,
+        "unit": "oz",
+        "preparation": null,
+        "isOptional": false,
+        "group": "Sauce"
+      },
+      {
+        "name": "tomato paste",
+        "amount": 2,
+        "unit": "tbsp",
+        "preparation": null,
+        "isOptional": false,
+        "group": "Sauce"
+      },
+      {
+        "name": "red wine",
+        "amount": 0.5,
+        "unit": "cup",
+        "preparation": null,
+        "isOptional": true,
+        "group": "Sauce"
+      },
+      {
+        "name": "beef broth",
+        "amount": 0.5,
+        "unit": "cup",
+        "preparation": null,
+        "isOptional": false,
+        "group": "Sauce"
+      },
+      {
+        "name": "Italian seasoning",
+        "amount": 1,
+        "unit": "tbsp",
+        "preparation": null,
+        "isOptional": false,
+        "group": "Sauce"
+      },
+      {
+        "name": "parmesan cheese",
+        "amount": 0.5,
+        "unit": "cup",
+        "preparation": "grated, for serving",
+        "isOptional": true,
+        "group": "Toppings"
+      },
+      {
+        "name": "fresh basil",
+        "amount": 0.25,
+        "unit": "cup",
+        "preparation": "chopped, for serving",
+        "isOptional": true,
+        "group": "Toppings"
+      }
+    ],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "instruction": "Heat olive oil in a large Dutch oven or deep pan over medium-high heat. Add ground beef and sausage, breaking up with a wooden spoon. Cook until browned.",
+        "timerMinutes": 8,
+        "timerLabel": "Brown meat",
+        "tips": "Don't stir too much - let it develop a nice crust"
+      },
+      {
+        "stepNumber": 2,
+        "instruction": "Add onion, carrots, and celery (the soffritto). Cook for 5-7 minutes until softened. Add garlic and cook 1 more minute.",
+        "timerMinutes": 8,
+        "timerLabel": "Cook vegetables",
+        "tips": "This is the flavor base - take your time"
+      },
+      {
+        "stepNumber": 3,
+        "instruction": "Stir in tomato paste and cook for 2 minutes. Add wine (if using) and scrape up any browned bits from the bottom.",
+        "timerMinutes": 3,
+        "timerLabel": "Deglaze",
+        "tips": null
+      },
+      {
+        "stepNumber": 4,
+        "instruction": "Add crushed tomatoes, beef broth, and Italian seasoning. Bring to a boil, then reduce heat and simmer for 25-30 minutes, stirring occasionally.",
+        "timerMinutes": 30,
+        "timerLabel": "Simmer sauce",
+        "tips": "The longer it simmers, the better the flavor develops"
+      },
+      {
+        "stepNumber": 5,
+        "instruction": "While sauce simmers, cook spaghetti according to package directions in salted boiling water. Reserve 1 cup pasta water before draining.",
+        "timerMinutes": 10,
+        "timerLabel": "Cook pasta",
+        "tips": "Cook until al dente - it will finish cooking in the sauce"
+      },
+      {
+        "stepNumber": 6,
+        "instruction": "Toss drained pasta with the sauce, adding pasta water as needed to loosen. Serve topped with parmesan and fresh basil.",
+        "timerMinutes": null,
+        "tips": null
+      }
+    ],
+    "nutrition": {
+      "calories": 580,
+      "protein": 32,
+      "carbs": 52,
+      "fat": 26,
+      "fiber": 5,
+      "sugar": 8
+    },
+    "tags": ["dinner", "italian", "pasta", "comfort-food", "family-friendly"],
+    "sourceUrl": null,
+    "notes": "This sauce freezes beautifully for up to 3 months. Make a double batch!"
+  },
+  {
+    "id": "lemon-herb-chicken-001",
+    "title": "Lemon Herb Roasted Chicken",
+    "description": "Juicy roasted chicken with bright lemon and fresh herbs, perfect for a Sunday dinner",
+    "prepTime": 20,
+    "cookTime": 60,
+    "servings": 4,
+    "difficulty": "medium",
+    "cuisine": "Mediterranean",
+    "mealType": ["dinner"],
+    "diet": ["gluten-free", "dairy-free"],
+    "ingredients": [
+      {
+        "name": "whole chicken",
+        "amount": 4,
+        "unit": "lb",
+        "preparation": "patted dry",
+        "isOptional": false,
+        "group": null
+      },
+      {
+        "name": "lemons",
+        "amount": 2,
+        "unit": "medium",
+        "preparation": null,
+        "isOptional": false,
+        "group": null
+      },
+      {
+        "name": "garlic",
+        "amount": 6,
+        "unit": "cloves",
+        "preparation": "smashed",
+        "isOptional": false,
+        "group": null
+      },
+      {
+        "name": "fresh rosemary",
+        "amount": 4,
+        "unit": "sprigs",
+        "preparation": null,
+        "isOptional": false,
+        "group": null
+      },
+      {
+        "name": "fresh thyme",
+        "amount": 6,
+        "unit": "sprigs",
+        "preparation": null,
+        "isOptional": false,
+        "group": null
+      },
+      {
+        "name": "olive oil",
+        "amount": 3,
+        "unit": "tbsp",
+        "preparation": null,
+        "isOptional": false,
+        "group": null
+      },
+      {
+        "name": "kosher salt",
+        "amount": 1,
+        "unit": "tbsp",
+        "preparation": null,
+        "isOptional": false,
+        "group": null
+      },
+      {
+        "name": "black pepper",
+        "amount": 1,
+        "unit": "tsp",
+        "preparation": "freshly ground",
+        "isOptional": false,
+        "group": null
+      },
+      {
+        "name": "butter",
+        "amount": 4,
+        "unit": "tbsp",
+        "preparation": "softened",
+        "isOptional": true,
+        "group": null
+      }
+    ],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "instruction": "Preheat oven to 425°F (220°C). Remove chicken from refrigerator 30 minutes before cooking to bring to room temperature.",
+        "timerMinutes": null,
+        "tips": "Room temperature chicken cooks more evenly"
+      },
+      {
+        "stepNumber": 2,
+        "instruction": "Zest one lemon and mix with softened butter, 1 tbsp chopped rosemary, and 1 tsp salt. Gently loosen the skin over the breast and rub butter mixture under the skin.",
+        "timerMinutes": null,
+        "tips": "Be careful not to tear the skin"
+      },
+      {
+        "stepNumber": 3,
+        "instruction": "Cut lemons in half. Stuff the cavity with lemon halves, smashed garlic, and remaining herb sprigs.",
+        "timerMinutes": null,
+        "tips": null
+      },
+      {
+        "stepNumber": 4,
+        "instruction": "Rub the outside of the chicken with olive oil and season generously with salt and pepper. Tie the legs together with kitchen twine.",
+        "timerMinutes": null,
+        "tips": "Trussing helps the chicken cook evenly"
+      },
+      {
+        "stepNumber": 5,
+        "instruction": "Place chicken breast-side up in a roasting pan or cast iron skillet. Roast for 50-60 minutes until internal temperature reaches 165°F in the thickest part of the thigh.",
+        "timerMinutes": 55,
+        "timerLabel": "Roast chicken",
+        "tips": "Baste with pan juices halfway through"
+      },
+      {
+        "stepNumber": 6,
+        "instruction": "Remove from oven and let rest for 10-15 minutes before carving. Serve with pan juices drizzled over top.",
+        "timerMinutes": 15,
+        "timerLabel": "Rest chicken",
+        "tips": "Resting is crucial - don't skip this step!"
+      }
+    ],
+    "nutrition": {
+      "calories": 480,
+      "protein": 42,
+      "carbs": 4,
+      "fat": 32,
+      "fiber": 1,
+      "sugar": 1
+    },
+    "tags": ["dinner", "roast", "chicken", "gluten-free", "sunday-dinner"],
+    "sourceUrl": null,
+    "notes": "Save the carcass for making homemade chicken stock!"
+  },
+  {
+    "id": "vegetable-stir-fry-001",
+    "title": "Quick Vegetable Stir-Fry",
+    "description": "Colorful crisp-tender vegetables in a savory garlic ginger sauce, ready in 20 minutes",
+    "prepTime": 15,
+    "cookTime": 10,
+    "servings": 4,
+    "difficulty": "easy",
+    "cuisine": "Asian",
+    "mealType": ["dinner", "lunch"],
+    "diet": ["vegetarian", "vegan"],
+    "ingredients": [
+      {
+        "name": "broccoli florets",
+        "amount": 2,
+        "unit": "cups",
+        "preparation": null,
+        "isOptional": false,
+        "group": "Vegetables"
+      },
+      {
+        "name": "bell peppers",
+        "amount": 2,
+        "unit": "medium",
+        "preparation": "sliced",
+        "isOptional": false,
+        "group": "Vegetables"
+      },
+      {
+        "name": "carrots",
+        "amount": 2,
+        "unit": "medium",
+        "preparation": "julienned",
+        "isOptional": false,
+        "group": "Vegetables"
+      },
+      {
+        "name": "snap peas",
+        "amount": 1,
+        "unit": "cup",
+        "preparation": null,
+        "isOptional": false,
+        "group": "Vegetables"
+      },
+      {
+        "name": "mushrooms",
+        "amount": 8,
+        "unit": "oz",
+        "preparation": "sliced",
+        "isOptional": false,
+        "group": "Vegetables"
+      },
+      {
+        "name": "soy sauce",
+        "amount": 3,
+        "unit": "tbsp",
+        "preparation": null,
+        "isOptional": false,
+        "group": "Sauce"
+      },
+      {
+        "name": "sesame oil",
+        "amount": 1,
+        "unit": "tbsp",
+        "preparation": null,
+        "isOptional": false,
+        "group": "Sauce"
+      },
+      {
+        "name": "rice vinegar",
+        "amount": 1,
+        "unit": "tbsp",
+        "preparation": null,
+        "isOptional": false,
+        "group": "Sauce"
+      },
+      {
+        "name": "honey",
+        "amount": 1,
+        "unit": "tbsp",
+        "preparation": null,
+        "isOptional": false,
+        "group": "Sauce"
+      },
+      {
+        "name": "garlic",
+        "amount": 3,
+        "unit": "cloves",
+        "preparation": "minced",
+        "isOptional": false,
+        "group": "Aromatics"
+      },
+      {
+        "name": "fresh ginger",
+        "amount": 1,
+        "unit": "tbsp",
+        "preparation": "minced",
+        "isOptional": false,
+        "group": "Aromatics"
+      },
+      {
+        "name": "vegetable oil",
+        "amount": 2,
+        "unit": "tbsp",
+        "preparation": null,
+        "isOptional": false,
+        "group": "For cooking"
+      },
+      {
+        "name": "cornstarch",
+        "amount": 1,
+        "unit": "tsp",
+        "preparation": "mixed with 2 tbsp water",
+        "isOptional": false,
+        "group": "Sauce"
+      },
+      {
+        "name": "sesame seeds",
+        "amount": 1,
+        "unit": "tbsp",
+        "preparation": "for garnish",
+        "isOptional": true,
+        "group": "Toppings"
+      }
+    ],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "instruction": "Mix sauce ingredients together: soy sauce, sesame oil, rice vinegar, honey, and cornstarch slurry. Set aside.",
+        "timerMinutes": null,
+        "tips": null
+      },
+      {
+        "stepNumber": 2,
+        "instruction": "Heat vegetable oil in a wok or large skillet over high heat until shimmering.",
+        "timerMinutes": null,
+        "tips": "The wok should be very hot before adding anything"
+      },
+      {
+        "stepNumber": 3,
+        "instruction": "Add garlic and ginger, stir-fry for 30 seconds until fragrant.",
+        "timerMinutes": null,
+        "tips": "Don't let it burn!"
+      },
+      {
+        "stepNumber": 4,
+        "instruction": "Add carrots and broccoli first (they take longest). Stir-fry for 2 minutes.",
+        "timerMinutes": 2,
+        "timerLabel": "Cook hard vegetables",
+        "tips": null
+      },
+      {
+        "stepNumber": 5,
+        "instruction": "Add bell peppers, snap peas, and mushrooms. Stir-fry for another 2-3 minutes until crisp-tender.",
+        "timerMinutes": 3,
+        "timerLabel": "Cook remaining vegetables",
+        "tips": "Keep everything moving in the pan"
+      },
+      {
+        "stepNumber": 6,
+        "instruction": "Pour sauce over vegetables and toss to coat. Cook for 1 minute until sauce thickens and glazes vegetables.",
+        "timerMinutes": 1,
+        "timerLabel": "Coat with sauce",
+        "tips": null
+      },
+      {
+        "stepNumber": 7,
+        "instruction": "Serve immediately over rice, garnished with sesame seeds.",
+        "timerMinutes": null,
+        "tips": null
+      }
+    ],
+    "nutrition": {
+      "calories": 180,
+      "protein": 5,
+      "carbs": 22,
+      "fat": 9,
+      "fiber": 5,
+      "sugar": 10
+    },
+    "tags": ["dinner", "quick", "vegetarian", "vegan", "asian", "healthy", "weeknight"],
+    "sourceUrl": null,
+    "notes": "Add tofu or chicken for extra protein. Serve over jasmine rice or noodles."
+  }
+]

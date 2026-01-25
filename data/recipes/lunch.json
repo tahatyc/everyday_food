@@ -1,0 +1,278 @@
+[
+  {
+    "id": "chicken-caesar-salad-001",
+    "title": "Classic Chicken Caesar Salad",
+    "description": "Crispy romaine lettuce with grilled chicken, parmesan, and homemade Caesar dressing",
+    "prepTime": 15,
+    "cookTime": 10,
+    "servings": 4,
+    "difficulty": "easy",
+    "cuisine": "American",
+    "mealType": ["lunch", "dinner"],
+    "diet": [],
+    "ingredients": [
+      {
+        "name": "romaine lettuce",
+        "amount": 2,
+        "unit": "heads",
+        "preparation": "chopped",
+        "isOptional": false,
+        "group": "Salad"
+      },
+      {
+        "name": "chicken breast",
+        "amount": 1,
+        "unit": "lb",
+        "preparation": "boneless, skinless",
+        "isOptional": false,
+        "group": "Salad"
+      },
+      {
+        "name": "parmesan cheese",
+        "amount": 0.5,
+        "unit": "cup",
+        "preparation": "shaved",
+        "isOptional": false,
+        "group": "Salad"
+      },
+      {
+        "name": "croutons",
+        "amount": 1,
+        "unit": "cup",
+        "preparation": null,
+        "isOptional": false,
+        "group": "Salad"
+      },
+      {
+        "name": "mayonnaise",
+        "amount": 0.5,
+        "unit": "cup",
+        "preparation": null,
+        "isOptional": false,
+        "group": "Dressing"
+      },
+      {
+        "name": "lemon juice",
+        "amount": 2,
+        "unit": "tbsp",
+        "preparation": "fresh",
+        "isOptional": false,
+        "group": "Dressing"
+      },
+      {
+        "name": "garlic",
+        "amount": 2,
+        "unit": "cloves",
+        "preparation": "minced",
+        "isOptional": false,
+        "group": "Dressing"
+      },
+      {
+        "name": "Dijon mustard",
+        "amount": 1,
+        "unit": "tsp",
+        "preparation": null,
+        "isOptional": false,
+        "group": "Dressing"
+      },
+      {
+        "name": "Worcestershire sauce",
+        "amount": 1,
+        "unit": "tsp",
+        "preparation": null,
+        "isOptional": false,
+        "group": "Dressing"
+      },
+      {
+        "name": "olive oil",
+        "amount": 2,
+        "unit": "tbsp",
+        "preparation": null,
+        "isOptional": false,
+        "group": "For cooking"
+      }
+    ],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "instruction": "Season chicken breasts with salt and pepper. Heat olive oil in a pan over medium-high heat.",
+        "timerMinutes": null,
+        "tips": null
+      },
+      {
+        "stepNumber": 2,
+        "instruction": "Cook chicken for 5-6 minutes per side until golden brown and cooked through (internal temp 165°F). Let rest for 5 minutes, then slice.",
+        "timerMinutes": 12,
+        "timerLabel": "Cook chicken",
+        "tips": "Don't move the chicken while cooking to get a good sear"
+      },
+      {
+        "stepNumber": 3,
+        "instruction": "While chicken cooks, make the dressing: whisk together mayonnaise, lemon juice, garlic, Dijon mustard, and Worcestershire sauce until smooth.",
+        "timerMinutes": null,
+        "tips": "Add a splash of water if too thick"
+      },
+      {
+        "stepNumber": 4,
+        "instruction": "In a large bowl, toss the chopped romaine with about 3/4 of the dressing until evenly coated.",
+        "timerMinutes": null,
+        "tips": null
+      },
+      {
+        "stepNumber": 5,
+        "instruction": "Divide salad among plates. Top with sliced chicken, shaved parmesan, and croutons. Drizzle with remaining dressing.",
+        "timerMinutes": null,
+        "tips": null
+      }
+    ],
+    "nutrition": {
+      "calories": 420,
+      "protein": 35,
+      "carbs": 15,
+      "fat": 26,
+      "fiber": 3,
+      "sugar": 2
+    },
+    "tags": ["lunch", "salad", "high-protein", "american", "classic"],
+    "sourceUrl": null,
+    "notes": "For a lighter version, use Greek yogurt instead of half the mayonnaise."
+  },
+  {
+    "id": "grilled-cheese-tomato-soup-001",
+    "title": "Grilled Cheese with Tomato Soup",
+    "description": "The ultimate comfort food combo - crispy grilled cheese sandwich with creamy tomato soup",
+    "prepTime": 10,
+    "cookTime": 25,
+    "servings": 4,
+    "difficulty": "easy",
+    "cuisine": "American",
+    "mealType": ["lunch"],
+    "diet": ["vegetarian"],
+    "ingredients": [
+      {
+        "name": "canned crushed tomatoes",
+        "amount": 28,
+        "unit": "oz",
+        "preparation": null,
+        "isOptional": false,
+        "group": "Soup"
+      },
+      {
+        "name": "vegetable broth",
+        "amount": 2,
+        "unit": "cups",
+        "preparation": null,
+        "isOptional": false,
+        "group": "Soup"
+      },
+      {
+        "name": "heavy cream",
+        "amount": 0.5,
+        "unit": "cup",
+        "preparation": null,
+        "isOptional": false,
+        "group": "Soup"
+      },
+      {
+        "name": "butter",
+        "amount": 2,
+        "unit": "tbsp",
+        "preparation": null,
+        "isOptional": false,
+        "group": "Soup"
+      },
+      {
+        "name": "garlic",
+        "amount": 2,
+        "unit": "cloves",
+        "preparation": "minced",
+        "isOptional": false,
+        "group": "Soup"
+      },
+      {
+        "name": "sugar",
+        "amount": 1,
+        "unit": "tsp",
+        "preparation": null,
+        "isOptional": false,
+        "group": "Soup"
+      },
+      {
+        "name": "bread slices",
+        "amount": 8,
+        "unit": "slices",
+        "preparation": "thick-cut",
+        "isOptional": false,
+        "group": "Sandwich"
+      },
+      {
+        "name": "cheddar cheese",
+        "amount": 8,
+        "unit": "slices",
+        "preparation": "sharp",
+        "isOptional": false,
+        "group": "Sandwich"
+      },
+      {
+        "name": "butter",
+        "amount": 4,
+        "unit": "tbsp",
+        "preparation": "softened",
+        "isOptional": false,
+        "group": "Sandwich"
+      }
+    ],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "instruction": "For the soup: Melt butter in a large pot over medium heat. Add garlic and cook for 1 minute until fragrant.",
+        "timerMinutes": 1,
+        "timerLabel": "Cook garlic",
+        "tips": null
+      },
+      {
+        "stepNumber": 2,
+        "instruction": "Add crushed tomatoes, vegetable broth, and sugar. Bring to a simmer and cook for 15 minutes.",
+        "timerMinutes": 15,
+        "timerLabel": "Simmer soup",
+        "tips": null
+      },
+      {
+        "stepNumber": 3,
+        "instruction": "While soup simmers, make the sandwiches. Butter one side of each bread slice. Place cheese between two slices (butter side out).",
+        "timerMinutes": null,
+        "tips": "Use room temperature butter for easier spreading"
+      },
+      {
+        "stepNumber": 4,
+        "instruction": "Cook sandwiches in a pan over medium-low heat for 3-4 minutes per side until golden brown and cheese is melted.",
+        "timerMinutes": 8,
+        "timerLabel": "Grill sandwiches",
+        "tips": "Low and slow ensures melty cheese without burning the bread"
+      },
+      {
+        "stepNumber": 5,
+        "instruction": "Blend the soup with an immersion blender until smooth. Stir in heavy cream and season with salt and pepper.",
+        "timerMinutes": null,
+        "tips": "Be careful when blending hot liquids"
+      },
+      {
+        "stepNumber": 6,
+        "instruction": "Cut sandwiches in half diagonally. Serve with a bowl of hot tomato soup for dipping.",
+        "timerMinutes": null,
+        "tips": null
+      }
+    ],
+    "nutrition": {
+      "calories": 520,
+      "protein": 18,
+      "carbs": 42,
+      "fat": 32,
+      "fiber": 4,
+      "sugar": 10
+    },
+    "tags": ["lunch", "comfort-food", "vegetarian", "kid-friendly", "soup"],
+    "sourceUrl": null,
+    "notes": "Add a sprinkle of fresh basil to the soup for extra flavor."
+  }
+]
