@@ -9,196 +9,243 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
+import Animated, {
+  FadeInDown,
+} from "react-native-reanimated";
 
-import { Card, Button, Badge } from "../../src/components/ui";
 import {
   colors,
   spacing,
-  typography,
-  shadows,
   borders,
   borderRadius,
+  shadows,
+  typography,
 } from "../../src/styles/neobrutalism";
 
-// Settings menu item
-function SettingsItem({
-  icon,
-  label,
-  value,
+// Cookbook Card Component
+function CookbookCard({
+  title,
+  recipeCount,
+  color,
+  index,
   onPress,
-  showChevron = true,
 }: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  value?: string;
-  onPress?: () => void;
-  showChevron?: boolean;
+  title: string;
+  recipeCount: number;
+  color: string;
+  index: number;
+  onPress: () => void;
 }) {
   return (
-    <Pressable style={styles.settingsItem} onPress={onPress}>
-      <View style={styles.settingsItemLeft}>
-        <View style={styles.settingsIconContainer}>
-          <Ionicons name={icon} size={20} color={colors.text} />
+    <Animated.View
+      entering={FadeInDown.delay(300 + index * 100).duration(400)}
+      style={styles.cookbookCardContainer}
+    >
+      <Pressable
+        style={({ pressed }) => [
+          styles.cookbookCard,
+          { backgroundColor: color },
+          pressed && styles.cardPressed,
+        ]}
+        onPress={onPress}
+      >
+        <View style={styles.cookbookBadge}>
+          <Text style={styles.cookbookBadgeText}>{recipeCount} RECIPES</Text>
         </View>
-        <Text style={styles.settingsItemLabel}>{label}</Text>
+        <Text style={styles.cookbookTitle}>{title}</Text>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+// Stats Item Component
+function StatsItem({
+  icon,
+  value,
+  label,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  value: string;
+  label: string;
+}) {
+  return (
+    <View style={styles.statsItem}>
+      <View style={styles.statsIconContainer}>
+        <Ionicons name={icon} size={20} color={colors.textSecondary} />
       </View>
-      <View style={styles.settingsItemRight}>
-        {value && <Text style={styles.settingsItemValue}>{value}</Text>}
-        {showChevron && (
-          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-        )}
-      </View>
+      <Text style={styles.statsValue}>{value}</Text>
+      <Text style={styles.statsLabel}>{label}</Text>
+    </View>
+  );
+}
+
+// Social Button Component
+function SocialButton({
+  icon,
+  color,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  color: string;
+}) {
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.socialButton,
+        { backgroundColor: color },
+        pressed && styles.cardPressed,
+      ]}
+    >
+      <Ionicons name={icon} size={24} color={colors.textLight} />
     </Pressable>
   );
 }
 
-// Stats card
-function StatsCard({
-  icon,
-  value,
-  label,
-  color,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  value: string | number;
-  label: string;
-  color: string;
-}) {
-  return (
-    <Card style={[styles.statsCard, { backgroundColor: color }]}>
-      <Ionicons name={icon} size={24} color={colors.text} />
-      <Text style={styles.statsValue}>{value}</Text>
-      <Text style={styles.statsLabel}>{label}</Text>
-    </Card>
-  );
-}
-
 export default function ProfileScreen() {
-  const handleLogout = () => {
-    // Handle logout
-    router.replace("/(auth)/login");
-  };
+  const cookbooks = [
+    { id: "1", title: "ITALIAN FAVORITES", recipeCount: 12, color: colors.primaryLight },
+    { id: "2", title: "QUICK VEGAN", recipeCount: 8, color: colors.secondary },
+  ];
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
+      {/* Header */}
+      <Animated.View
+        style={styles.header}
+        entering={FadeInDown.duration(300)}
+      >
+        <Pressable style={styles.headerButton} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
+        </Pressable>
+        <Text style={styles.headerTitle}>CHEF PROFILE</Text>
+        <Pressable style={styles.headerButton}>
+          <Ionicons name="settings-outline" size={24} color={colors.text} />
+        </Pressable>
+      </Animated.View>
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Profile</Text>
-        </View>
-
-        {/* User info */}
-        <Card style={styles.userCard}>
-          <View style={styles.avatarContainer}>
-            <Text style={styles.avatarEmoji}>👨‍🍳</Text>
-          </View>
-          <View style={styles.userInfo}>
-            <Text style={styles.userName}>Home Chef</Text>
-            <Text style={styles.userEmail}>chef@everyday.food</Text>
-            <Badge variant="primary" size="sm" style={styles.userBadge}>
-              Free Plan
-            </Badge>
-          </View>
-          <Pressable style={styles.editButton}>
-            <Ionicons name="pencil" size={18} color={colors.text} />
-          </Pressable>
-        </Card>
-
-        {/* Stats */}
-        <View style={styles.statsContainer}>
-          <StatsCard
-            icon="book"
-            value="8"
-            label="Recipes"
-            color={colors.primary}
-          />
-          <StatsCard
-            icon="restaurant"
-            value="24"
-            label="Cooked"
-            color={colors.secondary}
-          />
-          <StatsCard
-            icon="heart"
-            value="5"
-            label="Favorites"
-            color={colors.accent}
-          />
-        </View>
-
-        {/* Settings */}
-        <Text style={styles.sectionTitle}>Preferences</Text>
-        <Card style={styles.settingsCard}>
-          <SettingsItem
-            icon="scale-outline"
-            label="Measurement Units"
-            value="Imperial"
-          />
-          <View style={styles.settingsDivider} />
-          <SettingsItem
-            icon="people-outline"
-            label="Default Servings"
-            value="4"
-          />
-          <View style={styles.settingsDivider} />
-          <SettingsItem
-            icon="nutrition-outline"
-            label="Dietary Preferences"
-            value="None"
-          />
-        </Card>
-
-        <Text style={styles.sectionTitle}>App Settings</Text>
-        <Card style={styles.settingsCard}>
-          <SettingsItem
-            icon="notifications-outline"
-            label="Notifications"
-            value="On"
-          />
-          <View style={styles.settingsDivider} />
-          <SettingsItem
-            icon="moon-outline"
-            label="Dark Mode"
-            value="Off"
-          />
-          <View style={styles.settingsDivider} />
-          <SettingsItem
-            icon="cloud-outline"
-            label="Sync Status"
-            value="Connected"
-          />
-        </Card>
-
-        <Text style={styles.sectionTitle}>Support</Text>
-        <Card style={styles.settingsCard}>
-          <SettingsItem icon="help-circle-outline" label="Help Center" />
-          <View style={styles.settingsDivider} />
-          <SettingsItem icon="chatbubble-outline" label="Send Feedback" />
-          <View style={styles.settingsDivider} />
-          <SettingsItem icon="star-outline" label="Rate the App" />
-          <View style={styles.settingsDivider} />
-          <SettingsItem icon="document-text-outline" label="Privacy Policy" />
-        </Card>
-
-        {/* Logout button */}
-        <Button
-          variant="outline"
-          fullWidth
-          onPress={handleLogout}
-          style={styles.logoutButton}
+        {/* Avatar */}
+        <Animated.View
+          style={styles.avatarSection}
+          entering={FadeInDown.delay(100).duration(400)}
         >
-          <Ionicons name="log-out-outline" size={18} color={colors.text} />
-          <Text style={styles.logoutText}>  Sign Out</Text>
-        </Button>
+          <View style={styles.avatarContainer}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarEmoji}>👨‍🍳</Text>
+            </View>
+          </View>
 
-        {/* Version */}
-        <Text style={styles.versionText}>Everyday Food v1.0.0</Text>
+          <Text style={styles.userName}>ALEX CULINARIA</Text>
+          <Text style={styles.userBio}>
+            Home chef & flavor seeker.{"\n"}
+            Exploring the art of Italian pasta{"\n"}
+            & vegan treats. 🍝
+          </Text>
 
-        <View style={{ height: spacing.xxl }} />
+          {/* Edit Profile Button */}
+          <Pressable
+            style={({ pressed }) => [
+              styles.editProfileButton,
+              pressed && styles.cardPressed,
+            ]}
+          >
+            <Text style={styles.editProfileText}>EDIT PROFILE</Text>
+          </Pressable>
+        </Animated.View>
+
+        {/* My Cookbooks Section */}
+        <Animated.View
+          style={styles.sectionHeader}
+          entering={FadeInDown.delay(200).duration(400)}
+        >
+          <View style={styles.sectionLabelContainer}>
+            <Text style={styles.sectionLabel}>MY COOKBOOKS</Text>
+          </View>
+        </Animated.View>
+
+        <View style={styles.cookbooksGrid}>
+          {cookbooks.map((cookbook, index) => (
+            <CookbookCard
+              key={cookbook.id}
+              title={cookbook.title}
+              recipeCount={cookbook.recipeCount}
+              color={cookbook.color}
+              index={index}
+              onPress={() => router.push(`/cookbook/${cookbook.id}` as any)}
+            />
+          ))}
+        </View>
+
+        {/* Stats Section */}
+        <Animated.View
+          style={styles.statsContainer}
+          entering={FadeInDown.delay(500).duration(400)}
+        >
+          <StatsItem icon="heart" value="1.2k" label="LIKES" />
+          <View style={styles.statsDivider} />
+          <StatsItem icon="people" value="450" label="FOLLOWERS" />
+        </Animated.View>
+
+        {/* Connect Section */}
+        <Animated.View
+          style={styles.connectSection}
+          entering={FadeInDown.delay(600).duration(400)}
+        >
+          <View style={styles.connectLabelContainer}>
+            <Text style={styles.connectLabel}>CONNECT</Text>
+          </View>
+
+          <View style={styles.socialButtons}>
+            <SocialButton icon="camera" color={colors.text} />
+            <SocialButton icon="videocam" color={colors.secondary} />
+            <SocialButton icon="share-social" color={colors.cyan} />
+          </View>
+        </Animated.View>
+
+        {/* Settings Preview */}
+        <Animated.View
+          entering={FadeInDown.delay(700).duration(400)}
+        >
+          <Pressable
+            style={({ pressed }) => [
+              styles.settingsPreview,
+              pressed && styles.cardPressed,
+            ]}
+          >
+            <View style={styles.settingsPreviewContent}>
+              <Ionicons name="settings-outline" size={24} color={colors.text} />
+              <View style={styles.settingsPreviewText}>
+                <Text style={styles.settingsPreviewTitle}>APP SETTINGS</Text>
+                <Text style={styles.settingsPreviewSubtitle}>
+                  Preferences, notifications, sync
+                </Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color={colors.text} />
+          </Pressable>
+        </Animated.View>
+
+        {/* Sign Out */}
+        <Animated.View
+          entering={FadeInDown.delay(800).duration(400)}
+        >
+          <Pressable
+            style={({ pressed }) => [
+              styles.signOutButton,
+              pressed && styles.cardPressed,
+            ]}
+            onPress={() => router.replace("/(auth)/login")}
+          >
+            <Ionicons name="log-out-outline" size={20} color={colors.error} />
+            <Text style={styles.signOutText}>SIGN OUT</Text>
+          </Pressable>
+        </Animated.View>
+
+        {/* Bottom Spacing */}
+        <View style={styles.bottomSpacer} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -209,30 +256,210 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  headerButton: {
+    width: 44,
+    height: 44,
+    backgroundColor: colors.surface,
+    borderWidth: borders.regular,
+    borderColor: borders.color,
+    borderRadius: borderRadius.md,
+    alignItems: "center",
+    justifyContent: "center",
+    ...shadows.sm,
+  },
+  headerTitle: {
+    fontSize: typography.sizes.md,
+    fontWeight: typography.weights.bold,
+    color: colors.text,
+    letterSpacing: typography.letterSpacing.wider,
+  },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    padding: spacing.lg,
+    paddingHorizontal: spacing.lg,
   },
-  header: {
+  avatarSection: {
+    alignItems: "center",
+    marginBottom: spacing.xxl,
+  },
+  avatarContainer: {
     marginBottom: spacing.lg,
   },
-  headerTitle: {
+  avatar: {
+    width: 100,
+    height: 100,
+    backgroundColor: colors.secondary,
+    borderWidth: borders.thick,
+    borderColor: borders.color,
+    borderRadius: borderRadius.full,
+    alignItems: "center",
+    justifyContent: "center",
+    ...shadows.md,
+  },
+  avatarEmoji: {
+    fontSize: 48,
+  },
+  userName: {
     fontSize: typography.sizes.xxl,
+    fontWeight: typography.weights.black,
+    fontStyle: "italic",
+    color: colors.text,
+    marginBottom: spacing.sm,
+  },
+  userBio: {
+    fontSize: typography.sizes.sm,
+    color: colors.textSecondary,
+    textAlign: "center",
+    lineHeight: typography.sizes.sm * typography.lineHeights.relaxed,
+    marginBottom: spacing.lg,
+  },
+  editProfileButton: {
+    backgroundColor: colors.surface,
+    borderWidth: borders.regular,
+    borderColor: borders.color,
+    borderRadius: borderRadius.lg,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xxxl,
+    ...shadows.sm,
+  },
+  cardPressed: {
+    transform: [{ translateX: 2 }, { translateY: 2 }],
+    ...shadows.pressed,
+  },
+  editProfileText: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.bold,
+    color: colors.text,
+    letterSpacing: typography.letterSpacing.wide,
+  },
+  sectionHeader: {
+    marginBottom: spacing.md,
+  },
+  sectionLabelContainer: {
+    alignSelf: "flex-start",
+    backgroundColor: colors.text,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.sm,
+  },
+  sectionLabel: {
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.bold,
+    color: colors.textLight,
+    letterSpacing: typography.letterSpacing.wider,
+  },
+  cookbooksGrid: {
+    flexDirection: "row",
+    gap: spacing.md,
+    marginBottom: spacing.xl,
+  },
+  cookbookCardContainer: {
+    flex: 1,
+  },
+  cookbookCard: {
+    height: 140,
+    borderWidth: borders.regular,
+    borderColor: borders.color,
+    borderRadius: borderRadius.xl,
+    padding: spacing.md,
+    justifyContent: "flex-end",
+    ...shadows.sm,
+  },
+  cookbookBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: colors.surface,
+    borderWidth: borders.thin,
+    borderColor: borders.color,
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    marginBottom: spacing.sm,
+  },
+  cookbookBadgeText: {
+    fontSize: typography.sizes.xs,
     fontWeight: typography.weights.bold,
     color: colors.text,
   },
-  userCard: {
+  cookbookTitle: {
+    fontSize: typography.sizes.md,
+    fontWeight: typography.weights.black,
+    fontStyle: "italic",
+    color: colors.text,
+  },
+  statsContainer: {
     flexDirection: "row",
-    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderWidth: borders.regular,
+    borderColor: borders.color,
+    borderRadius: borderRadius.lg,
     padding: spacing.lg,
+    marginBottom: spacing.xl,
+    ...shadows.sm,
+  },
+  statsItem: {
+    flex: 1,
+    alignItems: "center",
+  },
+  statsIconContainer: {
+    width: 40,
+    height: 40,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: borders.thin,
+    borderColor: borders.color,
+    borderRadius: borderRadius.md,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: spacing.sm,
+  },
+  statsValue: {
+    fontSize: typography.sizes.lg,
+    fontWeight: typography.weights.bold,
+    color: colors.text,
+  },
+  statsLabel: {
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.semibold,
+    color: colors.textMuted,
+    letterSpacing: typography.letterSpacing.wide,
+  },
+  statsDivider: {
+    width: 2,
+    backgroundColor: colors.borderLight,
+    marginHorizontal: spacing.lg,
+  },
+  connectSection: {
+    marginBottom: spacing.xl,
+  },
+  connectLabelContainer: {
+    alignSelf: "center",
+    backgroundColor: colors.text,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.sm,
     marginBottom: spacing.lg,
   },
-  avatarContainer: {
-    width: 70,
-    height: 70,
-    backgroundColor: colors.accent,
+  connectLabel: {
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.bold,
+    color: colors.textLight,
+    letterSpacing: typography.letterSpacing.wider,
+  },
+  socialButtons: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: spacing.md,
+  },
+  socialButton: {
+    width: 56,
+    height: 56,
     borderWidth: borders.regular,
     borderColor: borders.color,
     borderRadius: borderRadius.full,
@@ -240,109 +467,51 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     ...shadows.sm,
   },
-  avatarEmoji: {
-    fontSize: 36,
-  },
-  userInfo: {
-    flex: 1,
-    marginLeft: spacing.md,
-  },
-  userName: {
-    fontSize: typography.sizes.lg,
-    fontWeight: typography.weights.bold,
-    color: colors.text,
-  },
-  userEmail: {
-    fontSize: typography.sizes.sm,
-    color: colors.textSecondary,
-    marginBottom: spacing.xs,
-  },
-  userBadge: {
-    alignSelf: "flex-start",
-  },
-  editButton: {
-    padding: spacing.sm,
-  },
-  statsContainer: {
-    flexDirection: "row",
-    gap: spacing.md,
-    marginBottom: spacing.xl,
-  },
-  statsCard: {
-    flex: 1,
-    alignItems: "center",
-    padding: spacing.md,
-  },
-  statsValue: {
-    fontSize: typography.sizes.xl,
-    fontWeight: typography.weights.bold,
-    color: colors.text,
-    marginTop: spacing.xs,
-  },
-  statsLabel: {
-    fontSize: typography.sizes.xs,
-    color: colors.textSecondary,
-  },
-  sectionTitle: {
-    fontSize: typography.sizes.md,
-    fontWeight: typography.weights.bold,
-    color: colors.text,
-    marginBottom: spacing.sm,
-    marginTop: spacing.md,
-  },
-  settingsCard: {
-    padding: 0,
-    overflow: "hidden",
-  },
-  settingsItem: {
+  settingsPreview: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: spacing.md,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: borders.regular,
+    borderColor: borders.color,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    ...shadows.sm,
   },
-  settingsItemLeft: {
+  settingsPreviewContent: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
   },
-  settingsIconContainer: {
-    width: 36,
-    height: 36,
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: borderRadius.md,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  settingsItemLabel: {
+  settingsPreviewText: {},
+  settingsPreviewTitle: {
     fontSize: typography.sizes.md,
+    fontWeight: typography.weights.bold,
     color: colors.text,
   },
-  settingsItemRight: {
+  settingsPreviewSubtitle: {
+    fontSize: typography.sizes.sm,
+    color: colors.textSecondary,
+  },
+  signOutButton: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surface,
+    borderWidth: borders.regular,
+    borderColor: colors.error,
+    borderRadius: borderRadius.lg,
+    paddingVertical: spacing.md,
     gap: spacing.sm,
   },
-  settingsItemValue: {
+  signOutText: {
     fontSize: typography.sizes.sm,
-    color: colors.textMuted,
+    fontWeight: typography.weights.bold,
+    color: colors.error,
+    letterSpacing: typography.letterSpacing.wide,
   },
-  settingsDivider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginLeft: spacing.md + 36 + spacing.md,
-  },
-  logoutButton: {
-    marginTop: spacing.xl,
-  },
-  logoutText: {
-    fontSize: typography.sizes.md,
-    fontWeight: typography.weights.semibold,
-    color: colors.text,
-  },
-  versionText: {
-    textAlign: "center",
-    fontSize: typography.sizes.sm,
-    color: colors.textMuted,
-    marginTop: spacing.lg,
+  bottomSpacer: {
+    height: 120,
   },
 });

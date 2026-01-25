@@ -8,184 +8,283 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { router } from "expo-router";
+import Animated, {
+  FadeInDown,
+  FadeInRight,
+} from "react-native-reanimated";
 
-import { Card, Badge, IconButton } from "../../src/components/ui";
 import {
   colors,
   spacing,
-  typography,
-  shadows,
   borders,
   borderRadius,
+  shadows,
+  typography,
+  getMealTypeColor,
 } from "../../src/styles/neobrutalism";
+import { allRecipes, SeedRecipe } from "../../data/recipes";
 
-// Get days of current week
-function getWeekDays(startDate: Date): Date[] {
-  const days: Date[] = [];
-  const start = new Date(startDate);
-  start.setDate(start.getDate() - start.getDay()); // Start from Sunday
+// Generate week days
+const generateWeekDays = () => {
+  const days = [];
+  const today = new Date();
+  const dayNames = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 
   for (let i = 0; i < 7; i++) {
-    const day = new Date(start);
-    day.setDate(start.getDate() + i);
-    days.push(day);
+    const date = new Date(today);
+    date.setDate(today.getDate() + i);
+    days.push({
+      id: i.toString(),
+      dayName: dayNames[date.getDay()],
+      dayNumber: date.getDate(),
+      isToday: i === 0,
+    });
   }
   return days;
+};
+
+// Mock meal plan data
+const getMealPlanForDay = (dayIndex: number) => {
+  const breakfastRecipes = allRecipes.filter((r) =>
+    r.mealType.includes("breakfast")
+  );
+  const lunchRecipes = allRecipes.filter((r) => r.mealType.includes("lunch"));
+  const dinnerRecipes = allRecipes.filter((r) => r.mealType.includes("dinner"));
+
+  return {
+    breakfast: dayIndex < breakfastRecipes.length ? breakfastRecipes[dayIndex] : null,
+    lunch: dayIndex < lunchRecipes.length ? lunchRecipes[dayIndex] : null,
+    dinner: dayIndex < dinnerRecipes.length ? dinnerRecipes[dayIndex] : null,
+  };
+};
+
+// Day Selector Item
+function DayItem({
+  day,
+  isSelected,
+  onSelect,
+  index,
+}: {
+  day: ReturnType<typeof generateWeekDays>[0];
+  isSelected: boolean;
+  onSelect: () => void;
+  index: number;
+}) {
+  return (
+    <Animated.View entering={FadeInRight.delay(index * 50).duration(300)}>
+      <Pressable
+        style={[
+          styles.dayItem,
+          isSelected && styles.dayItemSelected,
+          day.isToday && !isSelected && styles.dayItemToday,
+        ]}
+        onPress={onSelect}
+      >
+        <Text
+          style={[
+            styles.dayName,
+            isSelected && styles.dayNameSelected,
+          ]}
+        >
+          {day.dayName}
+        </Text>
+        <Text
+          style={[
+            styles.dayNumber,
+            isSelected && styles.dayNumberSelected,
+          ]}
+        >
+          {day.dayNumber}
+        </Text>
+      </Pressable>
+    </Animated.View>
+  );
 }
 
-const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MEAL_TYPES = [
-  { id: "breakfast", label: "Breakfast", icon: "sunny-outline" as const, color: colors.breakfast },
-  { id: "lunch", label: "Lunch", icon: "restaurant-outline" as const, color: colors.lunch },
-  { id: "dinner", label: "Dinner", icon: "moon-outline" as const, color: colors.dinner },
-];
-
-// Day column component
-function DayColumn({ date, isToday }: { date: Date; isToday: boolean }) {
-  const dayName = DAY_NAMES[date.getDay()];
-  const dayNumber = date.getDate();
+// Meal Section Component
+function MealSection({
+  type,
+  label,
+  recipe,
+  index,
+}: {
+  type: "breakfast" | "lunch" | "dinner";
+  label: string;
+  recipe: SeedRecipe | null;
+  index: number;
+}) {
+  const bgColor = getMealTypeColor(type);
 
   return (
-    <View style={styles.dayColumn}>
-      <View style={[styles.dayHeader, isToday && styles.dayHeaderToday]}>
-        <Text style={[styles.dayName, isToday && styles.dayNameToday]}>
-          {dayName}
-        </Text>
-        <Text style={[styles.dayNumber, isToday && styles.dayNumberToday]}>
-          {dayNumber}
-        </Text>
+    <Animated.View
+      entering={FadeInDown.delay(200 + index * 100).duration(400)}
+      style={styles.mealSection}
+    >
+      {/* Meal Label */}
+      <View style={styles.mealLabelContainer}>
+        <View style={[styles.mealLabel, { backgroundColor: bgColor }]}>
+          <Text style={styles.mealLabelText}>{label}</Text>
+        </View>
+        <View style={styles.mealLabelLine} />
       </View>
 
-      {MEAL_TYPES.map((meal) => (
+      {/* Meal Card */}
+      {recipe ? (
         <Pressable
-          key={meal.id}
-          style={[styles.mealSlot, { borderLeftColor: meal.color }]}
+          style={({ pressed }) => [
+            styles.mealCard,
+            pressed && styles.cardPressed,
+          ]}
+          onPress={() => router.push(`/recipe/${recipe.id}` as any)}
         >
-          <Ionicons name="add" size={20} color={colors.textMuted} />
+          <View style={styles.mealImageContainer}>
+            <View
+              style={[
+                styles.mealImage,
+                { backgroundColor: bgColor },
+              ]}
+            >
+              <Text style={styles.mealEmoji}>
+                {type === "breakfast" ? "🍳" : type === "lunch" ? "🥗" : "🍝"}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.mealInfo}>
+            <Text style={styles.mealTitle} numberOfLines={1}>
+              {recipe.title.toUpperCase()}
+            </Text>
+            <View style={styles.mealBadge}>
+              <Text style={styles.mealBadgeText}>
+                {recipe.nutrition?.calories || 0} KCAL
+              </Text>
+            </View>
+            <Pressable style={styles.changeButton}>
+              <Ionicons name="swap-horizontal" size={14} color={colors.textLight} />
+              <Text style={styles.changeButtonText}>CHANGE</Text>
+            </Pressable>
+          </View>
         </Pressable>
-      ))}
-    </View>
+      ) : (
+        <Pressable style={[styles.mealCard, styles.emptyMealCard]}>
+          <View style={styles.emptyMealContent}>
+            <Ionicons name="add" size={24} color={colors.textMuted} />
+            <Text style={styles.emptyMealText}>Add a meal</Text>
+          </View>
+        </Pressable>
+      )}
+    </Animated.View>
   );
 }
 
 export default function MealPlanScreen() {
-  const [currentWeekStart, setCurrentWeekStart] = useState(new Date());
-  const weekDays = getWeekDays(currentWeekStart);
-  const today = new Date();
-
-  const goToPreviousWeek = () => {
-    const newDate = new Date(currentWeekStart);
-    newDate.setDate(newDate.getDate() - 7);
-    setCurrentWeekStart(newDate);
-  };
-
-  const goToNextWeek = () => {
-    const newDate = new Date(currentWeekStart);
-    newDate.setDate(newDate.getDate() + 7);
-    setCurrentWeekStart(newDate);
-  };
-
-  const goToToday = () => {
-    setCurrentWeekStart(new Date());
-  };
-
-  // Format week range for header
-  const weekStart = weekDays[0];
-  const weekEnd = weekDays[6];
-  const weekRangeText = `${weekStart.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  })} - ${weekEnd.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  })}`;
+  const weekDays = generateWeekDays();
+  const [selectedDayIndex, setSelectedDayIndex] = useState(0);
+  const mealPlan = getMealPlanForDay(selectedDayIndex);
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Meal Plan</Text>
-        <IconButton icon="list-outline" variant="default" onPress={() => {}} />
-      </View>
-
-      {/* Week navigation */}
-      <Card style={styles.weekNavCard}>
-        <View style={styles.weekNav}>
-          <IconButton
-            icon="chevron-back"
-            variant="ghost"
-            size="sm"
-            onPress={goToPreviousWeek}
-          />
-          <Pressable onPress={goToToday}>
-            <Text style={styles.weekRangeText}>{weekRangeText}</Text>
-          </Pressable>
-          <IconButton
-            icon="chevron-forward"
-            variant="ghost"
-            size="sm"
-            onPress={goToNextWeek}
-          />
-        </View>
-      </Card>
-
-      {/* Meal type legend */}
-      <View style={styles.legend}>
-        {MEAL_TYPES.map((meal) => (
-          <View key={meal.id} style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: meal.color }]} />
-            <Text style={styles.legendText}>{meal.label}</Text>
-          </View>
-        ))}
-      </View>
-
-      {/* Week calendar */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.calendarContainer}
+      <Animated.View
+        style={styles.header}
+        entering={FadeInDown.duration(300)}
       >
-        {weekDays.map((date) => (
-          <DayColumn
-            key={date.toISOString()}
-            date={date}
-            isToday={date.toDateString() === today.toDateString()}
-          />
-        ))}
+        <Pressable style={styles.headerButton} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
+        </Pressable>
+        <Text style={styles.headerTitle}>WEEKLY PLANNER</Text>
+        <Pressable style={styles.headerButton}>
+          <Ionicons name="calendar-outline" size={24} color={colors.text} />
+        </Pressable>
+      </Animated.View>
+
+      {/* Day Selector */}
+      <View style={styles.daySelectorContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.daySelector}
+        >
+          {weekDays.map((day, index) => (
+            <DayItem
+              key={day.id}
+              day={day}
+              isSelected={selectedDayIndex === index}
+              onSelect={() => setSelectedDayIndex(index)}
+              index={index}
+            />
+          ))}
+        </ScrollView>
+      </View>
+
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Meal Sections */}
+        <MealSection
+          type="breakfast"
+          label="BREAKFAST"
+          recipe={mealPlan.breakfast}
+          index={0}
+        />
+        <MealSection
+          type="lunch"
+          label="LUNCH"
+          recipe={mealPlan.lunch}
+          index={1}
+        />
+        <MealSection
+          type="dinner"
+          label="DINNER"
+          recipe={mealPlan.dinner}
+          index={2}
+        />
+
+        {/* Generate Random Plan Button */}
+        <Animated.View
+          entering={FadeInDown.delay(500).duration(400)}
+        >
+          <Pressable
+            style={({ pressed }) => [
+              styles.generateButton,
+              pressed && styles.buttonPressed,
+            ]}
+          >
+            <Ionicons name="dice-outline" size={20} color={colors.text} />
+            <Text style={styles.generateButtonText}>GENERATE RANDOM PLAN</Text>
+          </Pressable>
+        </Animated.View>
+
+        {/* Grocery List Link */}
+        <Animated.View
+          entering={FadeInDown.delay(600).duration(400)}
+        >
+          <Pressable
+            style={({ pressed }) => [
+              styles.groceryButton,
+              pressed && styles.cardPressed,
+            ]}
+            onPress={() => router.push("/grocery-list" as any)}
+          >
+            <View style={styles.groceryButtonContent}>
+              <Ionicons name="cart-outline" size={24} color={colors.text} />
+              <View style={styles.groceryButtonText}>
+                <Text style={styles.groceryButtonTitle}>GROCERY LIST</Text>
+                <Text style={styles.groceryButtonSubtitle}>
+                  View items for this week
+                </Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color={colors.text} />
+          </Pressable>
+        </Animated.View>
+
+        {/* Bottom Spacing */}
+        <View style={styles.bottomSpacer} />
       </ScrollView>
-
-      {/* Quick stats */}
-      <Card style={styles.statsCard}>
-        <View style={styles.statsRow}>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>0</Text>
-            <Text style={styles.statLabel}>Meals Planned</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>0</Text>
-            <Text style={styles.statLabel}>Recipes Used</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>0</Text>
-            <Text style={styles.statLabel}>Shopping Items</Text>
-          </View>
-        </View>
-      </Card>
-
-      {/* Tips */}
-      <Card style={styles.tipCard} color={colors.accent}>
-        <View style={styles.tipContent}>
-          <Ionicons name="bulb-outline" size={24} color={colors.text} />
-          <View style={styles.tipText}>
-            <Text style={styles.tipTitle}>Pro Tip</Text>
-            <Text style={styles.tipDescription}>
-              Tap any meal slot to add a recipe from your collection
-            </Text>
-          </View>
-        </View>
-      </Card>
     </SafeAreaView>
   );
 }
@@ -197,148 +296,240 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
-  headerTitle: {
-    fontSize: typography.sizes.xxl,
-    fontWeight: typography.weights.bold,
-    color: colors.text,
-  },
-  weekNavCard: {
-    marginHorizontal: spacing.lg,
-    padding: spacing.sm,
-  },
-  weekNav: {
-    flexDirection: "row",
+  headerButton: {
+    width: 44,
+    height: 44,
+    backgroundColor: colors.surface,
+    borderWidth: borders.regular,
+    borderColor: borders.color,
+    borderRadius: borderRadius.md,
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "center",
+    ...shadows.sm,
   },
-  weekRangeText: {
+  headerTitle: {
     fontSize: typography.sizes.md,
     fontWeight: typography.weights.bold,
     color: colors.text,
+    letterSpacing: typography.letterSpacing.wider,
   },
-  legend: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: spacing.lg,
+  daySelectorContainer: {
     paddingVertical: spacing.md,
   },
-  legendItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-  },
-  legendDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  legendText: {
-    fontSize: typography.sizes.xs,
-    color: colors.textSecondary,
-  },
-  calendarContainer: {
-    paddingHorizontal: spacing.md,
+  daySelector: {
+    paddingHorizontal: spacing.lg,
     gap: spacing.sm,
   },
-  dayColumn: {
-    width: 80,
-    marginHorizontal: spacing.xs,
-  },
-  dayHeader: {
-    alignItems: "center",
-    paddingVertical: spacing.sm,
-    marginBottom: spacing.sm,
-    borderRadius: borderRadius.md,
+  dayItem: {
+    width: 56,
+    height: 72,
     backgroundColor: colors.surface,
-    borderWidth: borders.thin,
-    borderColor: colors.border,
+    borderWidth: borders.regular,
+    borderColor: borders.color,
+    borderRadius: borderRadius.md,
+    alignItems: "center",
+    justifyContent: "center",
+    ...shadows.xs,
   },
-  dayHeaderToday: {
-    backgroundColor: colors.accent,
-    borderColor: colors.border,
-    ...shadows.sm,
+  dayItemSelected: {
+    backgroundColor: colors.primary,
+  },
+  dayItemToday: {
+    borderColor: colors.primary,
+    borderWidth: borders.thick,
   },
   dayName: {
     fontSize: typography.sizes.xs,
-    fontWeight: typography.weights.medium,
-    color: colors.textSecondary,
-  },
-  dayNameToday: {
-    color: colors.text,
     fontWeight: typography.weights.bold,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+  },
+  dayNameSelected: {
+    color: colors.text,
   },
   dayNumber: {
-    fontSize: typography.sizes.lg,
+    fontSize: typography.sizes.xl,
+    fontWeight: typography.weights.black,
+    color: colors.text,
+  },
+  dayNumberSelected: {
+    color: colors.text,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: spacing.lg,
+  },
+  mealSection: {
+    marginBottom: spacing.lg,
+  },
+  mealLabelContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: spacing.md,
+  },
+  mealLabel: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderWidth: borders.thin,
+    borderColor: borders.color,
+    borderRadius: borderRadius.sm,
+  },
+  mealLabelText: {
+    fontSize: typography.sizes.xs,
     fontWeight: typography.weights.bold,
     color: colors.text,
+    letterSpacing: typography.letterSpacing.wide,
   },
-  dayNumberToday: {
-    color: colors.text,
+  mealLabelLine: {
+    flex: 1,
+    height: 2,
+    backgroundColor: colors.borderLight,
+    marginLeft: spacing.md,
   },
-  mealSlot: {
-    height: 60,
+  mealCard: {
+    flexDirection: "row",
     backgroundColor: colors.surface,
-    borderWidth: borders.thin,
-    borderColor: colors.border,
-    borderLeftWidth: 4,
-    borderRadius: borderRadius.sm,
-    marginBottom: spacing.xs,
+    borderWidth: borders.regular,
+    borderColor: borders.color,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    ...shadows.sm,
+  },
+  cardPressed: {
+    transform: [{ translateX: 2 }, { translateY: 2 }],
+    ...shadows.pressed,
+  },
+  emptyMealCard: {
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: spacing.xxl,
+    borderStyle: "dashed",
+  },
+  emptyMealContent: {
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  emptyMealText: {
+    fontSize: typography.sizes.sm,
+    color: colors.textMuted,
+  },
+  mealImageContainer: {
+    marginRight: spacing.md,
+  },
+  mealImage: {
+    width: 70,
+    height: 70,
+    borderWidth: borders.regular,
+    borderColor: borders.color,
+    borderRadius: borderRadius.md,
     alignItems: "center",
     justifyContent: "center",
   },
-  statsCard: {
-    margin: spacing.lg,
-    padding: spacing.md,
+  mealEmoji: {
+    fontSize: 32,
   },
-  statsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  statItem: {
+  mealInfo: {
     flex: 1,
-    alignItems: "center",
+    justifyContent: "center",
   },
-  statValue: {
-    fontSize: typography.sizes.xl,
+  mealTitle: {
+    fontSize: typography.sizes.md,
+    fontWeight: typography.weights.bold,
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  mealBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: colors.primary,
+    borderWidth: borders.thin,
+    borderColor: borders.color,
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    marginBottom: spacing.sm,
+  },
+  mealBadgeText: {
+    fontSize: typography.sizes.xs,
     fontWeight: typography.weights.bold,
     color: colors.text,
   },
-  statLabel: {
+  changeButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: colors.cyan,
+    borderWidth: borders.thin,
+    borderColor: borders.color,
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    gap: spacing.xs,
+  },
+  changeButtonText: {
     fontSize: typography.sizes.xs,
-    color: colors.textMuted,
-    textAlign: "center",
+    fontWeight: typography.weights.bold,
+    color: colors.textLight,
   },
-  statDivider: {
-    width: 2,
-    height: 40,
-    backgroundColor: colors.border,
+  generateButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.primary,
+    borderWidth: borders.regular,
+    borderColor: borders.color,
+    borderRadius: borderRadius.lg,
+    paddingVertical: spacing.lg,
+    marginTop: spacing.md,
+    gap: spacing.sm,
+    ...shadows.md,
   },
-  tipCard: {
-    marginHorizontal: spacing.lg,
-    padding: spacing.md,
+  buttonPressed: {
+    transform: [{ translateX: 2 }, { translateY: 2 }],
+    ...shadows.pressed,
   },
-  tipContent: {
+  generateButtonText: {
+    fontSize: typography.sizes.md,
+    fontWeight: typography.weights.bold,
+    color: colors.text,
+    letterSpacing: typography.letterSpacing.wide,
+  },
+  groceryButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: colors.cyanLight,
+    borderWidth: borders.regular,
+    borderColor: borders.color,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    marginTop: spacing.lg,
+    ...shadows.sm,
+  },
+  groceryButtonContent: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
   },
-  tipText: {
-    flex: 1,
+  groceryButtonText: {
+    gap: spacing.xs,
   },
-  tipTitle: {
-    fontSize: typography.sizes.sm,
+  groceryButtonTitle: {
+    fontSize: typography.sizes.md,
     fontWeight: typography.weights.bold,
     color: colors.text,
   },
-  tipDescription: {
+  groceryButtonSubtitle: {
     fontSize: typography.sizes.sm,
     color: colors.textSecondary,
+  },
+  bottomSpacer: {
+    height: 120,
   },
 });

@@ -5,7 +5,8 @@
       "Bash(move:*)",
       "Bash(npx create-expo-app@latest:*)",
       "Bash(npm install:*)",
-      "Bash(npx convex init:*)"
+      "Bash(npx convex init:*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

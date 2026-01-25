@@ -1,77 +1,47 @@
-import { Ionicons } from "@expo/vector-icons";
-import { Tabs } from "expo-router";
 import React from "react";
-import { StyleSheet, View } from "react-native";
+import { Tabs } from "expo-router";
+import { StyleSheet } from "react-native";
 
-import { borders, colors, shadows } from "../../src/styles/neobrutalism";
-
-type IconName = React.ComponentProps<typeof Ionicons>["name"];
-
-function TabBarIcon({ name, color, focused }: { name: IconName; color: string; focused: boolean }) {
-  return (
-    <View style={[styles.iconContainer, focused && styles.iconContainerActive]}>
-      <Ionicons name={name} size={24} color={focused ? colors.text : color} />
-    </View>
-  );
-}
+import { BottomTabBar } from "../../src/components/navigation/BottomTabBar";
 
 export default function TabLayout() {
   return (
     <Tabs
+      tabBar={(props) => <BottomTabBar {...props} />}
       screenOptions={{
-        tabBarActiveTintColor: colors.text,
-        tabBarInactiveTintColor: colors.textMuted,
+        headerShown: false,
         tabBarStyle: styles.tabBar,
-        tabBarLabelStyle: styles.tabBarLabel,
-        tabBarItemStyle: styles.tabBarItem,
-        headerStyle: styles.header,
-        headerTitleStyle: styles.headerTitle,
-        headerShadowVisible: false,
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
           title: "Home",
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name={focused ? "home" : "home-outline"} color={color} focused={focused} />
-          ),
         }}
       />
       <Tabs.Screen
         name="recipes"
         options={{
           title: "Recipes",
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name={focused ? "book" : "book-outline"} color={color} focused={focused} />
-          ),
         }}
       />
       <Tabs.Screen
         name="meal-plan"
         options={{
-          title: "Meal Plan",
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name={focused ? "calendar" : "calendar-outline"} color={color} focused={focused} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="shopping"
-        options={{
-          title: "Shopping",
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name={focused ? "cart" : "cart-outline"} color={color} focused={focused} />
-          ),
+          title: "Plan",
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: "Profile",
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name={focused ? "person" : "person-outline"} color={color} focused={focused} />
-          ),
+        }}
+      />
+      {/* Hide shopping from tabs - will be accessed from meal-plan */}
+      <Tabs.Screen
+        name="shopping"
+        options={{
+          href: null,
         }}
       />
       {/* Hide the old "two" screen */}
@@ -87,40 +57,6 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: colors.surface,
-    borderTopWidth: borders.regular,
-    borderTopColor: borders.color,
-    paddingTop: 8,
-    paddingBottom: 8,
-    height: 70,
-    ...shadows.sm,
-  },
-  tabBarLabel: {
-    fontWeight: "600",
-    fontSize: 11,
-    marginTop: 4,
-  },
-  tabBarItem: {
-    paddingVertical: 4,
-  },
-  iconContainer: {
-    padding: 6,
-    borderRadius: 12,
-  },
-  iconContainerActive: {
-    backgroundColor: colors.accent,
-    borderWidth: 2,
-    borderColor: borders.color,
-    ...shadows.sm,
-  },
-  header: {
-    backgroundColor: colors.background,
-    borderBottomWidth: borders.regular,
-    borderBottomColor: borders.color,
-  },
-  headerTitle: {
-    fontWeight: "bold",
-    fontSize: 18,
-    color: colors.text,
+    display: "none", // Hide default tab bar, using custom one
   },
 });
