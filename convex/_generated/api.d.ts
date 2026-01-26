@@ -9,7 +9,11 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as cookbooks from "../cookbooks.js";
+import type * as mealPlans from "../mealPlans.js";
+import type * as recipes from "../recipes.js";
 import type * as seed from "../seed.js";
+import type * as shoppingLists from "../shoppingLists.js";
 import type * as users from "../users.js";
 
 import type {
@@ -20,7 +24,11 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  cookbooks: typeof cookbooks;
+  mealPlans: typeof mealPlans;
+  recipes: typeof recipes;
   seed: typeof seed;
+  shoppingLists: typeof shoppingLists;
   users: typeof users;
 }>;
 

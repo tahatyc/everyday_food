@@ -5,9 +5,15 @@ import {
   StyleSheet,
   FlatList,
   Pressable,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { router } from "expo-router";
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { Id } from "../../convex/_generated/dataModel";
 
 import { Card, Badge, Input, IconButton } from "../../src/components/ui";
 import {
@@ -20,27 +26,48 @@ import {
   getMealTypeColor,
   getDifficultyColor,
 } from "../../src/styles/neobrutalism";
-import { allRecipes, SeedRecipe, searchRecipes } from "../../data/recipes";
+
+// Recipe type from Convex
+type ConvexRecipe = {
+  _id: Id<"recipes">;
+  title: string;
+  description?: string;
+  prepTime?: number;
+  cookTime?: number;
+  servings: number;
+  difficulty?: "easy" | "medium" | "hard";
+  isFavorite?: boolean;
+  tags: string[];
+  ingredients: any[];
+  steps: any[];
+};
 
 // Recipe list item component
-function RecipeListItem({ recipe }: { recipe: SeedRecipe }) {
-  const totalTime = recipe.prepTime + recipe.cookTime;
+function RecipeListItem({ recipe }: { recipe: ConvexRecipe }) {
+  const totalTime = (recipe.prepTime || 0) + (recipe.cookTime || 0);
+
+  // Get meal type from tags
+  const getMealType = () => {
+    const mealTypes = ["breakfast", "lunch", "dinner", "snack"];
+    return recipe.tags?.find((t: string) => mealTypes.includes(t.toLowerCase()))?.toLowerCase() || "dinner";
+  };
+  const mealType = getMealType();
 
   return (
-    <Card style={styles.recipeItem} onPress={() => {}}>
+    <Card style={styles.recipeItem} onPress={() => router.push(`/recipe/${recipe._id}` as any)}>
       {/* Recipe image placeholder */}
       <View
         style={[
           styles.recipeImage,
-          { backgroundColor: getMealTypeColor(recipe.mealType[0]) },
+          { backgroundColor: getMealTypeColor(mealType) },
         ]}
       >
         <Text style={styles.recipeEmoji}>
-          {recipe.mealType[0] === "breakfast"
+          {mealType === "breakfast"
             ? "🍳"
-            : recipe.mealType[0] === "lunch"
+            : mealType === "lunch"
             ? "🥗"
-            : recipe.mealType[0] === "dinner"
+            : mealType === "dinner"
             ? "🍝"
             : "🍪"}
         </Text>
@@ -63,17 +90,19 @@ function RecipeListItem({ recipe }: { recipe: SeedRecipe }) {
             <Ionicons name="people-outline" size={14} color={colors.textSecondary} />
             <Text style={styles.recipeMetaText}>{recipe.servings} servings</Text>
           </View>
-          <Badge
-            variant="default"
-            size="sm"
-            color={getDifficultyColor(recipe.difficulty)}
-          >
-            {recipe.difficulty}
-          </Badge>
+          {recipe.difficulty && (
+            <Badge
+              variant="default"
+              size="sm"
+              color={getDifficultyColor(recipe.difficulty)}
+            >
+              {recipe.difficulty}
+            </Badge>
+          )}
         </View>
 
         <View style={styles.recipeTags}>
-          {recipe.tags.slice(0, 3).map((tag) => (
+          {recipe.tags?.slice(0, 3).map((tag: string) => (
             <Badge key={tag} variant="default" size="sm">
               {tag}
             </Badge>
@@ -82,7 +111,11 @@ function RecipeListItem({ recipe }: { recipe: SeedRecipe }) {
       </View>
 
       <Pressable style={styles.favoriteButton}>
-        <Ionicons name="heart-outline" size={22} color={colors.primary} />
+        <Ionicons
+          name={recipe.isFavorite ? "heart" : "heart-outline"}
+          size={22}
+          color={recipe.isFavorite ? colors.error : colors.primary}
+        />
       </Pressable>
     </Card>
   );
@@ -114,6 +147,14 @@ export default function RecipesScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
 
+  // Fetch recipes from Convex
+  const allRecipes = useQuery(api.recipes.list);
+  const searchResults = useQuery(
+    api.recipes.search,
+    searchQuery ? { query: searchQuery } : "skip"
+  );
+  const favoriteRecipes = useQuery(api.recipes.getFavorites);
+
   const filters = [
     { id: "all", label: "All" },
     { id: "breakfast", label: "Breakfast" },
@@ -122,18 +163,52 @@ export default function RecipesScreen() {
     { id: "favorites", label: "Favorites" },
   ];
 
-  const filteredRecipes = searchQuery
-    ? searchRecipes(searchQuery)
-    : activeFilter === "all"
-    ? allRecipes
-    : allRecipes.filter((r) => r.mealType.includes(activeFilter as any));
+  // Filter recipes based on active filter
+  const getFilteredRecipes = (): ConvexRecipe[] => {
+    if (searchQuery && searchResults) {
+      return searchResults as ConvexRecipe[];
+    }
+
+    if (!allRecipes) return [];
+
+    if (activeFilter === "all") {
+      return allRecipes as ConvexRecipe[];
+    }
+
+    if (activeFilter === "favorites") {
+      return (favoriteRecipes || []) as ConvexRecipe[];
+    }
+
+    // Filter by meal type tag
+    return (allRecipes as ConvexRecipe[]).filter((r) =>
+      r.tags?.some((t: string) => t.toLowerCase() === activeFilter)
+    );
+  };
+
+  const filteredRecipes = getFilteredRecipes();
+
+  // Loading state
+  if (allRecipes === undefined) {
+    return (
+      <SafeAreaView style={styles.container} edges={["top"]}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Recipes</Text>
+          <IconButton icon="add" variant="primary" onPress={() => router.push("/import")} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.cyan} />
+          <Text style={styles.loadingText}>Loading recipes...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Recipes</Text>
-        <IconButton icon="add" variant="primary" onPress={() => {}} />
+        <IconButton icon="add" variant="primary" onPress={() => router.push("/import")} />
       </View>
 
       {/* Search */}
@@ -145,7 +220,13 @@ export default function RecipesScreen() {
           leftIcon="search-outline"
           containerStyle={styles.searchInput}
         />
-        <IconButton icon="options-outline" variant="default" onPress={() => {}} />
+        <IconButton icon="options-outline" variant="default" onPress={() => {
+          Alert.alert(
+            "Filter Recipes",
+            "Use the category chips below to filter recipes by meal type, or search by name.",
+            [{ text: "OK" }]
+          );
+        }} />
       </View>
 
       {/* Filters */}
@@ -173,7 +254,7 @@ export default function RecipesScreen() {
       {/* Recipe list */}
       <FlatList
         data={filteredRecipes}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item._id}
         renderItem={({ item }) => <RecipeListItem recipe={item} />}
         contentContainerStyle={styles.recipeList}
         showsVerticalScrollIndicator={false}
@@ -216,20 +297,25 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   filterContainer: {
-    maxHeight: 50,
+    minHeight: 56,
+    maxHeight: 60,
   },
   filterList: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     gap: spacing.sm,
+    alignItems: "center" as const,
   },
   filterChip: {
     paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.lg,
     borderRadius: borderRadius.full,
     backgroundColor: colors.surface,
     borderWidth: borders.thin,
     borderColor: borders.color,
+    minWidth: 60,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
   },
   filterChipActive: {
     backgroundColor: colors.accent,
@@ -313,6 +399,16 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   emptyStateText: {
+    fontSize: typography.sizes.md,
+    color: colors.textMuted,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.md,
+  },
+  loadingText: {
     fontSize: typography.sizes.md,
     color: colors.textMuted,
   },

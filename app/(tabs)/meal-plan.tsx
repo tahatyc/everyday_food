@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -13,6 +14,9 @@ import Animated, {
   FadeInDown,
   FadeInRight,
 } from "react-native-reanimated";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { Id } from "../../convex/_generated/dataModel";
 
 import {
   colors,
@@ -23,9 +27,23 @@ import {
   typography,
   getMealTypeColor,
 } from "../../src/styles/neobrutalism";
-import { allRecipes, SeedRecipe } from "../../data/recipes";
 
-// Generate week days
+// Recipe type from Convex
+type ConvexRecipe = {
+  _id: Id<"recipes">;
+  title: string;
+  prepTime?: number;
+  cookTime?: number;
+  nutritionPerServing?: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  };
+  tags: string[];
+};
+
+// Generate week days with date strings
 const generateWeekDays = () => {
   const days = [];
   const today = new Date();
@@ -38,25 +56,11 @@ const generateWeekDays = () => {
       id: i.toString(),
       dayName: dayNames[date.getDay()],
       dayNumber: date.getDate(),
+      dateStr: date.toISOString().split("T")[0],
       isToday: i === 0,
     });
   }
   return days;
-};
-
-// Mock meal plan data
-const getMealPlanForDay = (dayIndex: number) => {
-  const breakfastRecipes = allRecipes.filter((r) =>
-    r.mealType.includes("breakfast")
-  );
-  const lunchRecipes = allRecipes.filter((r) => r.mealType.includes("lunch"));
-  const dinnerRecipes = allRecipes.filter((r) => r.mealType.includes("dinner"));
-
-  return {
-    breakfast: dayIndex < breakfastRecipes.length ? breakfastRecipes[dayIndex] : null,
-    lunch: dayIndex < lunchRecipes.length ? lunchRecipes[dayIndex] : null,
-    dinner: dayIndex < dinnerRecipes.length ? dinnerRecipes[dayIndex] : null,
-  };
 };
 
 // Day Selector Item
@@ -111,7 +115,7 @@ function MealSection({
 }: {
   type: "breakfast" | "lunch" | "dinner";
   label: string;
-  recipe: SeedRecipe | null;
+  recipe: ConvexRecipe | null;
   index: number;
 }) {
   const bgColor = getMealTypeColor(type);
@@ -136,7 +140,7 @@ function MealSection({
             styles.mealCard,
             pressed && styles.cardPressed,
           ]}
-          onPress={() => router.push(`/recipe/${recipe.id}` as any)}
+          onPress={() => router.push(`/recipe/${recipe._id}` as any)}
         >
           <View style={styles.mealImageContainer}>
             <View
@@ -157,7 +161,7 @@ function MealSection({
             </Text>
             <View style={styles.mealBadge}>
               <Text style={styles.mealBadgeText}>
-                {recipe.nutrition?.calories || 0} KCAL
+                {recipe.nutritionPerServing?.calories || 0} KCAL
               </Text>
             </View>
             <Pressable style={styles.changeButton}>
@@ -181,7 +185,122 @@ function MealSection({
 export default function MealPlanScreen() {
   const weekDays = generateWeekDays();
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
-  const mealPlan = getMealPlanForDay(selectedDayIndex);
+
+  // Get the selected day's date string
+  const selectedDate = weekDays[selectedDayIndex]?.dateStr || "";
+
+  // Fetch meal plans for the selected date from Convex
+  const mealPlansData = useQuery(
+    api.mealPlans.getByDate,
+    selectedDate ? { date: selectedDate } : "skip"
+  );
+
+  // Fetch all recipes for random generation
+  const allRecipes = useQuery(api.recipes.list);
+  const addMealMutation = useMutation(api.mealPlans.addMeal);
+
+  // Build meal plan object from Convex data
+  const getMealPlan = () => {
+    const plan: {
+      breakfast: ConvexRecipe | null;
+      lunch: ConvexRecipe | null;
+      dinner: ConvexRecipe | null;
+    } = {
+      breakfast: null,
+      lunch: null,
+      dinner: null,
+    };
+
+    if (mealPlansData) {
+      for (const meal of mealPlansData) {
+        if (meal.mealType === "breakfast" && meal.recipe) {
+          plan.breakfast = meal.recipe as ConvexRecipe;
+        } else if (meal.mealType === "lunch" && meal.recipe) {
+          plan.lunch = meal.recipe as ConvexRecipe;
+        } else if (meal.mealType === "dinner" && meal.recipe) {
+          plan.dinner = meal.recipe as ConvexRecipe;
+        }
+      }
+    }
+
+    return plan;
+  };
+
+  const mealPlan = getMealPlan();
+
+  // Handler for generating random plan
+  const handleGenerateRandomPlan = async () => {
+    if (!allRecipes || allRecipes.length === 0) return;
+
+    // Filter recipes by meal type tags
+    const getRecipesByMealType = (mealType: string) => {
+      return allRecipes.filter((r: any) =>
+        r.tags?.some((t: string) => t.toLowerCase() === mealType)
+      );
+    };
+
+    const breakfastRecipes = getRecipesByMealType("breakfast");
+    const lunchRecipes = getRecipesByMealType("lunch");
+    const dinnerRecipes = getRecipesByMealType("dinner");
+
+    // Get random recipe from array
+    const getRandomRecipe = (recipes: any[]) => {
+      if (recipes.length === 0) return null;
+      return recipes[Math.floor(Math.random() * recipes.length)];
+    };
+
+    const randomBreakfast = getRandomRecipe(breakfastRecipes);
+    const randomLunch = getRandomRecipe(lunchRecipes);
+    const randomDinner = getRandomRecipe(dinnerRecipes);
+
+    // Add meals to Convex
+    try {
+      if (randomBreakfast) {
+        await addMealMutation({
+          date: selectedDate,
+          mealType: "breakfast",
+          recipeId: randomBreakfast._id,
+        });
+      }
+      if (randomLunch) {
+        await addMealMutation({
+          date: selectedDate,
+          mealType: "lunch",
+          recipeId: randomLunch._id,
+        });
+      }
+      if (randomDinner) {
+        await addMealMutation({
+          date: selectedDate,
+          mealType: "dinner",
+          recipeId: randomDinner._id,
+        });
+      }
+    } catch (error) {
+      console.error("Failed to generate random plan:", error);
+    }
+  };
+
+  // Loading state
+  if (mealPlansData === undefined) {
+    return (
+      <SafeAreaView style={styles.container} edges={["top"]}>
+        <View style={styles.header}>
+          <Pressable style={styles.headerButton} onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
+          </Pressable>
+          <Text style={styles.headerTitle}>WEEKLY PLANNER</Text>
+          <Pressable style={styles.headerButton}>
+            <Ionicons name="calendar-outline" size={24} color={colors.text} />
+          </Pressable>
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.cyan} />
+          <Text style={styles.loadingText}>Loading meal plan...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -252,6 +371,7 @@ export default function MealPlanScreen() {
               styles.generateButton,
               pressed && styles.buttonPressed,
             ]}
+            onPress={handleGenerateRandomPlan}
           >
             <Ionicons name="dice-outline" size={20} color={colors.text} />
             <Text style={styles.generateButtonText}>GENERATE RANDOM PLAN</Text>
@@ -531,5 +651,15 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 120,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.md,
+  },
+  loadingText: {
+    fontSize: typography.sizes.md,
+    color: colors.textMuted,
   },
 });

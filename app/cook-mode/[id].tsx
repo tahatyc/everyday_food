@@ -6,6 +6,7 @@ import {
   ScrollView,
   Pressable,
   Dimensions,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -18,6 +19,9 @@ import Animated, {
   SlideInRight,
   SlideOutLeft,
 } from "react-native-reanimated";
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { Id } from "../../convex/_generated/dataModel";
 
 import {
   colors,
@@ -28,15 +32,31 @@ import {
   typography,
   getMealTypeColor,
 } from "../../src/styles/neobrutalism";
-import { getRecipeById } from "../../data/recipes";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 export default function CookModeScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const recipe = getRecipeById(id || "");
   const [currentStep, setCurrentStep] = useState(0);
   const [screenAlwaysOn, setScreenAlwaysOn] = useState(true);
+
+  // Fetch recipe from Convex
+  const recipe = useQuery(
+    api.recipes.getById,
+    id ? { id: id as Id<"recipes"> } : "skip"
+  );
+
+  // Loading state
+  if (recipe === undefined) {
+    return (
+      <SafeAreaView style={styles.container} edges={["top"]}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.cyan} />
+          <Text style={styles.loadingText}>Loading recipe...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (!recipe) {
     return (
@@ -152,7 +172,9 @@ export default function CookModeScreen() {
           <View
             style={[
               styles.stepImage,
-              { backgroundColor: getMealTypeColor(recipe.mealType[0]) },
+              { backgroundColor: getMealTypeColor(
+                recipe.tags?.find(t => ["breakfast", "lunch", "dinner", "snack"].includes(t.toLowerCase()))?.toLowerCase() || "dinner"
+              ) },
             ]}
           >
             <Text style={styles.stepImageEmoji}>
@@ -529,5 +551,15 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.md,
     fontWeight: typography.weights.bold,
     color: colors.text,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.md,
+  },
+  loadingText: {
+    fontSize: typography.sizes.md,
+    color: colors.textMuted,
   },
 });

@@ -42,6 +42,59 @@ export const getOrCreateProfile = mutation({
   },
 });
 
+// Get user stats (recipes, favorites, cookbooks count)
+export const getStats = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      // Fallback to demo user for development
+      const demoUser = await ctx.db.query("users").first();
+      if (!demoUser) {
+        return { totalRecipes: 0, totalFavorites: 0, totalCookbooks: 0, totalMealsCooked: 0 };
+      }
+
+      const recipes = await ctx.db
+        .query("recipes")
+        .withIndex("by_user", (q) => q.eq("userId", demoUser._id))
+        .collect();
+
+      const cookbooks = await ctx.db
+        .query("cookbooks")
+        .withIndex("by_user", (q) => q.eq("userId", demoUser._id))
+        .collect();
+
+      const totalMealsCooked = recipes.reduce((sum, r) => sum + (r.cookCount || 0), 0);
+
+      return {
+        totalRecipes: recipes.length,
+        totalFavorites: recipes.filter((r) => r.isFavorite).length,
+        totalCookbooks: cookbooks.length,
+        totalMealsCooked,
+      };
+    }
+
+    const recipes = await ctx.db
+      .query("recipes")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    const cookbooks = await ctx.db
+      .query("cookbooks")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    const totalMealsCooked = recipes.reduce((sum, r) => sum + (r.cookCount || 0), 0);
+
+    return {
+      totalRecipes: recipes.length,
+      totalFavorites: recipes.filter((r) => r.isFavorite).length,
+      totalCookbooks: cookbooks.length,
+      totalMealsCooked,
+    };
+  },
+});
+
 // Update user profile
 export const updateProfile = mutation({
   args: {

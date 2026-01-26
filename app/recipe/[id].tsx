@@ -1,29 +1,30 @@
-import React, { useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useMutation, useQuery } from "convex/react";
 import { router, useLocalSearchParams } from "expo-router";
-import Animated, {
-  FadeInDown,
-  FadeInUp,
-} from "react-native-reanimated";
+import React, { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { api } from "../../convex/_generated/api";
+import { Id } from "../../convex/_generated/dataModel";
 
 import {
-  colors,
-  spacing,
-  borders,
   borderRadius,
-  shadows,
-  typography,
+  borders,
+  colors,
   getMealTypeColor,
+  shadows,
+  spacing,
+  typography,
 } from "../../src/styles/neobrutalism";
-import { getRecipeById, SeedRecipe, SeedIngredient } from "../../data/recipes";
 
 // Nutrition Card Component
 function NutritionCard({
@@ -53,6 +54,18 @@ function NutritionCard({
   );
 }
 
+// Ingredient type from Convex
+type Ingredient = {
+  _id: Id<"ingredients">;
+  name: string;
+  amount?: number;
+  unit?: string;
+  preparation?: string;
+  isOptional?: boolean;
+  group?: string;
+  sortOrder: number;
+};
+
 // Ingredient Item Component
 function IngredientItem({
   ingredient,
@@ -60,15 +73,13 @@ function IngredientItem({
   onToggle,
   index,
 }: {
-  ingredient: SeedIngredient;
+  ingredient: Ingredient;
   checked: boolean;
   onToggle: () => void;
   index: number;
 }) {
   return (
-    <Animated.View
-      entering={FadeInDown.delay(500 + index * 30).duration(300)}
-    >
+    <Animated.View entering={FadeInDown.delay(500 + index * 30).duration(300)}>
       <Pressable
         style={[styles.ingredientItem, checked && styles.ingredientItemChecked]}
         onPress={onToggle}
@@ -78,7 +89,12 @@ function IngredientItem({
             <Ionicons name="checkmark" size={14} color={colors.textLight} />
           )}
         </View>
-        <Text style={[styles.ingredientText, checked && styles.ingredientTextChecked]}>
+        <Text
+          style={[
+            styles.ingredientText,
+            checked && styles.ingredientTextChecked,
+          ]}
+        >
           {ingredient.amount} {ingredient.unit} {ingredient.name}
           {ingredient.preparation ? `, ${ingredient.preparation}` : ""}
         </Text>
@@ -89,9 +105,41 @@ function IngredientItem({
 
 export default function RecipeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const recipe = getRecipeById(id || "");
-  const [checkedIngredients, setCheckedIngredients] = useState<Set<number>>(new Set());
+  const [checkedIngredients, setCheckedIngredients] = useState<Set<number>>(
+    new Set(),
+  );
+
+  // Fetch recipe from Convex
+  const recipe = useQuery(
+    api.recipes.getById,
+    id ? { id: id as Id<"recipes"> } : "skip",
+  );
+
+  // Convex mutations
+  const toggleFavoriteMutation = useMutation(api.recipes.toggleFavorite);
+  const addToListMutation = useMutation(api.shoppingLists.addRecipeIngredients);
+
+  // Get favorite state from recipe
   const [isFavorite, setIsFavorite] = useState(false);
+
+  // Update favorite state when recipe loads
+  useEffect(() => {
+    if (recipe) {
+      setIsFavorite(recipe.isFavorite || false);
+    }
+  }, [recipe]);
+
+  // Loading state
+  if (recipe === undefined) {
+    return (
+      <SafeAreaView style={styles.container} edges={["top"]}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.cyan} />
+          <Text style={styles.loadingText}>Loading recipe...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (!recipe) {
     return (
@@ -121,24 +169,80 @@ export default function RecipeDetailScreen() {
     });
   };
 
+  const handleToggleFavorite = async () => {
+    try {
+      const result = await toggleFavoriteMutation({ recipeId: recipe._id });
+      setIsFavorite(result.isFavorite);
+    } catch (error) {
+      console.error("Failed to toggle favorite:", error);
+      Alert.alert("Error", "Failed to update favorite status");
+    }
+  };
+
+  const handleAddToList = async () => {
+    try {
+      const result = await addToListMutation({ recipeId: recipe._id });
+      Alert.alert(
+        "Added to List",
+        `${result.itemsAdded} ingredients added to your shopping list`,
+        [{ text: "OK" }],
+      );
+    } catch (error) {
+      console.error("Failed to add to list:", error);
+      Alert.alert("Error", "Failed to add ingredients to list");
+    }
+  };
+
+  // Get nutrition data
+  const nutrition = recipe.nutritionPerServing;
+
   const nutritionData = [
-    { label: "CALORIES", value: recipe.nutrition?.calories || 0, unit: "", color: colors.surface },
-    { label: "CARBS", value: recipe.nutrition?.carbs || 0, unit: "g", color: colors.magenta },
-    { label: "PROTEIN", value: recipe.nutrition?.protein || 0, unit: "g", color: colors.primary },
-    { label: "FATS", value: recipe.nutrition?.fat || 0, unit: "g", color: colors.secondary },
+    {
+      label: "CALORIES",
+      value: nutrition?.calories || 0,
+      unit: "",
+      color: colors.surface,
+    },
+    {
+      label: "CARBS",
+      value: nutrition?.carbs || 0,
+      unit: "g",
+      color: colors.magenta,
+    },
+    {
+      label: "PROTEIN",
+      value: nutrition?.protein || 0,
+      unit: "g",
+      color: colors.primary,
+    },
+    {
+      label: "FATS",
+      value: nutrition?.fat || 0,
+      unit: "g",
+      color: colors.secondary,
+    },
   ];
+
+  // Get meal type for color
+  const getMealType = (): string => {
+    if (recipe.tags) {
+      const mealTypes = ["breakfast", "lunch", "dinner", "snack"];
+      return (
+        recipe.tags
+          .find((t) => mealTypes.includes(t.toLowerCase()))
+          ?.toLowerCase() || "dinner"
+      );
+    }
+    return "dinner";
+  };
+
+  const mealType = getMealType();
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       {/* Header */}
-      <Animated.View
-        style={styles.header}
-        entering={FadeInDown.duration(300)}
-      >
-        <Pressable
-          style={styles.headerButton}
-          onPress={() => router.back()}
-        >
+      <Animated.View style={styles.header} entering={FadeInDown.duration(300)}>
+        <Pressable style={styles.headerButton} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </Pressable>
 
@@ -146,8 +250,11 @@ export default function RecipeDetailScreen() {
 
         <View style={styles.headerActions}>
           <Pressable
-            style={[styles.headerButton, isFavorite && styles.headerButtonActive]}
-            onPress={() => setIsFavorite(!isFavorite)}
+            style={[
+              styles.headerButton,
+              isFavorite && styles.headerButtonActive,
+            ]}
+            onPress={handleToggleFavorite}
           >
             <Ionicons
               name={isFavorite ? "heart" : "heart-outline"}
@@ -168,9 +275,7 @@ export default function RecipeDetailScreen() {
       >
         {/* Source Badge */}
         {recipe.sourceUrl && (
-          <Animated.View
-            entering={FadeInDown.delay(100).duration(300)}
-          >
+          <Animated.View entering={FadeInDown.delay(100).duration(300)}>
             <View style={styles.sourceBadge}>
               <Text style={styles.sourceBadgeText}>INSTAGRAM IMPORT</Text>
             </View>
@@ -193,20 +298,48 @@ export default function RecipeDetailScreen() {
           <View
             style={[
               styles.imagePlaceholder,
-              { backgroundColor: getMealTypeColor(recipe.mealType[0]) },
+              { backgroundColor: getMealTypeColor(mealType) },
             ]}
           >
             <Text style={styles.imageEmoji}>
-              {recipe.mealType[0] === "breakfast"
+              {mealType === "breakfast"
                 ? "🍳"
-                : recipe.mealType[0] === "lunch"
+                : mealType === "lunch"
                 ? "🥗"
-                : recipe.mealType[0] === "dinner"
+                : mealType === "dinner"
                 ? "🍝"
                 : "🍪"}
             </Text>
           </View>
         </Animated.View>
+
+        {/* Recipe Info */}
+        <View style={styles.infoSection}>
+          <View style={styles.infoItem}>
+            <Ionicons
+              name="time-outline"
+              size={20}
+              color={colors.textSecondary}
+            />
+            <Text style={styles.infoLabel}>Prep: {recipe.prepTime} min</Text>
+          </View>
+          <View style={styles.infoItem}>
+            <Ionicons
+              name="flame-outline"
+              size={20}
+              color={colors.textSecondary}
+            />
+            <Text style={styles.infoLabel}>Cook: {recipe.cookTime} min</Text>
+          </View>
+          <View style={styles.infoItem}>
+            <Ionicons
+              name="people-outline"
+              size={20}
+              color={colors.textSecondary}
+            />
+            <Text style={styles.infoLabel}>{recipe.servings} servings</Text>
+          </View>
+        </View>
 
         {/* Nutrition Grid */}
         <View style={styles.nutritionGrid}>
@@ -227,16 +360,12 @@ export default function RecipeDetailScreen() {
           style={styles.actionRow}
           entering={FadeInDown.delay(400).duration(400)}
         >
-          <Pressable style={styles.addToListButton}>
-            <Ionicons name="list-outline" size={20} color={colors.text} />
-          </Pressable>
-
           <Pressable
             style={({ pressed }) => [
               styles.startCookingButton,
               pressed && styles.buttonPressed,
             ]}
-            onPress={() => router.push(`/cook-mode/${recipe.id}` as any)}
+            onPress={() => router.push(`/cook-mode/${recipe._id}` as any)}
           >
             <Text style={styles.startCookingText}>START COOKING</Text>
             <Ionicons name="arrow-forward" size={20} color={colors.text} />
@@ -261,22 +390,6 @@ export default function RecipeDetailScreen() {
               index={index}
             />
           ))}
-        </View>
-
-        {/* Recipe Info */}
-        <View style={styles.infoSection}>
-          <View style={styles.infoItem}>
-            <Ionicons name="time-outline" size={20} color={colors.textSecondary} />
-            <Text style={styles.infoLabel}>Prep: {recipe.prepTime} min</Text>
-          </View>
-          <View style={styles.infoItem}>
-            <Ionicons name="flame-outline" size={20} color={colors.textSecondary} />
-            <Text style={styles.infoLabel}>Cook: {recipe.cookTime} min</Text>
-          </View>
-          <View style={styles.infoItem}>
-            <Ionicons name="people-outline" size={20} color={colors.textSecondary} />
-            <Text style={styles.infoLabel}>{recipe.servings} servings</Text>
-          </View>
         </View>
 
         {/* Bottom Spacing */}
@@ -503,6 +616,7 @@ const styles = StyleSheet.create({
     borderColor: borders.color,
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
+    marginBottom: spacing.md,
     ...shadows.sm,
   },
   infoItem: {
@@ -540,5 +654,15 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.md,
     fontWeight: typography.weights.bold,
     color: colors.text,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.md,
+  },
+  loadingText: {
+    fontSize: typography.sizes.md,
+    color: colors.textMuted,
   },
 });

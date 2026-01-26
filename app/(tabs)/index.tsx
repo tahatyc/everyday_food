@@ -5,8 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  TextInput,
-  Image,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -15,6 +14,9 @@ import Animated, {
   FadeInDown,
   FadeInRight,
 } from "react-native-reanimated";
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { Id } from "../../convex/_generated/dataModel";
 
 import {
   colors,
@@ -25,7 +27,32 @@ import {
   typography,
   getMealTypeColor,
 } from "../../src/styles/neobrutalism";
-import { allRecipes, SeedRecipe } from "../../data/recipes";
+
+// Recipe type from Convex
+type ConvexRecipe = {
+  _id: Id<"recipes">;
+  title: string;
+  description?: string;
+  prepTime?: number;
+  cookTime?: number;
+  servings: number;
+  tags: string[];
+  nutritionPerServing?: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  };
+};
+
+// Meal type for today's meals
+type TodayMeal = {
+  id: string;
+  type: string;
+  label: string;
+  time: string;
+  recipe: ConvexRecipe | null;
+};
 
 // Get current date info
 const getCurrentDateInfo = () => {
@@ -34,40 +61,16 @@ const getCurrentDateInfo = () => {
   return {
     month: months[now.getMonth()],
     day: now.getDate(),
+    dateStr: now.toISOString().split("T")[0],
   };
 };
-
-// Mock meal data for today
-const todaysMeals = [
-  {
-    id: "1",
-    type: "breakfast",
-    label: "BREAKFAST",
-    time: "08:30 AM",
-    recipe: allRecipes.find(r => r.mealType.includes("breakfast")),
-  },
-  {
-    id: "2",
-    type: "lunch",
-    label: "LUNCH",
-    time: "01:00 PM",
-    recipe: allRecipes.find(r => r.mealType.includes("lunch")),
-  },
-  {
-    id: "3",
-    type: "dinner",
-    label: "DINNER",
-    time: "07:30 PM",
-    recipe: allRecipes.find(r => r.mealType.includes("dinner")),
-  },
-];
 
 // Meal Card Component
 function MealCard({
   meal,
   index,
 }: {
-  meal: typeof todaysMeals[0];
+  meal: TodayMeal;
   index: number;
 }) {
   const bgColor = getMealTypeColor(meal.type);
@@ -83,7 +86,7 @@ function MealCard({
           { backgroundColor: bgColor },
           pressed && styles.cardPressed,
         ]}
-        onPress={() => recipe && router.push(`/recipe/${recipe.id}` as any)}
+        onPress={() => recipe && router.push(`/recipe/${recipe._id}` as any)}
       >
         {/* Recipe Image */}
         <View style={styles.mealImageContainer}>
@@ -115,7 +118,7 @@ function MealCard({
                 {recipe.title}
               </Text>
               <Text style={styles.mealMeta}>
-                {recipe.prepTime + recipe.cookTime} mins • {recipe.nutrition?.calories || 0} kcal
+                {(recipe.prepTime || 0) + (recipe.cookTime || 0)} mins • {recipe.nutritionPerServing?.calories || 0} kcal
               </Text>
             </>
           ) : (
@@ -137,10 +140,17 @@ function RecipeCard({
   recipe,
   index,
 }: {
-  recipe: SeedRecipe;
+  recipe: ConvexRecipe;
   index: number;
 }) {
-  const totalTime = recipe.prepTime + recipe.cookTime;
+  const totalTime = (recipe.prepTime || 0) + (recipe.cookTime || 0);
+
+  // Get meal type from tags
+  const getMealType = () => {
+    const mealTypes = ["breakfast", "lunch", "dinner", "snack"];
+    return recipe.tags?.find((t: string) => mealTypes.includes(t.toLowerCase()))?.toLowerCase() || "dinner";
+  };
+  const mealType = getMealType();
 
   return (
     <Animated.View
@@ -151,21 +161,21 @@ function RecipeCard({
           styles.recipeCard,
           pressed && styles.cardPressed,
         ]}
-        onPress={() => router.push(`/recipe/${recipe.id}` as any)}
+        onPress={() => router.push(`/recipe/${recipe._id}` as any)}
       >
         {/* Recipe Image */}
         <View
           style={[
             styles.recipeImage,
-            { backgroundColor: getMealTypeColor(recipe.mealType[0]) },
+            { backgroundColor: getMealTypeColor(mealType) },
           ]}
         >
           <Text style={styles.recipeEmoji}>
-            {recipe.mealType[0] === "breakfast"
+            {mealType === "breakfast"
               ? "🍳"
-              : recipe.mealType[0] === "lunch"
+              : mealType === "lunch"
               ? "🥗"
-              : recipe.mealType[0] === "dinner"
+              : mealType === "dinner"
               ? "🍝"
               : "🍪"}
           </Text>
@@ -213,7 +223,47 @@ function SectionHeader({
 
 export default function HomeScreen() {
   const dateInfo = getCurrentDateInfo();
-  const recentRecipes = allRecipes.slice(0, 6);
+
+  // Fetch data from Convex
+  const allRecipes = useQuery(api.recipes.list, { limit: 6 });
+  const todaysMealPlans = useQuery(api.mealPlans.getByDate, { date: dateInfo.dateStr });
+
+  // Build today's meals from meal plans
+  const buildTodaysMeals = (): TodayMeal[] => {
+    const mealTypes = [
+      { type: "breakfast", label: "BREAKFAST", time: "08:30 AM" },
+      { type: "lunch", label: "LUNCH", time: "01:00 PM" },
+      { type: "dinner", label: "DINNER", time: "07:30 PM" },
+    ];
+
+    return mealTypes.map((meal, index) => {
+      const plannedMeal = todaysMealPlans?.find(
+        (m: any) => m.mealType === meal.type
+      );
+      return {
+        id: `${index}`,
+        type: meal.type,
+        label: meal.label,
+        time: meal.time,
+        recipe: plannedMeal?.recipe || null,
+      };
+    });
+  };
+
+  const todaysMeals = buildTodaysMeals();
+  const recentRecipes = (allRecipes || []) as ConvexRecipe[];
+
+  // Loading state
+  if (allRecipes === undefined) {
+    return (
+      <SafeAreaView style={styles.container} edges={["top"]}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.cyan} />
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -295,7 +345,7 @@ export default function HomeScreen() {
           style={styles.recipesScroll}
         >
           {recentRecipes.map((recipe, index) => (
-            <RecipeCard key={recipe.id} recipe={recipe} index={index} />
+            <RecipeCard key={recipe._id} recipe={recipe} index={index} />
           ))}
         </ScrollView>
 
@@ -573,5 +623,15 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 120,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.md,
+  },
+  loadingText: {
+    fontSize: typography.sizes.md,
+    color: colors.textMuted,
   },
 });

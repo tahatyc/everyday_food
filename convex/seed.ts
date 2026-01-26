@@ -1,5 +1,4 @@
-import { mutation, internalMutation } from "./_generated/server";
-import { v } from "convex/values";
+import { mutation } from "./_generated/server";
 
 // Seed data for recipes
 const seedRecipes = [
@@ -12,6 +11,7 @@ const seedRecipes = [
     servings: 4,
     difficulty: "easy" as const,
     cuisine: "American",
+    mealType: ["breakfast"],
     sourceType: "seed" as const,
     ingredients: [
       { name: "all-purpose flour", amount: 2, unit: "cups", preparation: "sifted", isOptional: false, group: null },
@@ -43,6 +43,7 @@ const seedRecipes = [
     servings: 2,
     difficulty: "easy" as const,
     cuisine: "American",
+    mealType: ["breakfast", "lunch"],
     sourceType: "seed" as const,
     ingredients: [
       { name: "sourdough bread", amount: 2, unit: "slices", preparation: null, isOptional: false, group: null },
@@ -70,6 +71,7 @@ const seedRecipes = [
     servings: 4,
     difficulty: "easy" as const,
     cuisine: "American",
+    mealType: ["lunch", "dinner"],
     sourceType: "seed" as const,
     ingredients: [
       { name: "romaine lettuce", amount: 2, unit: "heads", preparation: "chopped", isOptional: false, group: "Salad" },
@@ -99,6 +101,7 @@ const seedRecipes = [
     servings: 6,
     difficulty: "medium" as const,
     cuisine: "Italian",
+    mealType: ["dinner"],
     sourceType: "seed" as const,
     ingredients: [
       { name: "spaghetti", amount: 1, unit: "lb", preparation: null, isOptional: false, group: "Pasta" },
@@ -132,6 +135,7 @@ const seedRecipes = [
     servings: 4,
     difficulty: "easy" as const,
     cuisine: "Asian",
+    mealType: ["dinner", "lunch"],
     sourceType: "seed" as const,
     ingredients: [
       { name: "broccoli florets", amount: 2, unit: "cups", preparation: null, isOptional: false, group: "Vegetables" },
@@ -163,6 +167,7 @@ const seedRecipes = [
     servings: 24,
     difficulty: "easy" as const,
     cuisine: "American",
+    mealType: ["snack"],
     sourceType: "seed" as const,
     ingredients: [
       { name: "all-purpose flour", amount: 2.25, unit: "cups", preparation: null, isOptional: false, group: "Dry" },
@@ -208,6 +213,8 @@ const seedTags = [
 const seedCookbooks = [
   { name: "Favorites", description: "My favorite recipes", color: "#FF6B6B", isDefault: true },
   { name: "Quick & Easy", description: "30 minutes or less", color: "#4ECDC4", isDefault: false },
+  { name: "Italian Favorites", description: "Classic Italian dishes", color: "#E8D5E0", isDefault: false },
+  { name: "Healthy Eating", description: "Nutritious and delicious", color: "#D4E8D5", isDefault: false },
   { name: "Meal Prep", description: "Great for weekly meal prep", color: "#7BC950", isDefault: false },
   { name: "Special Occasions", description: "For dinner parties and holidays", color: "#FFE66D", isDefault: false },
 ];
@@ -261,7 +268,7 @@ export const seedDatabase = mutation({
     console.log("Created/found tags:", Object.keys(tagMap).length);
 
     // Create cookbooks
-    const cookbookIds: any[] = [];
+    const cookbookMap: Record<string, any> = {};
     for (let i = 0; i < seedCookbooks.length; i++) {
       const cookbook = seedCookbooks[i];
       const existingCookbook = await ctx.db
@@ -281,12 +288,12 @@ export const seedDatabase = mutation({
           createdAt: now,
           updatedAt: now,
         });
-        cookbookIds.push(cookbookId);
+        cookbookMap[cookbook.name] = cookbookId;
       } else {
-        cookbookIds.push(existingCookbook._id);
+        cookbookMap[cookbook.name] = existingCookbook._id;
       }
     }
-    console.log("Created/found cookbooks:", cookbookIds.length);
+    console.log("Created/found cookbooks:", Object.keys(cookbookMap).length);
 
     // Create recipes
     let recipesCreated = 0;
@@ -350,22 +357,53 @@ export const seedDatabase = mutation({
         });
       }
 
-      // Add tags to recipe
-      for (const tagName of recipe.tags) {
+      // Add tags to recipe - include mealType tags
+      const allTags = [...(recipe.mealType || []), ...recipe.tags];
+      for (const tagName of allTags) {
         const tagId = tagMap[tagName.toLowerCase()];
         if (tagId) {
-          await ctx.db.insert("recipeTags", {
-            recipeId,
-            tagId,
-          });
+          // Check if already linked
+          const existingLink = await ctx.db
+            .query("recipeTags")
+            .withIndex("by_recipe_and_tag", (q) =>
+              q.eq("recipeId", recipeId).eq("tagId", tagId)
+            )
+            .first();
+          if (!existingLink) {
+            await ctx.db.insert("recipeTags", {
+              recipeId,
+              tagId,
+            });
+          }
         }
       }
 
-      // Add to a random cookbook
-      if (cookbookIds.length > 0) {
-        const randomCookbookId = cookbookIds[Math.floor(Math.random() * cookbookIds.length)];
+      // Add to cookbooks based on criteria
+      const totalTime = recipe.prepTime + recipe.cookTime;
+
+      // Quick & Easy: under 30 min
+      if (totalTime <= 30 && cookbookMap["Quick & Easy"]) {
         await ctx.db.insert("cookbookRecipes", {
-          cookbookId: randomCookbookId,
+          cookbookId: cookbookMap["Quick & Easy"],
+          recipeId,
+          addedAt: now,
+        });
+      }
+
+      // Italian Favorites
+      if (recipe.cuisine === "Italian" && cookbookMap["Italian Favorites"]) {
+        await ctx.db.insert("cookbookRecipes", {
+          cookbookId: cookbookMap["Italian Favorites"],
+          recipeId,
+          addedAt: now,
+        });
+      }
+
+      // Healthy Eating: vegetarian/vegan/healthy tags
+      const healthyTags = ["vegetarian", "vegan", "healthy"];
+      if (recipe.tags.some(t => healthyTags.includes(t.toLowerCase())) && cookbookMap["Healthy Eating"]) {
+        await ctx.db.insert("cookbookRecipes", {
+          cookbookId: cookbookMap["Healthy Eating"],
           recipeId,
           addedAt: now,
         });
@@ -463,9 +501,33 @@ export const seedDatabase = mutation({
       }
     }
 
+    // Add favorites to Favorites cookbook
+    const favoriteRecipes = await ctx.db
+      .query("recipes")
+      .withIndex("by_user_and_favorite", (q) => q.eq("userId", userId).eq("isFavorite", true))
+      .collect();
+
+    for (const recipe of favoriteRecipes) {
+      if (cookbookMap["Favorites"]) {
+        const existing = await ctx.db
+          .query("cookbookRecipes")
+          .withIndex("by_cookbook_and_recipe", (q) =>
+            q.eq("cookbookId", cookbookMap["Favorites"]).eq("recipeId", recipe._id)
+          )
+          .first();
+        if (!existing) {
+          await ctx.db.insert("cookbookRecipes", {
+            cookbookId: cookbookMap["Favorites"],
+            recipeId: recipe._id,
+            addedAt: now,
+          });
+        }
+      }
+    }
+
     return {
       success: true,
-      message: `Seeded database with ${recipesCreated} recipes, ${Object.keys(tagMap).length} tags, ${cookbookIds.length} cookbooks`,
+      message: `Seeded database with ${recipesCreated} recipes, ${Object.keys(tagMap).length} tags, ${Object.keys(cookbookMap).length} cookbooks`,
       userId,
     };
   },

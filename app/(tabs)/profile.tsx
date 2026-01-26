@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -12,6 +13,8 @@ import { router } from "expo-router";
 import Animated, {
   FadeInDown,
 } from "react-native-reanimated";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 
 import {
   colors,
@@ -100,11 +103,36 @@ function SocialButton({
   );
 }
 
+// Cookbook colors for variety
+const cookbookColors = [
+  colors.primaryLight,
+  colors.secondary,
+  colors.cyan,
+  colors.accent,
+];
+
 export default function ProfileScreen() {
-  const cookbooks = [
-    { id: "1", title: "ITALIAN FAVORITES", recipeCount: 12, color: colors.primaryLight },
-    { id: "2", title: "QUICK VEGAN", recipeCount: 8, color: colors.secondary },
-  ];
+  const user = useQuery(api.users.current);
+  const cookbooks = useQuery(api.cookbooks.list);
+  const stats = useQuery(api.users.getStats);
+
+  const isLoading = user === undefined || cookbooks === undefined || stats === undefined;
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container} edges={["top"]}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Loading profile...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const displayName = user?.name || "CHEF";
+  const displayBio = user?.dietaryPreferences?.length
+    ? `Preferences: ${user.dietaryPreferences.join(", ")}`
+    : "Home chef & flavor seeker.\nExploring new recipes every day.";
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -138,11 +166,9 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          <Text style={styles.userName}>ALEX CULINARIA</Text>
+          <Text style={styles.userName}>{displayName.toUpperCase()}</Text>
           <Text style={styles.userBio}>
-            Home chef & flavor seeker.{"\n"}
-            Exploring the art of Italian pasta{"\n"}
-            & vegan treats. 🍝
+            {displayBio}
           </Text>
 
           {/* Edit Profile Button */}
@@ -167,16 +193,23 @@ export default function ProfileScreen() {
         </Animated.View>
 
         <View style={styles.cookbooksGrid}>
-          {cookbooks.map((cookbook, index) => (
-            <CookbookCard
-              key={cookbook.id}
-              title={cookbook.title}
-              recipeCount={cookbook.recipeCount}
-              color={cookbook.color}
-              index={index}
-              onPress={() => router.push(`/cookbook/${cookbook.id}` as any)}
-            />
-          ))}
+          {cookbooks && cookbooks.length > 0 ? (
+            cookbooks.slice(0, 2).map((cookbook, index) => (
+              <CookbookCard
+                key={cookbook._id}
+                title={cookbook.name.toUpperCase()}
+                recipeCount={cookbook.recipeCount}
+                color={cookbook.color || cookbookColors[index % cookbookColors.length]}
+                index={index}
+                onPress={() => router.push(`/cookbook/${cookbook._id}` as any)}
+              />
+            ))
+          ) : (
+            <View style={styles.emptyCookbooks}>
+              <Text style={styles.emptyCookbooksText}>No cookbooks yet</Text>
+              <Text style={styles.emptyCookbooksSubtext}>Create your first cookbook!</Text>
+            </View>
+          )}
         </View>
 
         {/* Stats Section */}
@@ -184,9 +217,23 @@ export default function ProfileScreen() {
           style={styles.statsContainer}
           entering={FadeInDown.delay(500).duration(400)}
         >
-          <StatsItem icon="heart" value="1.2k" label="LIKES" />
+          <StatsItem
+            icon="restaurant"
+            value={stats?.totalRecipes?.toString() || "0"}
+            label="RECIPES"
+          />
           <View style={styles.statsDivider} />
-          <StatsItem icon="people" value="450" label="FOLLOWERS" />
+          <StatsItem
+            icon="heart"
+            value={stats?.totalFavorites?.toString() || "0"}
+            label="FAVORITES"
+          />
+          <View style={styles.statsDivider} />
+          <StatsItem
+            icon="flame"
+            value={stats?.totalMealsCooked?.toString() || "0"}
+            label="COOKED"
+          />
         </Animated.View>
 
         {/* Connect Section */}
@@ -255,6 +302,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: spacing.md,
+  },
+  loadingText: {
+    fontSize: typography.sizes.md,
+    color: colors.textSecondary,
+    fontWeight: typography.weights.semibold,
   },
   header: {
     flexDirection: "row",
@@ -393,6 +451,28 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.black,
     fontStyle: "italic",
     color: colors.text,
+  },
+  emptyCookbooks: {
+    flex: 1,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: borders.regular,
+    borderColor: borders.color,
+    borderRadius: borderRadius.xl,
+    padding: spacing.xl,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 140,
+    ...shadows.sm,
+  },
+  emptyCookbooksText: {
+    fontSize: typography.sizes.md,
+    fontWeight: typography.weights.bold,
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  emptyCookbooksSubtext: {
+    fontSize: typography.sizes.sm,
+    color: colors.textSecondary,
   },
   statsContainer: {
     flexDirection: "row",

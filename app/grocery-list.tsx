@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   Pressable,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -14,6 +15,9 @@ import Animated, {
   FadeInRight,
   Layout,
 } from "react-native-reanimated";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "../convex/_generated/api";
+import { Id } from "../convex/_generated/dataModel";
 
 import {
   colors,
@@ -24,31 +28,14 @@ import {
   typography,
 } from "../src/styles/neobrutalism";
 
-// Mock grocery items
-const initialGroceryItems = {
-  produce: [
-    { id: "1", name: "Apples", quantity: "2 Qty", aisle: "AISLE 1", recipe: "Fruit Salad", checked: false },
-    { id: "2", name: "Spinach", quantity: "1 Bag", aisle: "AISLE 1", recipe: "Green Smoothie", checked: false },
-    { id: "3", name: "Tomatoes", quantity: "4 Qty", aisle: "AISLE 1", recipe: "Pasta Sauce", checked: false },
-  ],
-  dairy: [
-    { id: "4", name: "Whole Milk", quantity: "1 Ltr", aisle: "AISLE 4", recipe: "Carbonara", checked: true },
-    { id: "5", name: "Parmesan", quantity: "200g", aisle: "AISLE 4", recipe: "Carbonara", checked: false },
-    { id: "6", name: "Eggs", quantity: "12 Qty", aisle: "AISLE 4", recipe: "Breakfast", checked: false },
-  ],
-  pantry: [
-    { id: "7", name: "Pasta", quantity: "500g", aisle: "AISLE 3", recipe: "Carbonara", checked: false },
-    { id: "8", name: "Olive Oil", quantity: "1 Bottle", aisle: "AISLE 3", recipe: "Various", checked: false },
-  ],
-};
-
 type GroceryItem = {
-  id: string;
+  _id: Id<"shoppingItems">;
   name: string;
-  quantity: string;
-  aisle: string;
-  recipe: string;
-  checked: boolean;
+  amount?: number | null;
+  unit?: string | null;
+  aisle?: string | null;
+  recipeName?: string | null;
+  isChecked: boolean;
 };
 
 // Category Section Component
@@ -60,9 +47,11 @@ function CategorySection({
 }: {
   title: string;
   items: GroceryItem[];
-  onToggleItem: (id: string) => void;
+  onToggleItem: (id: Id<"shoppingItems">) => void;
   index: number;
 }) {
+  if (items.length === 0) return null;
+
   return (
     <Animated.View
       style={styles.categorySection}
@@ -79,9 +68,9 @@ function CategorySection({
       <View style={styles.itemsContainer}>
         {items.map((item, itemIndex) => (
           <GroceryItemCard
-            key={item.id}
+            key={item._id}
             item={item}
-            onToggle={() => onToggleItem(item.id)}
+            onToggle={() => onToggleItem(item._id)}
             index={itemIndex}
           />
         ))}
@@ -100,6 +89,9 @@ function GroceryItemCard({
   onToggle: () => void;
   index: number;
 }) {
+  const quantity = item.amount ? `${item.amount} ${item.unit || ""}`.trim() : "";
+  const aisle = item.aisle ? item.aisle.toUpperCase() : "";
+
   return (
     <Animated.View
       entering={FadeInRight.delay(index * 50).duration(300)}
@@ -108,14 +100,14 @@ function GroceryItemCard({
       <Pressable
         style={({ pressed }) => [
           styles.itemCard,
-          item.checked && styles.itemCardChecked,
+          item.isChecked && styles.itemCardChecked,
           pressed && styles.cardPressed,
         ]}
         onPress={onToggle}
       >
         {/* Checkbox */}
-        <View style={[styles.checkbox, item.checked && styles.checkboxChecked]}>
-          {item.checked && (
+        <View style={[styles.checkbox, item.isChecked && styles.checkboxChecked]}>
+          {item.isChecked && (
             <Ionicons name="checkmark" size={16} color={colors.textLight} />
           )}
         </View>
@@ -123,19 +115,21 @@ function GroceryItemCard({
         {/* Item Info */}
         <View style={styles.itemInfo}>
           <Text
-            style={[styles.itemName, item.checked && styles.itemNameChecked]}
+            style={[styles.itemName, item.isChecked && styles.itemNameChecked]}
           >
             {item.name}
           </Text>
-          <View style={styles.recipeBadge}>
-            <Text style={styles.recipeBadgeText}>{item.recipe}</Text>
-          </View>
+          {item.recipeName && (
+            <View style={styles.recipeBadge}>
+              <Text style={styles.recipeBadgeText}>{item.recipeName}</Text>
+            </View>
+          )}
         </View>
 
         {/* Quantity & Aisle */}
         <View style={styles.itemMeta}>
-          <Text style={styles.itemQuantity}>{item.quantity}</Text>
-          <Text style={styles.itemAisle}>{item.aisle}</Text>
+          {quantity && <Text style={styles.itemQuantity}>{quantity}</Text>}
+          {aisle && <Text style={styles.itemAisle}>{aisle}</Text>}
         </View>
       </Pressable>
     </Animated.View>
@@ -190,25 +184,82 @@ function ViewToggle({
 
 export default function GroceryListScreen() {
   const [activeView, setActiveView] = useState<"aisle" | "recipe">("aisle");
-  const [items, setItems] = useState(initialGroceryItems);
 
-  const toggleItem = (id: string) => {
-    setItems((prev) => {
-      const newItems = { ...prev };
-      for (const category of Object.keys(newItems) as (keyof typeof newItems)[]) {
-        newItems[category] = newItems[category].map((item) =>
-          item.id === id ? { ...item, checked: !item.checked } : item
-        );
-      }
-      return newItems;
-    });
+  // Fetch shopping list from Convex
+  const shoppingList = useQuery(api.shoppingLists.getActive);
+  const toggleItemMutation = useMutation(api.shoppingLists.toggleItem);
+
+  const toggleItem = async (id: Id<"shoppingItems">) => {
+    try {
+      await toggleItemMutation({ itemId: id });
+    } catch (error) {
+      console.error("Failed to toggle item:", error);
+    }
   };
 
-  const totalItems = Object.values(items).flat().length;
-  const checkedItems = Object.values(items)
-    .flat()
-    .filter((item) => item.checked).length;
+  // Group items by category/aisle
+  const groupedItems = useMemo(() => {
+    if (!shoppingList?.items) {
+      return { Produce: [], Dairy: [], Meat: [], Bakery: [], Pantry: [], Other: [] };
+    }
+
+    const groups: Record<string, GroceryItem[]> = {
+      Produce: [],
+      Dairy: [],
+      Meat: [],
+      Bakery: [],
+      Pantry: [],
+      Other: [],
+    };
+
+    for (const item of shoppingList.items) {
+      const category = item.aisle || "Other";
+      if (!groups[category]) {
+        groups[category] = [];
+      }
+      groups[category].push(item as GroceryItem);
+    }
+
+    return groups;
+  }, [shoppingList?.items]);
+
+  const totalItems = shoppingList?.items?.length || 0;
+  const checkedItems = shoppingList?.items?.filter((item) => item.isChecked).length || 0;
   const uncheckedItems = totalItems - checkedItems;
+
+  // Loading state
+  if (shoppingList === undefined) {
+    return (
+      <SafeAreaView style={styles.container} edges={["top"]}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.cyan} />
+          <Text style={styles.loadingText}>Loading grocery list...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Empty state
+  if (!shoppingList || totalItems === 0) {
+    return (
+      <SafeAreaView style={styles.container} edges={["top"]}>
+        <Animated.View style={styles.header} entering={FadeInDown.duration(300)}>
+          <Pressable style={styles.headerButton} onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
+          </Pressable>
+          <Text style={styles.headerTitle}>SMART GROCERY LIST</Text>
+          <Pressable style={styles.headerButton}>
+            <Ionicons name="ellipsis-horizontal" size={24} color={colors.text} />
+          </Pressable>
+        </Animated.View>
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyEmoji}>🛒</Text>
+          <Text style={styles.emptyTitle}>Your list is empty</Text>
+          <Text style={styles.emptySubtitle}>Add ingredients from recipes to get started</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -240,24 +291,15 @@ export default function GroceryListScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Categories */}
-        <CategorySection
-          title="PRODUCE"
-          items={items.produce}
-          onToggleItem={toggleItem}
-          index={0}
-        />
-        <CategorySection
-          title="DAIRY"
-          items={items.dairy}
-          onToggleItem={toggleItem}
-          index={1}
-        />
-        <CategorySection
-          title="PANTRY"
-          items={items.pantry}
-          onToggleItem={toggleItem}
-          index={2}
-        />
+        {Object.entries(groupedItems).map(([category, categoryItems], index) => (
+          <CategorySection
+            key={category}
+            title={category.toUpperCase()}
+            items={categoryItems}
+            onToggleItem={toggleItem}
+            index={index}
+          />
+        ))}
 
         {/* Bottom Spacing */}
         <View style={styles.bottomSpacer} />
@@ -505,5 +547,36 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 100,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.md,
+  },
+  loadingText: {
+    fontSize: typography.sizes.md,
+    color: colors.textMuted,
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.xxl,
+  },
+  emptyEmoji: {
+    fontSize: 64,
+    marginBottom: spacing.lg,
+  },
+  emptyTitle: {
+    fontSize: typography.sizes.xl,
+    fontWeight: typography.weights.bold,
+    color: colors.text,
+    marginBottom: spacing.sm,
+  },
+  emptySubtitle: {
+    fontSize: typography.sizes.md,
+    color: colors.textMuted,
+    textAlign: "center",
   },
 });

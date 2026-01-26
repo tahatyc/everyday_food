@@ -7,6 +7,7 @@ import {
   Pressable,
   FlatList,
   Dimensions,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -15,6 +16,9 @@ import Animated, {
   FadeInDown,
   FadeInUp,
 } from "react-native-reanimated";
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { Id } from "../../convex/_generated/dataModel";
 
 import {
   colors,
@@ -25,34 +29,37 @@ import {
   typography,
   getMealTypeColor,
 } from "../../src/styles/neobrutalism";
-import { allRecipes, SeedRecipe } from "../../data/recipes";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CARD_WIDTH = (SCREEN_WIDTH - spacing.lg * 2 - spacing.md) / 2;
 
-// Mock cookbook data
-const cookbooks: Record<string, { title: string; recipes: SeedRecipe[]; color: string }> = {
-  "1": {
-    title: "ITALIAN FAVORITES",
-    recipes: allRecipes.filter((r) => r.cuisine?.toLowerCase() === "italian" || r.tags.includes("italian")).slice(0, 12),
-    color: colors.magentaLight,
-  },
-  "2": {
-    title: "QUICK VEGAN",
-    recipes: allRecipes.filter((r) => r.diet?.includes("vegan") || r.diet?.includes("vegetarian")).slice(0, 8),
-    color: colors.secondary,
-  },
+// Recipe type from Convex
+type ConvexRecipe = {
+  _id: Id<"recipes">;
+  title: string;
+  prepTime?: number | null;
+  cookTime?: number | null;
+  totalTime?: number | null;
+  tags?: string[];
 };
+
+// Get meal type from tags
+function getMealTypeFromTags(tags?: string[]): string {
+  if (!tags) return "dinner";
+  const mealTypes = ["breakfast", "lunch", "dinner", "snack"];
+  return tags.find(t => mealTypes.includes(t.toLowerCase()))?.toLowerCase() || "dinner";
+}
 
 // Recipe Grid Card
 function RecipeGridCard({
   recipe,
   index,
 }: {
-  recipe: SeedRecipe;
+  recipe: ConvexRecipe;
   index: number;
 }) {
-  const totalTime = recipe.prepTime + recipe.cookTime;
+  const totalTime = recipe.totalTime || (recipe.prepTime || 0) + (recipe.cookTime || 0);
+  const mealType = getMealTypeFromTags(recipe.tags);
 
   return (
     <Animated.View
@@ -64,21 +71,21 @@ function RecipeGridCard({
           styles.gridCard,
           pressed && styles.cardPressed,
         ]}
-        onPress={() => router.push(`/recipe/${recipe.id}` as any)}
+        onPress={() => router.push(`/recipe/${recipe._id}` as any)}
       >
         {/* Recipe Image */}
         <View
           style={[
             styles.gridCardImage,
-            { backgroundColor: getMealTypeColor(recipe.mealType[0]) },
+            { backgroundColor: getMealTypeColor(mealType) },
           ]}
         >
           <Text style={styles.gridCardEmoji}>
-            {recipe.mealType[0] === "breakfast"
+            {mealType === "breakfast"
               ? "🍳"
-              : recipe.mealType[0] === "lunch"
+              : mealType === "lunch"
               ? "🥗"
-              : recipe.mealType[0] === "dinner"
+              : mealType === "dinner"
               ? "🍝"
               : "🍪"}
           </Text>
@@ -123,11 +130,42 @@ function FilterChip({
 
 export default function CookbookDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const cookbook = cookbooks[id || "1"] || cookbooks["1"];
   const [activeFilter, setActiveFilter] = useState("all");
 
-  // Use allRecipes if cookbook has no specific recipes
-  const recipes = cookbook.recipes.length > 0 ? cookbook.recipes : allRecipes.slice(0, 12);
+  // Fetch cookbook from Convex
+  const cookbook = useQuery(
+    api.cookbooks.getById,
+    id ? { id: id as Id<"cookbooks"> } : "skip"
+  );
+
+  // Loading state
+  if (cookbook === undefined) {
+    return (
+      <SafeAreaView style={styles.container} edges={["top"]}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.cyan} />
+          <Text style={styles.loadingText}>Loading cookbook...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Not found state
+  if (!cookbook) {
+    return (
+      <SafeAreaView style={styles.container} edges={["top"]}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorEmoji}>📚</Text>
+          <Text style={styles.errorTitle}>Cookbook not found</Text>
+          <Pressable style={styles.backButtonLarge} onPress={() => router.back()}>
+            <Text style={styles.backButtonText}>Go Back</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const recipes = cookbook.recipes || [];
 
   const filters = [
     { id: "all", label: `${recipes.length} RECIPES` },
@@ -139,14 +177,14 @@ export default function CookbookDetailScreen() {
     <SafeAreaView style={styles.container} edges={["top"]}>
       {/* Header */}
       <Animated.View
-        style={[styles.header, { backgroundColor: cookbook.color }]}
+        style={[styles.header, { backgroundColor: cookbook.color || colors.magentaLight }]}
         entering={FadeInDown.duration(300)}
       >
         <Pressable style={styles.headerButton} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </Pressable>
 
-        <Text style={styles.headerTitle}>{cookbook.title}</Text>
+        <Text style={styles.headerTitle}>{cookbook.name?.toUpperCase() || "COOKBOOK"}</Text>
 
         <Pressable style={styles.headerButton}>
           <Ionicons name="share-outline" size={24} color={colors.text} />
@@ -349,5 +387,45 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 100,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.md,
+  },
+  loadingText: {
+    fontSize: typography.sizes.md,
+    color: colors.textMuted,
+  },
+  errorContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.xxl,
+  },
+  errorEmoji: {
+    fontSize: 64,
+    marginBottom: spacing.lg,
+  },
+  errorTitle: {
+    fontSize: typography.sizes.xl,
+    fontWeight: typography.weights.bold,
+    color: colors.text,
+    marginBottom: spacing.lg,
+  },
+  backButtonLarge: {
+    backgroundColor: colors.primary,
+    borderWidth: borders.regular,
+    borderColor: borders.color,
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xxl,
+    ...shadows.md,
+  },
+  backButtonText: {
+    fontSize: typography.sizes.md,
+    fontWeight: typography.weights.bold,
+    color: colors.text,
   },
 });
