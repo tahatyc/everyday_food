@@ -114,6 +114,14 @@ function RootLayoutNav() {
             animation: "slide_from_right",
           }}
         />
+        <Stack.Screen
+          name="manual-recipe"
+          options={{
+            headerShown: false,
+            presentation: "modal",
+            animation: "slide_from_bottom",
+          }}
+        />
       </Stack>
     </View>
   );

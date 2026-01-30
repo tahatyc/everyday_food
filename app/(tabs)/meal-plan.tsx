@@ -1,31 +1,31 @@
+import { Ionicons } from "@expo/vector-icons";
+import { useMutation, useQuery } from "convex/react";
+import { router } from "expo-router";
 import React, { useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Pressable,
   ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
 import Animated, {
   FadeInDown,
   FadeInRight,
 } from "react-native-reanimated";
-import { useQuery, useMutation } from "convex/react";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 
 import {
-  colors,
-  spacing,
-  borders,
   borderRadius,
-  shadows,
-  typography,
+  borders,
+  colors,
   getMealTypeColor,
+  shadows,
+  spacing,
+  typography,
 } from "../../src/styles/neobrutalism";
 
 // Recipe type from Convex
@@ -111,12 +111,20 @@ function MealSection({
   type,
   label,
   recipe,
+  mealPlanId,
   index,
+  onChangeMeal,
+  onAddMeal,
+  onRemoveMeal,
 }: {
   type: "breakfast" | "lunch" | "dinner";
   label: string;
   recipe: ConvexRecipe | null;
+  mealPlanId: Id<"mealPlans"> | null;
   index: number;
+  onChangeMeal: () => void;
+  onAddMeal: () => void;
+  onRemoveMeal: () => void;
 }) {
   const bgColor = getMealTypeColor(type);
 
@@ -164,14 +172,44 @@ function MealSection({
                 {recipe.nutritionPerServing?.calories || 0} KCAL
               </Text>
             </View>
-            <Pressable style={styles.changeButton}>
-              <Ionicons name="swap-horizontal" size={14} color={colors.textLight} />
-              <Text style={styles.changeButtonText}>CHANGE</Text>
-            </Pressable>
+            <View style={styles.mealActions}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.changeButton,
+                  pressed && styles.changeButtonPressed,
+                ]}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  onChangeMeal();
+                }}
+              >
+                <Ionicons name="swap-horizontal" size={14} color={colors.textLight} />
+                <Text style={styles.changeButtonText}>CHANGE</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.removeButton,
+                  pressed && styles.removeButtonPressed,
+                ]}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  onRemoveMeal();
+                }}
+              >
+                <Ionicons name="trash-outline" size={14} color={colors.surface} />
+              </Pressable>
+            </View>
           </View>
         </Pressable>
       ) : (
-        <Pressable style={[styles.mealCard, styles.emptyMealCard]}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.mealCard,
+            styles.emptyMealCard,
+            pressed && styles.cardPressed,
+          ]}
+          onPress={onAddMeal}
+        >
           <View style={styles.emptyMealContent}>
             <Ionicons name="add" size={24} color={colors.textMuted} />
             <Text style={styles.emptyMealText}>Add a meal</Text>
@@ -198,27 +236,28 @@ export default function MealPlanScreen() {
   // Fetch all recipes for random generation
   const allRecipes = useQuery(api.recipes.list);
   const addMealMutation = useMutation(api.mealPlans.addMeal);
+  const removeMealMutation = useMutation(api.mealPlans.removeMeal);
 
   // Build meal plan object from Convex data
   const getMealPlan = () => {
     const plan: {
-      breakfast: ConvexRecipe | null;
-      lunch: ConvexRecipe | null;
-      dinner: ConvexRecipe | null;
+      breakfast: { recipe: ConvexRecipe | null; mealPlanId: Id<"mealPlans"> | null };
+      lunch: { recipe: ConvexRecipe | null; mealPlanId: Id<"mealPlans"> | null };
+      dinner: { recipe: ConvexRecipe | null; mealPlanId: Id<"mealPlans"> | null };
     } = {
-      breakfast: null,
-      lunch: null,
-      dinner: null,
+      breakfast: { recipe: null, mealPlanId: null },
+      lunch: { recipe: null, mealPlanId: null },
+      dinner: { recipe: null, mealPlanId: null },
     };
 
     if (mealPlansData) {
       for (const meal of mealPlansData) {
         if (meal.mealType === "breakfast" && meal.recipe) {
-          plan.breakfast = meal.recipe as ConvexRecipe;
+          plan.breakfast = { recipe: meal.recipe as ConvexRecipe, mealPlanId: meal._id };
         } else if (meal.mealType === "lunch" && meal.recipe) {
-          plan.lunch = meal.recipe as ConvexRecipe;
+          plan.lunch = { recipe: meal.recipe as ConvexRecipe, mealPlanId: meal._id };
         } else if (meal.mealType === "dinner" && meal.recipe) {
-          plan.dinner = meal.recipe as ConvexRecipe;
+          plan.dinner = { recipe: meal.recipe as ConvexRecipe, mealPlanId: meal._id };
         }
       }
     }
@@ -227,6 +266,55 @@ export default function MealPlanScreen() {
   };
 
   const mealPlan = getMealPlan();
+
+  // Handler for removing a meal from the plan
+  const handleRemoveMeal = async (mealPlanId: Id<"mealPlans"> | null) => {
+    if (!mealPlanId) return;
+    try {
+      await removeMealMutation({ mealPlanId });
+    } catch (error) {
+      console.error("Failed to remove meal:", error);
+    }
+  };
+
+  // Handler for adding a meal - navigates to recipe picker
+  const handleAddMeal = (mealType: "breakfast" | "lunch" | "dinner") => {
+    router.push({
+      pathname: "/select-recipe",
+      params: { date: selectedDate, mealType },
+    } as any);
+  };
+
+  // Handler for changing a specific meal to a random recipe of the same type
+  const handleChangeMeal = async (mealType: "breakfast" | "lunch" | "dinner") => {
+    if (!allRecipes || allRecipes.length === 0) return;
+
+    // Get current recipe ID to avoid selecting the same one
+    const currentRecipeId = mealPlan[mealType]?.recipe?._id;
+
+    // Filter recipes by meal type tags
+    const matchingRecipes = allRecipes.filter(
+      (r: any) =>
+        r.tags?.some((t: string) => t.toLowerCase() === mealType) &&
+        r._id !== currentRecipeId
+    );
+
+    if (matchingRecipes.length === 0) return;
+
+    // Get random recipe
+    const randomRecipe =
+      matchingRecipes[Math.floor(Math.random() * matchingRecipes.length)];
+
+    try {
+      await addMealMutation({
+        date: selectedDate,
+        mealType,
+        recipeId: randomRecipe._id,
+      });
+    } catch (error) {
+      console.error(`Failed to change ${mealType}:`, error);
+    }
+  };
 
   // Handler for generating random plan
   const handleGenerateRandomPlan = async () => {
@@ -346,20 +434,32 @@ export default function MealPlanScreen() {
         <MealSection
           type="breakfast"
           label="BREAKFAST"
-          recipe={mealPlan.breakfast}
+          recipe={mealPlan.breakfast.recipe}
+          mealPlanId={mealPlan.breakfast.mealPlanId}
           index={0}
+          onChangeMeal={() => handleAddMeal("breakfast")}
+          onAddMeal={() => handleAddMeal("breakfast")}
+          onRemoveMeal={() => handleRemoveMeal(mealPlan.breakfast.mealPlanId)}
         />
         <MealSection
           type="lunch"
           label="LUNCH"
-          recipe={mealPlan.lunch}
+          recipe={mealPlan.lunch.recipe}
+          mealPlanId={mealPlan.lunch.mealPlanId}
           index={1}
+          onChangeMeal={() => handleAddMeal("lunch")}
+          onAddMeal={() => handleAddMeal("lunch")}
+          onRemoveMeal={() => handleRemoveMeal(mealPlan.lunch.mealPlanId)}
         />
         <MealSection
           type="dinner"
           label="DINNER"
-          recipe={mealPlan.dinner}
+          recipe={mealPlan.dinner.recipe}
+          mealPlanId={mealPlan.dinner.mealPlanId}
           index={2}
+          onChangeMeal={() => handleAddMeal("dinner")}
+          onAddMeal={() => handleAddMeal("dinner")}
+          onRemoveMeal={() => handleRemoveMeal(mealPlan.dinner.mealPlanId)}
         />
 
         {/* Generate Random Plan Button */}
@@ -580,10 +680,14 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.bold,
     color: colors.text,
   },
+  mealActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
   changeButton: {
     flexDirection: "row",
     alignItems: "center",
-    alignSelf: "flex-start",
     backgroundColor: colors.cyan,
     borderWidth: borders.thin,
     borderColor: borders.color,
@@ -596,6 +700,22 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.xs,
     fontWeight: typography.weights.bold,
     color: colors.textLight,
+  },
+  changeButtonPressed: {
+    opacity: 0.7,
+  },
+  removeButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.accent,
+    borderWidth: borders.thin,
+    borderColor: borders.color,
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  removeButtonPressed: {
+    opacity: 0.7,
   },
   generateButton: {
     flexDirection: "row",
@@ -650,7 +770,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   bottomSpacer: {
-    height: 120,
+    height: 170,
   },
   loadingContainer: {
     flex: 1,

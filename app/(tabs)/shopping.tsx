@@ -1,22 +1,21 @@
+import { Ionicons } from "@expo/vector-icons";
 import React, { useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
   FlatList,
   Pressable,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { Card, Checkbox, Button, Input, IconButton, Badge } from "../../src/components/ui";
+import { Badge, Button, Card, Checkbox, IconButton, Input } from "../../src/components/ui";
 import {
+  borderRadius,
+  borders,
   colors,
   spacing,
-  typography,
-  shadows,
-  borders,
-  borderRadius,
+  typography
 } from "../../src/styles/neobrutalism";
 
 // Sample shopping items for demo
@@ -310,6 +309,7 @@ const styles = StyleSheet.create({
   listContent: {
     padding: spacing.lg,
     paddingTop: 0,
+    paddingBottom: 150,
   },
   aisleSection: {
     marginBottom: spacing.lg,

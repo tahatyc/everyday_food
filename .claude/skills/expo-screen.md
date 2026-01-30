@@ -4,12 +4,12 @@ Create new Expo Router screens following project patterns.
 
 ## File Locations
 
-| Type | Location | Example |
-|------|----------|---------|
-| Tab screen | `app/(tabs)/name.tsx` | `app/(tabs)/settings.tsx` |
-| Auth screen | `app/(auth)/name.tsx` | `app/(auth)/forgot-password.tsx` |
-| Dynamic route | `app/feature/[id].tsx` | `app/recipe/[id].tsx` |
-| Modal | `app/name.tsx` | `app/import.tsx` |
+| Type          | Location               | Example                          |
+| ------------- | ---------------------- | -------------------------------- |
+| Tab screen    | `app/(tabs)/name.tsx`  | `app/(tabs)/settings.tsx`        |
+| Auth screen   | `app/(auth)/name.tsx`  | `app/(auth)/forgot-password.tsx` |
+| Dynamic route | `app/feature/[id].tsx` | `app/recipe/[id].tsx`            |
+| Modal         | `app/name.tsx`         | `app/import.tsx`                 |
 
 ## Basic Screen Template
 
@@ -39,7 +39,10 @@ export default function ScreenName() {
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
-        <Animated.View style={styles.header} entering={FadeInDown.duration(400)}>
+        <Animated.View
+          style={styles.header}
+          entering={FadeInDown.duration(400)}
+        >
           <Text style={styles.headerTitle}>SCREEN TITLE</Text>
         </Animated.View>
 
@@ -80,7 +83,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   bottomSpacer: {
-    height: 120,
+    height: 170,
   },
 });
 ```

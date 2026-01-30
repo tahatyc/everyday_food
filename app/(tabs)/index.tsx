@@ -1,31 +1,31 @@
+import { Ionicons } from "@expo/vector-icons";
+import { useQuery } from "convex/react";
+import { router } from "expo-router";
 import React from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Pressable,
   ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
 import Animated, {
   FadeInDown,
   FadeInRight,
 } from "react-native-reanimated";
-import { useQuery } from "convex/react";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 
 import {
-  colors,
-  spacing,
-  borders,
   borderRadius,
-  shadows,
-  typography,
+  borders,
+  colors,
   getMealTypeColor,
+  shadows,
+  spacing,
+  typography,
 } from "../../src/styles/neobrutalism";
 
 // Recipe type from Convex
@@ -622,7 +622,7 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   bottomSpacer: {
-    height: 120,
+    height: 170,
   },
   loadingContainer: {
     flex: 1,

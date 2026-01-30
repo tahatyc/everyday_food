@@ -1,30 +1,30 @@
+import { Ionicons } from "@expo/vector-icons";
+import { useQuery } from "convex/react";
+import { router } from "expo-router";
 import React, { useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
+  ActivityIndicator,
+  Alert,
   FlatList,
   Pressable,
-  Alert,
-  ActivityIndicator,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
-import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 
-import { Card, Badge, Input, IconButton } from "../../src/components/ui";
+import { Badge, Card, IconButton, Input } from "../../src/components/ui";
 import {
+  borderRadius,
+  borders,
   colors,
+  getDifficultyColor,
+  getMealTypeColor,
+  shadows,
   spacing,
   typography,
-  shadows,
-  borders,
-  borderRadius,
-  getMealTypeColor,
-  getDifficultyColor,
 } from "../../src/styles/neobrutalism";
 
 // Recipe type from Convex
@@ -338,6 +338,7 @@ const styles = StyleSheet.create({
   },
   recipeList: {
     padding: spacing.lg,
+    paddingBottom: 150,
     gap: spacing.md,
   },
   recipeItem: {

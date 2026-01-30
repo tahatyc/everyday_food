@@ -1,33 +1,33 @@
+import { Ionicons } from "@expo/vector-icons";
+import { useQuery } from "convex/react";
+import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  FlatList,
-  Dimensions,
   ActivityIndicator,
+  Dimensions,
+  FlatList,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { router, useLocalSearchParams } from "expo-router";
 import Animated, {
   FadeInDown,
   FadeInUp,
 } from "react-native-reanimated";
-import { useQuery } from "convex/react";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 
 import {
-  colors,
-  spacing,
-  borders,
   borderRadius,
-  shadows,
-  typography,
+  borders,
+  colors,
   getMealTypeColor,
+  shadows,
+  spacing,
+  typography,
 } from "../../src/styles/neobrutalism";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
     ...shadows.pressed,
   },
   bottomSpacer: {
-    height: 100,
+    height: 170,
   },
   loadingContainer: {
     flex: 1,

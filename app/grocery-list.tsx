@@ -1,30 +1,30 @@
-import React, { useState, useMemo } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  ActivityIndicator,
-} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useMutation, useQuery } from "convex/react";
 import { router } from "expo-router";
+import React, { useMemo, useState } from "react";
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import Animated, {
   FadeInDown,
   FadeInRight,
   Layout,
 } from "react-native-reanimated";
-import { useQuery, useMutation } from "convex/react";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../convex/_generated/api";
 import { Id } from "../convex/_generated/dataModel";
 
 import {
-  colors,
-  spacing,
-  borders,
   borderRadius,
+  borders,
+  colors,
   shadows,
+  spacing,
   typography,
 } from "../src/styles/neobrutalism";
 
@@ -546,7 +546,7 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   bottomSpacer: {
-    height: 100,
+    height: 170,
   },
   loadingContainer: {
     flex: 1,

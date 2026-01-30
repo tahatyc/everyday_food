@@ -234,3 +234,91 @@ export const getQuickRecipes = query({
     );
   },
 });
+
+// Create a recipe manually
+export const createManual = mutation({
+  args: {
+    title: v.string(),
+    servings: v.number(),
+    prepTime: v.optional(v.number()),
+    cookTime: v.optional(v.number()),
+    difficulty: v.optional(
+      v.union(v.literal("easy"), v.literal("medium"), v.literal("hard"))
+    ),
+    description: v.optional(v.string()),
+    cuisine: v.optional(v.string()),
+    ingredients: v.array(
+      v.object({
+        name: v.string(),
+        amount: v.optional(v.number()),
+        unit: v.optional(v.string()),
+        preparation: v.optional(v.string()),
+        isOptional: v.optional(v.boolean()),
+      })
+    ),
+    steps: v.array(
+      v.object({
+        instruction: v.string(),
+        timerMinutes: v.optional(v.number()),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+
+    // Get current user (demo user for now)
+    const user = await ctx.db.query("users").first();
+    if (!user) throw new Error("User not found");
+
+    // Calculate total time
+    const totalTime =
+      args.prepTime || args.cookTime
+        ? (args.prepTime || 0) + (args.cookTime || 0)
+        : undefined;
+
+    // Create the recipe
+    const recipeId = await ctx.db.insert("recipes", {
+      userId: user._id,
+      title: args.title,
+      description: args.description,
+      servings: args.servings,
+      prepTime: args.prepTime,
+      cookTime: args.cookTime,
+      totalTime,
+      difficulty: args.difficulty,
+      cuisine: args.cuisine,
+      sourceType: "manual",
+      isFavorite: false,
+      cookCount: 0,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // Create ingredients
+    for (let i = 0; i < args.ingredients.length; i++) {
+      const ing = args.ingredients[i];
+      await ctx.db.insert("ingredients", {
+        recipeId,
+        name: ing.name,
+        amount: ing.amount,
+        unit: ing.unit,
+        preparation: ing.preparation,
+        isOptional: ing.isOptional || false,
+        sortOrder: i,
+      });
+    }
+
+    // Create steps
+    for (let i = 0; i < args.steps.length; i++) {
+      const step = args.steps[i];
+      await ctx.db.insert("steps", {
+        recipeId,
+        stepNumber: i + 1,
+        instruction: step.instruction,
+        timerMinutes: step.timerMinutes,
+      });
+    }
+
+    return { recipeId };
+  },
+});

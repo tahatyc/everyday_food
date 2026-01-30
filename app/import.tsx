@@ -179,11 +179,12 @@ export default function ImportScreen() {
                 styles.optionCard,
                 pressed && styles.optionCardPressed,
               ]}
+              onPress={() => router.push("/manual-recipe")}
             >
               <View style={[styles.optionIcon, { backgroundColor: colors.secondary }]}>
-                <Ionicons name="folder-outline" size={28} color={colors.text} />
+                <Ionicons name="create-outline" size={28} color={colors.text} />
               </View>
-              <Text style={styles.optionLabel}>FROM FILES</Text>
+              <Text style={styles.optionLabel}>MANUAL</Text>
             </Pressable>
 
             <Pressable
