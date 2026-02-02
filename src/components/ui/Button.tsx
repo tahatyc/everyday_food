@@ -14,7 +14,7 @@ type ButtonSize = "sm" | "md" | "lg";
 
 interface ButtonProps {
   children: React.ReactNode;
-  onPress: () => void;
+  onPress?: () => void;
   variant?: ButtonVariant;
   size?: ButtonSize;
   disabled?: boolean;

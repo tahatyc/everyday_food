@@ -1,17 +1,18 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { getCurrentUserId, getCurrentUserIdOrNull } from "./lib/accessControl";
 
 // Get meal plans for a specific date
 export const getByDate = query({
   args: { date: v.string() },
   handler: async (ctx, args) => {
-    const user = await ctx.db.query("users").first();
-    if (!user) return [];
+    const userId = await getCurrentUserIdOrNull(ctx);
+    if (!userId) return [];
 
     const mealPlans = await ctx.db
       .query("mealPlans")
       .withIndex("by_user_and_date", (q) =>
-        q.eq("userId", user._id).eq("date", args.date)
+        q.eq("userId", userId).eq("date", args.date)
       )
       .collect();
 
@@ -60,13 +61,13 @@ export const getByDateRange = query({
     endDate: v.string(),
   },
   handler: async (ctx, args) => {
-    const user = await ctx.db.query("users").first();
-    if (!user) return [];
+    const userId = await getCurrentUserIdOrNull(ctx);
+    if (!userId) return [];
 
     // Get all meal plans for the user
     const allMealPlans = await ctx.db
       .query("mealPlans")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
 
     // Filter by date range
@@ -125,14 +126,13 @@ export const addMeal = mutation({
     servings: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const user = await ctx.db.query("users").first();
-    if (!user) throw new Error("User not found");
+    const userId = await getCurrentUserId(ctx);
 
     // Check if meal already exists for this date/type
     const existing = await ctx.db
       .query("mealPlans")
       .withIndex("by_user_date_meal", (q) =>
-        q.eq("userId", user._id).eq("date", args.date).eq("mealType", args.mealType)
+        q.eq("userId", userId).eq("date", args.date).eq("mealType", args.mealType)
       )
       .first();
 
@@ -147,7 +147,7 @@ export const addMeal = mutation({
 
     // Create new meal plan
     const mealPlanId = await ctx.db.insert("mealPlans", {
-      userId: user._id,
+      userId: userId,
       date: args.date,
       mealType: args.mealType,
       recipeId: args.recipeId,

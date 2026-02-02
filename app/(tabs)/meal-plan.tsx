@@ -234,7 +234,7 @@ export default function MealPlanScreen() {
   );
 
   // Fetch all recipes for random generation
-  const allRecipes = useQuery(api.recipes.list);
+  const allRecipes = useQuery(api.recipes.list, {});
   const addMealMutation = useMutation(api.mealPlans.addMeal);
   const removeMealMutation = useMutation(api.mealPlans.removeMeal);
 

@@ -64,6 +64,7 @@ export default function ManualRecipeScreen() {
   // Step 4: Extras
   const [description, setDescription] = useState("");
   const [cuisine, setCuisine] = useState("");
+  const [isPublic, setIsPublic] = useState(false); // Private by default
 
   const createRecipe = useMutation(api.recipes.createManual);
 
@@ -139,6 +140,7 @@ export default function ManualRecipeScreen() {
         difficulty: difficulty || undefined,
         description: description.trim() || undefined,
         cuisine: cuisine.trim() || undefined,
+        isPublic: isPublic,
         ingredients: validIngredients,
         steps: validSteps,
       });
@@ -432,6 +434,64 @@ export default function ManualRecipeScreen() {
           value={cuisine}
           onChangeText={setCuisine}
         />
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.inputLabel}>PRIVACY</Text>
+        <View style={styles.privacyRow}>
+          <Pressable
+            style={[
+              styles.privacyOption,
+              !isPublic && styles.privacyOptionSelected,
+            ]}
+            onPress={() => setIsPublic(false)}
+          >
+            <View style={styles.privacyIconContainer}>
+              <Ionicons
+                name="lock-closed"
+                size={20}
+                color={!isPublic ? colors.text : colors.textMuted}
+              />
+            </View>
+            <View style={styles.privacyTextContainer}>
+              <Text
+                style={[
+                  styles.privacyOptionTitle,
+                  !isPublic && styles.privacyOptionTitleSelected,
+                ]}
+              >
+                PRIVATE
+              </Text>
+              <Text style={styles.privacyOptionHint}>Only you can see</Text>
+            </View>
+          </Pressable>
+          <Pressable
+            style={[
+              styles.privacyOption,
+              isPublic && styles.privacyOptionSelected,
+            ]}
+            onPress={() => setIsPublic(true)}
+          >
+            <View style={styles.privacyIconContainer}>
+              <Ionicons
+                name="globe"
+                size={20}
+                color={isPublic ? colors.text : colors.textMuted}
+              />
+            </View>
+            <View style={styles.privacyTextContainer}>
+              <Text
+                style={[
+                  styles.privacyOptionTitle,
+                  isPublic && styles.privacyOptionTitleSelected,
+                ]}
+              >
+                PUBLIC
+              </Text>
+              <Text style={styles.privacyOptionHint}>Anyone can view</Text>
+            </View>
+          </Pressable>
+        </View>
       </View>
     </Animated.View>
   );
@@ -827,5 +887,52 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.bold,
     color: colors.text,
     letterSpacing: typography.letterSpacing.wide,
+  },
+  privacyRow: {
+    flexDirection: "row",
+    gap: spacing.md,
+  },
+  privacyOption: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    padding: spacing.md,
+    borderWidth: borders.regular,
+    borderColor: borders.color,
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.surface,
+    gap: spacing.md,
+    ...shadows.sm,
+  },
+  privacyOptionSelected: {
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.primary,
+  },
+  privacyIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: borders.thin,
+    borderColor: borders.color,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  privacyTextContainer: {
+    flex: 1,
+  },
+  privacyOptionTitle: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.bold,
+    color: colors.textSecondary,
+    letterSpacing: typography.letterSpacing.wide,
+  },
+  privacyOptionTitleSelected: {
+    color: colors.text,
+  },
+  privacyOptionHint: {
+    fontSize: typography.sizes.xs,
+    color: colors.textMuted,
+    marginTop: 2,
   },
 });

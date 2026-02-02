@@ -214,8 +214,8 @@ export default function CookbookDetailScreen() {
 
       {/* Recipe Grid */}
       <FlatList
-        data={recipes}
-        keyExtractor={(item) => item.id}
+        data={recipes.filter((r): r is NonNullable<typeof r> => r !== null)}
+        keyExtractor={(item) => item._id}
         numColumns={2}
         contentContainerStyle={styles.gridContent}
         columnWrapperStyle={styles.gridRow}

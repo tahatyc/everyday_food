@@ -1,17 +1,18 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { getCurrentUserId, getCurrentUserIdOrNull } from "./lib/accessControl";
 
 // Get the active shopping list with items
 export const getActive = query({
   args: {},
   handler: async (ctx) => {
-    const user = await ctx.db.query("users").first();
-    if (!user) return null;
+    const userId = await getCurrentUserIdOrNull(ctx);
+    if (!userId) return null;
 
     const list = await ctx.db
       .query("shoppingLists")
       .withIndex("by_user_and_active", (q) =>
-        q.eq("userId", user._id).eq("isActive", true)
+        q.eq("userId", userId).eq("isActive", true)
       )
       .first();
 
@@ -60,12 +61,12 @@ export const getActive = query({
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    const user = await ctx.db.query("users").first();
-    if (!user) return [];
+    const userId = await getCurrentUserIdOrNull(ctx);
+    if (!userId) return [];
 
     const lists = await ctx.db
       .query("shoppingLists")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
 
     // Get item counts for each list
@@ -121,14 +122,13 @@ export const addItem = mutation({
     recipeId: v.optional(v.id("recipes")),
   },
   handler: async (ctx, args) => {
-    const user = await ctx.db.query("users").first();
-    if (!user) throw new Error("No user found");
+    const userId = await getCurrentUserId(ctx);
 
     // Get or create active list
     let list = await ctx.db
       .query("shoppingLists")
       .withIndex("by_user_and_active", (q) =>
-        q.eq("userId", user._id).eq("isActive", true)
+        q.eq("userId", userId).eq("isActive", true)
       )
       .first();
 
@@ -136,7 +136,7 @@ export const addItem = mutation({
 
     if (!list) {
       const listId = await ctx.db.insert("shoppingLists", {
-        userId: user._id,
+        userId: userId,
         name: "Shopping List",
         isActive: true,
         createdAt: now,
@@ -192,8 +192,7 @@ export const addItem = mutation({
 export const addRecipeIngredients = mutation({
   args: { recipeId: v.id("recipes") },
   handler: async (ctx, args) => {
-    const user = await ctx.db.query("users").first();
-    if (!user) throw new Error("No user found");
+    const userId = await getCurrentUserId(ctx);
 
     const recipe = await ctx.db.get(args.recipeId);
     if (!recipe) throw new Error("Recipe not found");
@@ -208,7 +207,7 @@ export const addRecipeIngredients = mutation({
     let list = await ctx.db
       .query("shoppingLists")
       .withIndex("by_user_and_active", (q) =>
-        q.eq("userId", user._id).eq("isActive", true)
+        q.eq("userId", userId).eq("isActive", true)
       )
       .first();
 
@@ -216,7 +215,7 @@ export const addRecipeIngredients = mutation({
 
     if (!list) {
       const listId = await ctx.db.insert("shoppingLists", {
-        userId: user._id,
+        userId: userId,
         name: "Shopping List",
         isActive: true,
         createdAt: now,
@@ -374,8 +373,7 @@ export const clearChecked = mutation({
 export const create = mutation({
   args: { name: v.string() },
   handler: async (ctx, args) => {
-    const user = await ctx.db.query("users").first();
-    if (!user) throw new Error("No user found");
+    const userId = await getCurrentUserId(ctx);
 
     const now = Date.now();
 
@@ -383,7 +381,7 @@ export const create = mutation({
     const currentActive = await ctx.db
       .query("shoppingLists")
       .withIndex("by_user_and_active", (q) =>
-        q.eq("userId", user._id).eq("isActive", true)
+        q.eq("userId", userId).eq("isActive", true)
       )
       .first();
 
@@ -392,7 +390,7 @@ export const create = mutation({
     }
 
     const listId = await ctx.db.insert("shoppingLists", {
-      userId: user._id,
+      userId: userId,
       name: args.name,
       isActive: true,
       createdAt: now,

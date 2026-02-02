@@ -1,16 +1,17 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { getCurrentUserId, getCurrentUserIdOrNull } from "./lib/accessControl";
 
 // Get all cookbooks for current user
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    const user = await ctx.db.query("users").first();
-    if (!user) return [];
+    const userId = await getCurrentUserIdOrNull(ctx);
+    if (!userId) return [];
 
     const cookbooks = await ctx.db
       .query("cookbooks")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
 
     // Get recipe count for each cookbook
@@ -90,12 +91,12 @@ export const getById = query({
 export const getByName = query({
   args: { name: v.string() },
   handler: async (ctx, args) => {
-    const user = await ctx.db.query("users").first();
-    if (!user) return null;
+    const userId = await getCurrentUserIdOrNull(ctx);
+    if (!userId) return null;
 
     const cookbook = await ctx.db
       .query("cookbooks")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .filter((q) => q.eq(q.field("name"), args.name))
       .first();
 
@@ -181,21 +182,20 @@ export const create = mutation({
     color: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await ctx.db.query("users").first();
-    if (!user) throw new Error("No user found");
+    const userId = await getCurrentUserId(ctx);
 
     const now = Date.now();
 
     // Get current max sort order
     const cookbooks = await ctx.db
       .query("cookbooks")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
 
     const maxSortOrder = Math.max(...cookbooks.map((c) => c.sortOrder || 0), 0);
 
     const cookbookId = await ctx.db.insert("cookbooks", {
-      userId: user._id,
+      userId: userId,
       name: args.name,
       description: args.description,
       color: args.color,

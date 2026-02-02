@@ -37,6 +37,7 @@ type ConvexRecipe = {
   servings: number;
   difficulty?: "easy" | "medium" | "hard";
   isFavorite?: boolean;
+  isGlobal?: boolean;
   tags: string[];
   ingredients: any[];
   steps: any[];
@@ -55,6 +56,14 @@ function RecipeListItem({ recipe }: { recipe: ConvexRecipe }) {
 
   return (
     <Card style={styles.recipeItem} onPress={() => router.push(`/recipe/${recipe._id}` as any)}>
+      {/* Add badge for global recipes */}
+      {recipe.isGlobal && (
+        <View style={styles.globalBadge}>
+          <Ionicons name="globe-outline" size={12} color={colors.primary} />
+          <Text style={styles.globalBadgeText}>GLOBAL</Text>
+        </View>
+      )}
+
       {/* Recipe image placeholder */}
       <View
         style={[
@@ -148,15 +157,20 @@ export default function RecipesScreen() {
   const [activeFilter, setActiveFilter] = useState("all");
 
   // Fetch recipes from Convex
-  const allRecipes = useQuery(api.recipes.list);
+  const allRecipes = useQuery(api.recipes.list, {
+    includeGlobal: activeFilter === "all" || activeFilter === "global",
+    globalOnly: activeFilter === "global",
+  });
   const searchResults = useQuery(
     api.recipes.search,
-    searchQuery ? { query: searchQuery } : "skip"
+    searchQuery ? { query: searchQuery, includeGlobal: true } : "skip"
   );
   const favoriteRecipes = useQuery(api.recipes.getFavorites);
 
   const filters = [
     { id: "all", label: "All" },
+    { id: "my-recipes", label: "My Recipes" },
+    { id: "global", label: "Global" },
     { id: "breakfast", label: "Breakfast" },
     { id: "lunch", label: "Lunch" },
     { id: "dinner", label: "Dinner" },
@@ -173,6 +187,14 @@ export default function RecipesScreen() {
 
     if (activeFilter === "all") {
       return allRecipes as ConvexRecipe[];
+    }
+
+    if (activeFilter === "my-recipes") {
+      return (allRecipes as ConvexRecipe[]).filter(r => !r.isGlobal);
+    }
+
+    if (activeFilter === "global") {
+      return (allRecipes as ConvexRecipe[]).filter(r => r.isGlobal);
     }
 
     if (activeFilter === "favorites") {
@@ -412,5 +434,27 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: typography.sizes.md,
     color: colors.textMuted,
+  },
+  globalBadge: {
+    position: "absolute",
+    top: spacing.sm,
+    left: spacing.sm,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    backgroundColor: colors.secondary,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.sm,
+    borderWidth: borders.thin,
+    borderColor: borders.color,
+    ...shadows.sm,
+    zIndex: 1,
+  },
+  globalBadgeText: {
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.bold,
+    color: colors.text,
+    textTransform: "uppercase",
   },
 });

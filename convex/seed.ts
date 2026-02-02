@@ -245,7 +245,30 @@ export const seedDatabase = mutation({
       console.log("Created demo user:", userId);
     }
 
-    // Create tags
+    // Create GLOBAL tags (no userId for seed tags)
+    const globalTagMap: Record<string, any> = {};
+    for (const tag of seedTags) {
+      const existingTag = await ctx.db
+        .query("tags")
+        .withIndex("by_name", (q) => q.eq("name", tag.name))
+        .filter((q) => q.eq(q.field("userId"), undefined))
+        .first();
+
+      if (!existingTag) {
+        const tagId = await ctx.db.insert("tags", {
+          // NO userId - this is a global tag
+          name: tag.name,
+          type: tag.type,
+          color: tag.color,
+        });
+        globalTagMap[tag.name.toLowerCase()] = tagId;
+      } else {
+        globalTagMap[tag.name.toLowerCase()] = existingTag._id;
+      }
+    }
+    console.log("Created/found global tags:", Object.keys(globalTagMap).length);
+
+    // Create USER tags (for backwards compatibility with existing user tags)
     const tagMap: Record<string, any> = {};
     for (const tag of seedTags) {
       const existingTag = await ctx.db
@@ -265,7 +288,7 @@ export const seedDatabase = mutation({
         tagMap[tag.name.toLowerCase()] = existingTag._id;
       }
     }
-    console.log("Created/found tags:", Object.keys(tagMap).length);
+    console.log("Created/found user tags:", Object.keys(tagMap).length);
 
     // Create cookbooks
     const cookbookMap: Record<string, any> = {};
@@ -295,7 +318,94 @@ export const seedDatabase = mutation({
     }
     console.log("Created/found cookbooks:", Object.keys(cookbookMap).length);
 
-    // Create recipes
+    // Create GLOBAL recipes (no userId, not tied to any user)
+    let globalRecipesCreated = 0;
+    for (const recipe of seedRecipes) {
+      // Check if global recipe already exists (must check isGlobal to avoid matching user recipes)
+      const existingRecipe = await ctx.db
+        .query("recipes")
+        .withIndex("by_global", (q) => q.eq("isGlobal", true))
+        .filter((q) => q.eq(q.field("title"), recipe.title))
+        .first();
+
+      if (existingRecipe) {
+        console.log("Global recipe already exists:", recipe.title);
+        continue;
+      }
+
+      // Create GLOBAL recipe (no userId)
+      const recipeId = await ctx.db.insert("recipes", {
+        // NO userId - this is a global recipe
+        isGlobal: true,
+        title: recipe.title,
+        description: recipe.description,
+        prepTime: recipe.prepTime,
+        cookTime: recipe.cookTime,
+        totalTime: recipe.prepTime + recipe.cookTime,
+        servings: recipe.servings,
+        difficulty: recipe.difficulty,
+        cuisine: recipe.cuisine,
+        sourceType: recipe.sourceType,
+        nutritionPerServing: recipe.nutrition,
+        // No user-specific fields for global recipes
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      // Create ingredients
+      for (let i = 0; i < recipe.ingredients.length; i++) {
+        const ing = recipe.ingredients[i];
+        await ctx.db.insert("ingredients", {
+          recipeId,
+          name: ing.name,
+          amount: ing.amount,
+          unit: ing.unit,
+          preparation: ing.preparation || undefined,
+          isOptional: ing.isOptional,
+          group: ing.group || undefined,
+          sortOrder: i,
+        });
+      }
+
+      // Create steps
+      for (let i = 0; i < recipe.steps.length; i++) {
+        const step = recipe.steps[i];
+        await ctx.db.insert("steps", {
+          recipeId,
+          stepNumber: i + 1,
+          instruction: step.instruction,
+          timerMinutes: step.timerMinutes || undefined,
+          timerLabel: step.timerLabel || undefined,
+          tips: step.tips || undefined,
+        });
+      }
+
+      // Add GLOBAL tags to recipe - include mealType tags
+      const allTags = [...(recipe.mealType || []), ...recipe.tags];
+      for (const tagName of allTags) {
+        const tagId = globalTagMap[tagName.toLowerCase()];
+        if (tagId) {
+          // Check if already linked
+          const existingLink = await ctx.db
+            .query("recipeTags")
+            .withIndex("by_recipe_and_tag", (q) =>
+              q.eq("recipeId", recipeId).eq("tagId", tagId)
+            )
+            .first();
+          if (!existingLink) {
+            await ctx.db.insert("recipeTags", {
+              recipeId,
+              tagId,
+            });
+          }
+        }
+      }
+
+      globalRecipesCreated++;
+    }
+    console.log("Created global recipes:", globalRecipesCreated);
+
+    // Create USER recipes (kept for backwards compatibility)
     let recipesCreated = 0;
     for (const recipe of seedRecipes) {
       // Check if recipe already exists
@@ -527,7 +637,7 @@ export const seedDatabase = mutation({
 
     return {
       success: true,
-      message: `Seeded database with ${recipesCreated} recipes, ${Object.keys(tagMap).length} tags, ${Object.keys(cookbookMap).length} cookbooks`,
+      message: `Seeded database with ${globalRecipesCreated} global recipes, ${recipesCreated} user recipes, ${Object.keys(globalTagMap).length} global tags, ${Object.keys(tagMap).length} user tags, ${Object.keys(cookbookMap).length} cookbooks`,
       userId,
     };
   },

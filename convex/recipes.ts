@@ -1,25 +1,111 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import {
+  getCurrentUserId,
+  getCurrentUserIdOrNull,
+  canReadRecipe,
+  canModifyRecipe,
+} from "./lib/accessControl";
 
-// Get all recipes for current user (or demo user)
+// Get all recipes for current user
 export const list = query({
   args: {
     limit: v.optional(v.number()),
+    includeShared: v.optional(v.boolean()),
+    includeGlobal: v.optional(v.boolean()),
+    globalOnly: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    // Get demo user for now (later: use auth)
-    const user = await ctx.db.query("users").first();
-    if (!user) return [];
+    const userId = await getCurrentUserIdOrNull(ctx);
 
-    let query = ctx.db
-      .query("recipes")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
-      .order("desc");
+    let recipes: any[] = [];
 
-    const recipes = await query.collect();
+    // Global only mode
+    if (args.globalOnly) {
+      const globalRecipes = await ctx.db
+        .query("recipes")
+        .withIndex("by_global", (q) => q.eq("isGlobal", true))
+        .order("desc")
+        .collect();
+      recipes = globalRecipes;
+    } else {
+      // Get user's own recipes
+      if (userId) {
+        const ownRecipes = await ctx.db
+          .query("recipes")
+          .withIndex("by_user", (q) => q.eq("userId", userId))
+          .order("desc")
+          .collect();
+        recipes = [...ownRecipes];
+      }
+
+      // Get shared recipes if requested
+      if (args.includeShared && userId) {
+        const shares = await ctx.db
+          .query("recipeShares")
+          .withIndex("by_shared_with", (q) => q.eq("sharedWithId", userId))
+          .collect();
+
+        const now = Date.now();
+        const validShares = shares.filter(
+          (s) => !s.expiresAt || s.expiresAt > now
+        );
+
+        const sharedRecipes = (
+          await Promise.all(
+            validShares.map(async (share) => {
+              const recipe = await ctx.db.get(share.recipeId);
+              if (!recipe) return null;
+              const owner = await ctx.db.get(share.ownerId);
+              return {
+                ...recipe,
+                isShared: true as const,
+                ownerName: owner?.name || "Unknown",
+              };
+            })
+          )
+        ).filter(Boolean);
+        recipes = [...recipes, ...sharedRecipes];
+      }
+
+      // Get global recipes if requested
+      if (args.includeGlobal) {
+        const globalRecipes = await ctx.db
+          .query("recipes")
+          .withIndex("by_global", (q) => q.eq("isGlobal", true))
+          .order("desc")
+          .collect();
+
+        // Enrich with user interactions if authenticated
+        if (userId) {
+          const enrichedGlobal = await Promise.all(
+            globalRecipes.map(async (recipe) => {
+              const interaction = await ctx.db
+                .query("userRecipeInteractions")
+                .withIndex("by_user_and_recipe", (q) =>
+                  q.eq("userId", userId).eq("recipeId", recipe._id)
+                )
+                .first();
+
+              return {
+                ...recipe,
+                isGlobal: true as const,
+                isFavorite: interaction?.isFavorite || false,
+                cookCount: interaction?.cookCount || 0,
+              };
+            })
+          );
+          recipes = [...recipes, ...enrichedGlobal];
+        } else {
+          recipes = [...recipes, ...globalRecipes.map(r => ({ ...r, isGlobal: true as const }))];
+        }
+      }
+    }
+
+    const typedRecipes = recipes as any[];
 
     // If limit specified, slice the results
-    const limitedRecipes = args.limit ? recipes.slice(0, args.limit) : recipes;
+    const limitedRecipes = args.limit ? typedRecipes.slice(0, args.limit) : typedRecipes;
 
     // Fetch ingredients and steps for each recipe
     const recipesWithDetails = await Promise.all(
@@ -60,12 +146,25 @@ export const list = query({
   },
 });
 
-// Get a single recipe by ID
+// Get a single recipe by ID (with authorization)
 export const getById = query({
   args: { id: v.id("recipes") },
   handler: async (ctx, args) => {
+    const userId = await getCurrentUserIdOrNull(ctx);
+
+    // Check if user can read this recipe
+    const hasAccess = await canReadRecipe(ctx, args.id, userId);
+    if (!hasAccess) {
+      return null; // Return null for unauthorized access (same as not found)
+    }
+
     const recipe = await ctx.db.get(args.id);
     if (!recipe) return null;
+
+    // Add ownership info
+    const isOwner = userId ? recipe.userId === userId : false;
+    const owner = recipe.userId ? await ctx.db.get(recipe.userId) : null;
+    const ownerName = owner?.name || "Unknown";
 
     const ingredients = await ctx.db
       .query("ingredients")
@@ -94,6 +193,8 @@ export const getById = query({
       ingredients: ingredients.sort((a, b) => a.sortOrder - b.sortOrder),
       steps: steps.sort((a, b) => a.stepNumber - b.stepNumber),
       tags: tags.filter(Boolean),
+      isOwner,
+      ownerName,
     };
   },
 });
@@ -102,14 +203,14 @@ export const getById = query({
 export const getByMealType = query({
   args: { mealType: v.string() },
   handler: async (ctx, args) => {
-    const user = await ctx.db.query("users").first();
-    if (!user) return [];
+    const userId = await getCurrentUserIdOrNull(ctx);
+    if (!userId) return [];
 
     // Get meal type tag
     const tag = await ctx.db
       .query("tags")
       .withIndex("by_user_and_name", (q) =>
-        q.eq("userId", user._id).eq("name", args.mealType)
+        q.eq("userId", userId).eq("name", args.mealType)
       )
       .first();
 
@@ -136,17 +237,52 @@ export const getByMealType = query({
 export const getFavorites = query({
   args: {},
   handler: async (ctx) => {
-    const user = await ctx.db.query("users").first();
-    if (!user) return [];
+    const userId = await getCurrentUserIdOrNull(ctx);
+    if (!userId) return [];
 
     const recipes = await ctx.db
       .query("recipes")
       .withIndex("by_user_and_favorite", (q) =>
-        q.eq("userId", user._id).eq("isFavorite", true)
+        q.eq("userId", userId).eq("isFavorite", true)
       )
       .collect();
 
-    return recipes;
+    // Fetch ingredients, steps, and tags for each recipe
+    const recipesWithDetails = await Promise.all(
+      recipes.map(async (recipe) => {
+        const ingredients = await ctx.db
+          .query("ingredients")
+          .withIndex("by_recipe", (q) => q.eq("recipeId", recipe._id))
+          .collect();
+
+        const steps = await ctx.db
+          .query("steps")
+          .withIndex("by_recipe", (q) => q.eq("recipeId", recipe._id))
+          .collect();
+
+        // Get recipe tags
+        const recipeTags = await ctx.db
+          .query("recipeTags")
+          .withIndex("by_recipe", (q) => q.eq("recipeId", recipe._id))
+          .collect();
+
+        const tags = await Promise.all(
+          recipeTags.map(async (rt) => {
+            const tag = await ctx.db.get(rt.tagId);
+            return tag?.name || "";
+          })
+        );
+
+        return {
+          ...recipe,
+          ingredients: ingredients.sort((a, b) => a.sortOrder - b.sortOrder),
+          steps: steps.sort((a, b) => a.stepNumber - b.stepNumber),
+          tags: tags.filter(Boolean),
+        };
+      })
+    );
+
+    return recipesWithDetails;
   },
 });
 
@@ -154,8 +290,15 @@ export const getFavorites = query({
 export const toggleFavorite = mutation({
   args: { recipeId: v.id("recipes") },
   handler: async (ctx, args) => {
+    const userId = await getCurrentUserId(ctx);
+
     const recipe = await ctx.db.get(args.recipeId);
     if (!recipe) throw new Error("Recipe not found");
+
+    // Only owner can toggle favorite on their recipes
+    if (recipe.userId !== userId) {
+      throw new Error("Not authorized to modify this recipe");
+    }
 
     const newFavoriteStatus = !recipe.isFavorite;
 
@@ -165,33 +308,30 @@ export const toggleFavorite = mutation({
     });
 
     // Sync with Favorites cookbook
-    const user = await ctx.db.query("users").first();
-    if (user) {
-      const favoritesCookbook = await ctx.db
-        .query("cookbooks")
-        .withIndex("by_user", (q) => q.eq("userId", user._id))
-        .filter((q) => q.eq(q.field("name"), "Favorites"))
+    const favoritesCookbook = await ctx.db
+      .query("cookbooks")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .filter((q) => q.eq(q.field("name"), "Favorites"))
+      .first();
+
+    if (favoritesCookbook) {
+      const existingLink = await ctx.db
+        .query("cookbookRecipes")
+        .withIndex("by_cookbook_and_recipe", (q) =>
+          q.eq("cookbookId", favoritesCookbook._id).eq("recipeId", args.recipeId)
+        )
         .first();
 
-      if (favoritesCookbook) {
-        const existingLink = await ctx.db
-          .query("cookbookRecipes")
-          .withIndex("by_cookbook_and_recipe", (q) =>
-            q.eq("cookbookId", favoritesCookbook._id).eq("recipeId", args.recipeId)
-          )
-          .first();
-
-        if (newFavoriteStatus && !existingLink) {
-          // Add to Favorites cookbook
-          await ctx.db.insert("cookbookRecipes", {
-            cookbookId: favoritesCookbook._id,
-            recipeId: args.recipeId,
-            addedAt: Date.now(),
-          });
-        } else if (!newFavoriteStatus && existingLink) {
-          // Remove from Favorites cookbook
-          await ctx.db.delete(existingLink._id);
-        }
+      if (newFavoriteStatus && !existingLink) {
+        // Add to Favorites cookbook
+        await ctx.db.insert("cookbookRecipes", {
+          cookbookId: favoritesCookbook._id,
+          recipeId: args.recipeId,
+          addedAt: Date.now(),
+        });
+      } else if (!newFavoriteStatus && existingLink) {
+        // Remove from Favorites cookbook
+        await ctx.db.delete(existingLink._id);
       }
     }
 
@@ -201,17 +341,36 @@ export const toggleFavorite = mutation({
 
 // Search recipes
 export const search = query({
-  args: { query: v.string() },
+  args: {
+    query: v.string(),
+    includeGlobal: v.optional(v.boolean()),
+  },
   handler: async (ctx, args) => {
-    const user = await ctx.db.query("users").first();
-    if (!user) return [];
+    const userId = await getCurrentUserIdOrNull(ctx);
 
-    const results = await ctx.db
-      .query("recipes")
-      .withSearchIndex("search_recipes", (q) =>
-        q.search("title", args.query).eq("userId", user._id)
-      )
-      .collect();
+    let results: any[] = [];
+
+    // Search personal recipes
+    if (userId) {
+      const personalResults = await ctx.db
+        .query("recipes")
+        .withSearchIndex("search_recipes", (q) =>
+          q.search("title", args.query).eq("userId", userId)
+        )
+        .collect();
+      results = [...personalResults];
+    }
+
+    // Search global recipes if requested
+    if (args.includeGlobal) {
+      const globalResults = await ctx.db
+        .query("recipes")
+        .withSearchIndex("search_recipes", (q) =>
+          q.search("title", args.query).eq("isGlobal", true)
+        )
+        .collect();
+      results = [...results, ...globalResults];
+    }
 
     return results;
   },
@@ -221,12 +380,12 @@ export const search = query({
 export const getQuickRecipes = query({
   args: {},
   handler: async (ctx) => {
-    const user = await ctx.db.query("users").first();
-    if (!user) return [];
+    const userId = await getCurrentUserIdOrNull(ctx);
+    if (!userId) return [];
 
     const allRecipes = await ctx.db
       .query("recipes")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
 
     return allRecipes.filter(
@@ -247,6 +406,7 @@ export const createManual = mutation({
     ),
     description: v.optional(v.string()),
     cuisine: v.optional(v.string()),
+    isPublic: v.optional(v.boolean()),
     ingredients: v.array(
       v.object({
         name: v.string(),
@@ -266,9 +426,8 @@ export const createManual = mutation({
   handler: async (ctx, args) => {
     const now = Date.now();
 
-    // Get current user (demo user for now)
-    const user = await ctx.db.query("users").first();
-    if (!user) throw new Error("User not found");
+    // Get authenticated user
+    const userId = await getCurrentUserId(ctx);
 
     // Calculate total time
     const totalTime =
@@ -276,9 +435,9 @@ export const createManual = mutation({
         ? (args.prepTime || 0) + (args.cookTime || 0)
         : undefined;
 
-    // Create the recipe
+    // Create the recipe (private by default)
     const recipeId = await ctx.db.insert("recipes", {
-      userId: user._id,
+      userId: userId,
       title: args.title,
       description: args.description,
       servings: args.servings,
@@ -288,6 +447,7 @@ export const createManual = mutation({
       difficulty: args.difficulty,
       cuisine: args.cuisine,
       sourceType: "manual",
+      isPublic: args.isPublic ?? false, // Private by default
       isFavorite: false,
       cookCount: 0,
       createdAt: now,
@@ -320,5 +480,49 @@ export const createManual = mutation({
     }
 
     return { recipeId };
+  },
+});
+
+// Toggle favorite for global recipes (creates/updates interaction record)
+export const toggleGlobalRecipeFavorite = mutation({
+  args: { recipeId: v.id("recipes") },
+  handler: async (ctx, args) => {
+    const userId = await getCurrentUserId(ctx);
+
+    const recipe = await ctx.db.get(args.recipeId);
+    if (!recipe) throw new Error("Recipe not found");
+    if (!recipe.isGlobal) {
+      throw new Error("Use toggleFavorite for personal recipes");
+    }
+
+    const now = Date.now();
+
+    // Find existing interaction
+    const interaction = await ctx.db
+      .query("userRecipeInteractions")
+      .withIndex("by_user_and_recipe", (q) =>
+        q.eq("userId", userId).eq("recipeId", args.recipeId)
+      )
+      .first();
+
+    if (interaction) {
+      // Toggle favorite
+      const newFavoriteStatus = !interaction.isFavorite;
+      await ctx.db.patch(interaction._id, {
+        isFavorite: newFavoriteStatus,
+        updatedAt: now,
+      });
+      return { isFavorite: newFavoriteStatus };
+    } else {
+      // Create new interaction
+      await ctx.db.insert("userRecipeInteractions", {
+        userId,
+        recipeId: args.recipeId,
+        isFavorite: true,
+        createdAt: now,
+        updatedAt: now,
+      });
+      return { isFavorite: true };
+    }
   },
 });

@@ -23,7 +23,8 @@ export default defineSchema({
 
   // ==================== RECIPES ====================
   recipes: defineTable({
-    userId: v.id("users"),
+    userId: v.optional(v.id("users")), // Optional for global recipes
+    isGlobal: v.optional(v.boolean()), // True for global recipes
     title: v.string(),
     description: v.optional(v.string()),
     // Timing
@@ -77,9 +78,11 @@ export default defineSchema({
     .index("by_user_and_created", ["userId", "createdAt"])
     .index("by_user_and_favorite", ["userId", "isFavorite"])
     .index("by_user_and_last_cooked", ["userId", "lastCookedAt"])
+    .index("by_global", ["isGlobal"])
+    .index("by_source_type", ["sourceType"])
     .searchIndex("search_recipes", {
       searchField: "title",
-      filterFields: ["userId"],
+      filterFields: ["userId", "isGlobal"],
     }),
 
   // ==================== INGREDIENTS ====================
@@ -140,7 +143,7 @@ export default defineSchema({
 
   // ==================== TAGS ====================
   tags: defineTable({
-    userId: v.id("users"),
+    userId: v.optional(v.id("users")), // Optional for global tags
     name: v.string(),
     type: v.union(
       v.literal("meal_type"), // breakfast, lunch, dinner, snack
@@ -154,7 +157,8 @@ export default defineSchema({
   })
     .index("by_user", ["userId"])
     .index("by_user_and_type", ["userId", "type"])
-    .index("by_user_and_name", ["userId", "name"]),
+    .index("by_user_and_name", ["userId", "name"])
+    .index("by_name", ["name"]),
 
   // Junction table for recipe tags (many-to-many)
   recipeTags: defineTable({
@@ -306,4 +310,77 @@ export default defineSchema({
   })
     .index("by_name", ["ingredientName"])
     .index("by_expiry", ["expiresAt"]),
+
+  // ==================== FRIENDSHIPS ====================
+  friendships: defineTable({
+    userId: v.id("users"),
+    friendId: v.id("users"),
+    status: v.union(
+      v.literal("pending"), // Request sent
+      v.literal("accepted"), // Friends
+      v.literal("blocked") // Blocked
+    ),
+    requestedBy: v.id("users"), // Who sent the request
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_friend", ["friendId"])
+    .index("by_user_and_status", ["userId", "status"])
+    .index("by_user_and_friend", ["userId", "friendId"]),
+
+  // ==================== RECIPE SHARES ====================
+  recipeShares: defineTable({
+    recipeId: v.id("recipes"),
+    ownerId: v.id("users"),
+    sharedWithId: v.id("users"),
+    permission: v.literal("view"), // Future: "edit"
+    sharedAt: v.number(),
+    expiresAt: v.optional(v.number()),
+    message: v.optional(v.string()),
+  })
+    .index("by_recipe", ["recipeId"])
+    .index("by_shared_with", ["sharedWithId"])
+    .index("by_recipe_and_user", ["recipeId", "sharedWithId"])
+    .index("by_owner", ["ownerId"]),
+
+  // ==================== SHARE LINKS ====================
+  shareLinks: defineTable({
+    recipeId: v.id("recipes"),
+    ownerId: v.id("users"),
+    shareCode: v.string(), // Unique 9-char code
+    createdAt: v.number(),
+    expiresAt: v.optional(v.number()),
+    accessCount: v.number(),
+    lastAccessedAt: v.optional(v.number()),
+    isActive: v.boolean(),
+  })
+    .index("by_recipe", ["recipeId"])
+    .index("by_code", ["shareCode"])
+    .index("by_owner", ["ownerId"]),
+
+  // ==================== SHARE LINK ACCESSES ====================
+  shareLinkAccesses: defineTable({
+    shareLinkId: v.id("shareLinks"),
+    userId: v.optional(v.id("users")),
+    accessedAt: v.number(),
+  })
+    .index("by_link", ["shareLinkId"]),
+
+  // ==================== USER RECIPE INTERACTIONS ====================
+  userRecipeInteractions: defineTable({
+    userId: v.id("users"),
+    recipeId: v.id("recipes"),
+    isFavorite: v.optional(v.boolean()),
+    rating: v.optional(v.number()),
+    notes: v.optional(v.string()),
+    lastCookedAt: v.optional(v.number()),
+    cookCount: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_recipe", ["recipeId"])
+    .index("by_user_and_recipe", ["userId", "recipeId"])
+    .index("by_user_and_favorite", ["userId", "isFavorite"]),
 });

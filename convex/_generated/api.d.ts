@@ -10,9 +10,14 @@
 
 import type * as auth from "../auth.js";
 import type * as cookbooks from "../cookbooks.js";
+import type * as friends from "../friends.js";
+import type * as lib_accessControl from "../lib/accessControl.js";
 import type * as mealPlans from "../mealPlans.js";
+import type * as public_ from "../public.js";
+import type * as recipeShares from "../recipeShares.js";
 import type * as recipes from "../recipes.js";
 import type * as seed from "../seed.js";
+import type * as shareLinks from "../shareLinks.js";
 import type * as shoppingLists from "../shoppingLists.js";
 import type * as users from "../users.js";
 
@@ -25,9 +30,14 @@ import type {
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   cookbooks: typeof cookbooks;
+  friends: typeof friends;
+  "lib/accessControl": typeof lib_accessControl;
   mealPlans: typeof mealPlans;
+  public: typeof public_;
+  recipeShares: typeof recipeShares;
   recipes: typeof recipes;
   seed: typeof seed;
+  shareLinks: typeof shareLinks;
   shoppingLists: typeof shoppingLists;
   users: typeof users;
 }>;

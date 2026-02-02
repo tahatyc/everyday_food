@@ -15,6 +15,7 @@ import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
+import ShareRecipeModal from "../../src/components/ShareRecipeModal";
 
 import {
   borderRadius,
@@ -108,6 +109,7 @@ export default function RecipeDetailScreen() {
   const [checkedIngredients, setCheckedIngredients] = useState<Set<number>>(
     new Set(),
   );
+  const [showShareModal, setShowShareModal] = useState(false);
 
   // Fetch recipe from Convex
   const recipe = useQuery(
@@ -262,9 +264,18 @@ export default function RecipeDetailScreen() {
               color={isFavorite ? colors.error : colors.text}
             />
           </Pressable>
-          <Pressable style={styles.headerButton}>
-            <Ionicons name="share-outline" size={24} color={colors.text} />
-          </Pressable>
+          {recipe.isOwner ? (
+            <Pressable
+              style={styles.headerButton}
+              onPress={() => setShowShareModal(true)}
+            >
+              <Ionicons name="share-outline" size={24} color={colors.text} />
+            </Pressable>
+          ) : (
+            <View style={[styles.headerButton, styles.sharedBadgeButton]}>
+              <Ionicons name="people" size={20} color={colors.primary} />
+            </View>
+          )}
         </View>
       </Animated.View>
 
@@ -273,6 +284,18 @@ export default function RecipeDetailScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Shared By Badge */}
+        {!recipe.isOwner && recipe.ownerName && (
+          <Animated.View entering={FadeInDown.delay(100).duration(300)}>
+            <View style={styles.sharedByBadge}>
+              <Ionicons name="people" size={14} color={colors.primary} />
+              <Text style={styles.sharedByText}>
+                Shared by {recipe.ownerName}
+              </Text>
+            </View>
+          </Animated.View>
+        )}
+
         {/* Source Badge */}
         {recipe.sourceUrl && (
           <Animated.View entering={FadeInDown.delay(100).duration(300)}>
@@ -395,6 +418,14 @@ export default function RecipeDetailScreen() {
         {/* Bottom Spacing */}
         <View style={styles.bottomSpacer} />
       </ScrollView>
+
+      {/* Share Modal */}
+      <ShareRecipeModal
+        visible={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        recipeId={recipe._id}
+        recipeTitle={recipe.title}
+      />
     </SafeAreaView>
   );
 }
@@ -424,6 +455,29 @@ const styles = StyleSheet.create({
   },
   headerButtonActive: {
     backgroundColor: colors.magentaLight,
+  },
+  sharedBadgeButton: {
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.primary,
+  },
+  sharedByBadge: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    backgroundColor: colors.primaryLight,
+    borderWidth: borders.thin,
+    borderColor: colors.primary,
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    marginBottom: spacing.md,
+  },
+  sharedByText: {
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.bold,
+    color: colors.primary,
+    letterSpacing: typography.letterSpacing.wide,
   },
   headerTitle: {
     fontSize: typography.sizes.md,

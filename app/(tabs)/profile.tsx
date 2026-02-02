@@ -236,20 +236,28 @@ export default function ProfileScreen() {
           />
         </Animated.View>
 
-        {/* Connect Section */}
+        {/* Friends Section */}
         <Animated.View
-          style={styles.connectSection}
           entering={FadeInDown.delay(600).duration(400)}
         >
-          <View style={styles.connectLabelContainer}>
-            <Text style={styles.connectLabel}>CONNECT</Text>
-          </View>
-
-          <View style={styles.socialButtons}>
-            <SocialButton icon="camera" color={colors.text} />
-            <SocialButton icon="videocam" color={colors.secondary} />
-            <SocialButton icon="share-social" color={colors.cyan} />
-          </View>
+          <Pressable
+            style={({ pressed }) => [
+              styles.settingsPreview,
+              pressed && styles.cardPressed,
+            ]}
+            onPress={() => router.push("/friends" as any)}
+          >
+            <View style={styles.settingsPreviewContent}>
+              <Ionicons name="people-outline" size={24} color={colors.text} />
+              <View style={styles.settingsPreviewText}>
+                <Text style={styles.settingsPreviewTitle}>MY FRIENDS</Text>
+                <Text style={styles.settingsPreviewSubtitle}>
+                  Manage friends & share recipes
+                </Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color={colors.text} />
+          </Pressable>
         </Animated.View>
 
         {/* Settings Preview */}

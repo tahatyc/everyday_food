@@ -166,7 +166,7 @@ export default function SelectRecipeScreen() {
   const [activeFilter, setActiveFilter] = useState(mealType || "all");
 
   // Fetch recipes from Convex
-  const allRecipes = useQuery(api.recipes.list);
+  const allRecipes = useQuery(api.recipes.list, {});
   const searchResults = useQuery(
     api.recipes.search,
     searchQuery ? { query: searchQuery } : "skip"
