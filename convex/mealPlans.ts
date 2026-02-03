@@ -1,6 +1,6 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { getCurrentUserId, getCurrentUserIdOrNull } from "./lib/accessControl";
+import { getCurrentUserId, getCurrentUserIdOrNull, canAccessMealPlan } from "./lib/accessControl";
 
 // Get meal plans for a specific date
 export const getByDate = query({
@@ -165,6 +165,14 @@ export const removeMeal = mutation({
     mealPlanId: v.id("mealPlans"),
   },
   handler: async (ctx, args) => {
+    const userId = await getCurrentUserId(ctx);
+
+    // Verify ownership of the meal plan
+    const hasAccess = await canAccessMealPlan(ctx, args.mealPlanId, userId);
+    if (!hasAccess) {
+      throw new Error("Not authorized to delete this meal plan");
+    }
+
     await ctx.db.delete(args.mealPlanId);
   },
 });

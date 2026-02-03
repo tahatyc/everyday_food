@@ -1,6 +1,6 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { getCurrentUserId, getCurrentUserIdOrNull } from "./lib/accessControl";
+import { getCurrentUserId, getCurrentUserIdOrNull, canAccessShoppingList, canAccessShoppingItem } from "./lib/accessControl";
 
 // Get the active shopping list with items
 export const getActive = query({
@@ -95,8 +95,16 @@ export const list = query({
 export const toggleItem = mutation({
   args: { itemId: v.id("shoppingItems") },
   handler: async (ctx, args) => {
+    const userId = await getCurrentUserId(ctx);
+
     const item = await ctx.db.get(args.itemId);
     if (!item) throw new Error("Item not found");
+
+    // Verify ownership via the shopping list
+    const hasAccess = await canAccessShoppingList(ctx, item.listId, userId);
+    if (!hasAccess) {
+      throw new Error("Not authorized to modify this item");
+    }
 
     const now = Date.now();
 
@@ -338,8 +346,16 @@ export const addRecipeIngredients = mutation({
 export const removeItem = mutation({
   args: { itemId: v.id("shoppingItems") },
   handler: async (ctx, args) => {
+    const userId = await getCurrentUserId(ctx);
+
     const item = await ctx.db.get(args.itemId);
     if (!item) throw new Error("Item not found");
+
+    // Verify ownership via the shopping list
+    const hasAccess = await canAccessShoppingList(ctx, item.listId, userId);
+    if (!hasAccess) {
+      throw new Error("Not authorized to delete this item");
+    }
 
     await ctx.db.delete(args.itemId);
     await ctx.db.patch(item.listId, { updatedAt: Date.now() });
@@ -352,6 +368,14 @@ export const removeItem = mutation({
 export const clearChecked = mutation({
   args: { listId: v.id("shoppingLists") },
   handler: async (ctx, args) => {
+    const userId = await getCurrentUserId(ctx);
+
+    // Verify ownership of the shopping list
+    const hasAccess = await canAccessShoppingList(ctx, args.listId, userId);
+    if (!hasAccess) {
+      throw new Error("Not authorized to modify this list");
+    }
+
     const items = await ctx.db
       .query("shoppingItems")
       .withIndex("by_list_and_checked", (q) =>

@@ -19,7 +19,11 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_token", ["tokenIdentifier"])
-    .index("by_email", ["email"]),
+    .index("by_email", ["email"])
+    .searchIndex("search_users", {
+      searchField: "name",
+      filterFields: [],
+    }),
 
   // ==================== RECIPES ====================
   recipes: defineTable({

@@ -128,3 +128,55 @@ export async function getRecipeWithOwnership(
     ownerName: owner?.name || "Unknown",
   };
 }
+
+/**
+ * Check if a user owns a cookbook.
+ */
+export async function canAccessCookbook(
+  ctx: QueryCtx | MutationCtx,
+  cookbookId: Id<"cookbooks">,
+  userId: Id<"users">
+): Promise<boolean> {
+  const cookbook = await ctx.db.get(cookbookId);
+  if (!cookbook) return false;
+  return cookbook.userId === userId;
+}
+
+/**
+ * Check if a user owns a shopping list.
+ */
+export async function canAccessShoppingList(
+  ctx: QueryCtx | MutationCtx,
+  listId: Id<"shoppingLists">,
+  userId: Id<"users">
+): Promise<boolean> {
+  const list = await ctx.db.get(listId);
+  if (!list) return false;
+  return list.userId === userId;
+}
+
+/**
+ * Check if a user owns a shopping item (via the list).
+ */
+export async function canAccessShoppingItem(
+  ctx: QueryCtx | MutationCtx,
+  itemId: Id<"shoppingItems">,
+  userId: Id<"users">
+): Promise<boolean> {
+  const item = await ctx.db.get(itemId);
+  if (!item) return false;
+  return canAccessShoppingList(ctx, item.listId, userId);
+}
+
+/**
+ * Check if a user owns a meal plan.
+ */
+export async function canAccessMealPlan(
+  ctx: QueryCtx | MutationCtx,
+  mealPlanId: Id<"mealPlans">,
+  userId: Id<"users">
+): Promise<boolean> {
+  const mealPlan = await ctx.db.get(mealPlanId);
+  if (!mealPlan) return false;
+  return mealPlan.userId === userId;
+}

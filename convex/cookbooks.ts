@@ -1,6 +1,6 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { getCurrentUserId, getCurrentUserIdOrNull } from "./lib/accessControl";
+import { getCurrentUserId, getCurrentUserIdOrNull, canAccessCookbook } from "./lib/accessControl";
 
 // Get all cookbooks for current user
 export const list = query({
@@ -37,8 +37,15 @@ export const list = query({
 export const getById = query({
   args: { id: v.id("cookbooks") },
   handler: async (ctx, args) => {
+    const userId = await getCurrentUserIdOrNull(ctx);
+
     const cookbook = await ctx.db.get(args.id);
     if (!cookbook) return null;
+
+    // Verify ownership - only owner can access their cookbooks
+    if (cookbook.userId !== userId) {
+      return null;
+    }
 
     // Get recipe links
     const recipeLinks = await ctx.db
@@ -126,6 +133,14 @@ export const addRecipe = mutation({
     recipeId: v.id("recipes"),
   },
   handler: async (ctx, args) => {
+    const userId = await getCurrentUserId(ctx);
+
+    // Verify ownership of the cookbook
+    const hasAccess = await canAccessCookbook(ctx, args.cookbookId, userId);
+    if (!hasAccess) {
+      throw new Error("Not authorized to modify this cookbook");
+    }
+
     // Check if already exists
     const existing = await ctx.db
       .query("cookbookRecipes")
@@ -158,6 +173,14 @@ export const removeRecipe = mutation({
     recipeId: v.id("recipes"),
   },
   handler: async (ctx, args) => {
+    const userId = await getCurrentUserId(ctx);
+
+    // Verify ownership of the cookbook
+    const hasAccess = await canAccessCookbook(ctx, args.cookbookId, userId);
+    if (!hasAccess) {
+      throw new Error("Not authorized to modify this cookbook");
+    }
+
     const existing = await ctx.db
       .query("cookbookRecipes")
       .withIndex("by_cookbook_and_recipe", (q) =>

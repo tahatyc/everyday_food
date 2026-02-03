@@ -96,17 +96,19 @@ export const getPending = query({
 
 // Search users by name or email (exclude self and existing friends)
 export const searchUsers = query({
-  args: { query: v.string() },
+  args: {
+    query: v.string(),
+    limit: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     const userId = await getCurrentUserIdOrNull(ctx);
     if (!userId) return [];
 
     if (args.query.length < 2) return [];
 
-    // Get all users (in a real app, you'd use a search index)
-    const allUsers = await ctx.db.query("users").collect();
+    const limit = args.limit ?? 10;
 
-    // Get existing friendships
+    // Get existing friendships to exclude
     const existingFriendships = await ctx.db
       .query("friendships")
       .withIndex("by_user", (q) => q.eq("userId", userId))
@@ -114,20 +116,43 @@ export const searchUsers = query({
 
     const existingFriendIds = new Set(existingFriendships.map((f) => f.friendId));
 
-    // Filter users
-    const searchLower = args.query.toLowerCase();
-    const results = allUsers
+    // Use search index for name search (more efficient)
+    const searchResults = await ctx.db
+      .query("users")
+      .withSearchIndex("search_users", (q) => q.search("name", args.query))
+      .take(limit * 2); // Take extra to account for filtering
+
+    // Also search by email using standard query (limited)
+    const emailResults = await ctx.db
+      .query("users")
+      .withIndex("by_email")
+      .filter((q) =>
+        q.and(
+          q.neq(q.field("email"), undefined),
+          q.gte(q.field("email"), args.query.toLowerCase()),
+          q.lt(q.field("email"), args.query.toLowerCase() + "\uffff")
+        )
+      )
+      .take(limit);
+
+    // Combine and deduplicate results
+    const seenIds = new Set<string>();
+    const combinedUsers = [...searchResults, ...emailResults].filter((user) => {
+      if (seenIds.has(user._id)) return false;
+      seenIds.add(user._id);
+      return true;
+    });
+
+    // Filter and transform results
+    const results = combinedUsers
       .filter((user) => {
         // Exclude self
         if (user._id === userId) return false;
         // Exclude existing friends/pending
         if (existingFriendIds.has(user._id)) return false;
-        // Match by name or email
-        const nameMatch = user.name?.toLowerCase().includes(searchLower);
-        const emailMatch = user.email?.toLowerCase().includes(searchLower);
-        return nameMatch || emailMatch;
+        return true;
       })
-      .slice(0, 10) // Limit results
+      .slice(0, limit)
       .map((user) => ({
         userId: user._id,
         name: user.name || "Unknown",
