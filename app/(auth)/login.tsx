@@ -8,7 +8,7 @@ import {
   ScrollView,
   Alert,
 } from "react-native";
-import { Link, router } from "expo-router";
+import { Link } from "expo-router";
 import { useAuthActions } from "@convex-dev/auth/react";
 
 import { Button, Input, Card } from "../../src/components/ui";
@@ -38,10 +38,9 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       await signIn("password", { email, password, flow: "signIn" });
-      router.replace("/(tabs)");
+      // Navigation is handled automatically by _layout.tsx when isAuthenticated changes
     } catch (error: any) {
       Alert.alert("Error", error.message || "Failed to sign in");
-    } finally {
       setLoading(false);
     }
   };

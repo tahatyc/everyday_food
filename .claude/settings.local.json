@@ -9,7 +9,9 @@
       "Bash(npx tsc:*)",
       "Bash(ls:*)",
       "Bash(npx convex:*)",
-      "Bash(git fsck:*)"
+      "Bash(git fsck:*)",
+      "WebFetch(domain:labs.convex.dev)",
+      "Bash(node generateKeys.mjs:*)"
     ]
   }
 }

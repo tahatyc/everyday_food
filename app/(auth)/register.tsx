@@ -8,7 +8,7 @@ import {
   ScrollView,
   Alert,
 } from "react-native";
-import { Link, router } from "expo-router";
+import { Link } from "expo-router";
 import { useAuthActions } from "@convex-dev/auth/react";
 
 import { Button, Input, Card } from "../../src/components/ui";
@@ -50,11 +50,9 @@ export default function RegisterScreen() {
     setLoading(true);
     try {
       await signIn("password", { email, password, name, flow: "signUp" });
-      // User profile is created automatically by auth callback
-      router.replace("/(tabs)");
+      // Navigation is handled automatically by _layout.tsx when isAuthenticated changes
     } catch (error: any) {
       Alert.alert("Error", error.message || "Failed to create account");
-    } finally {
       setLoading(false);
     }
   };
