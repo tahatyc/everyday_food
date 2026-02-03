@@ -11,6 +11,7 @@
 import type * as auth from "../auth.js";
 import type * as cookbooks from "../cookbooks.js";
 import type * as friends from "../friends.js";
+import type * as http from "../http.js";
 import type * as lib_accessControl from "../lib/accessControl.js";
 import type * as mealPlans from "../mealPlans.js";
 import type * as public_ from "../public.js";
@@ -31,6 +32,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   cookbooks: typeof cookbooks;
   friends: typeof friends;
+  http: typeof http;
   "lib/accessControl": typeof lib_accessControl;
   mealPlans: typeof mealPlans;
   public: typeof public_;

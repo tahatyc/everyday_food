@@ -50,6 +50,7 @@ export default function RegisterScreen() {
     setLoading(true);
     try {
       await signIn("password", { email, password, name, flow: "signUp" });
+      // User profile is created automatically by auth callback
       router.replace("/(tabs)");
     } catch (error: any) {
       Alert.alert("Error", error.message || "Failed to create account");

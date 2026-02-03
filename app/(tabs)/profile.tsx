@@ -1,5 +1,6 @@
 import { api } from "@/convex/_generated/api";
 import { Ionicons } from "@expo/vector-icons";
+import { useAuthActions } from "@convex-dev/auth/react";
 import { useQuery } from "convex/react";
 import { router } from "expo-router";
 import React from "react";
@@ -112,9 +113,15 @@ const cookbookColors = [
 ];
 
 export default function ProfileScreen() {
+  const { signOut } = useAuthActions();
   const user = useQuery(api.users.current);
   const cookbooks = useQuery(api.cookbooks.list);
   const stats = useQuery(api.users.getStats);
+
+  const handleSignOut = async () => {
+    await signOut();
+    router.replace("/(auth)/login");
+  };
 
   const isLoading = user === undefined || cookbooks === undefined || stats === undefined;
 
@@ -292,7 +299,7 @@ export default function ProfileScreen() {
               styles.signOutButton,
               pressed && styles.cardPressed,
             ]}
-            onPress={() => router.replace("/(auth)/login")}
+            onPress={handleSignOut}
           >
             <Ionicons name="log-out-outline" size={20} color={colors.error} />
             <Text style={styles.signOutText}>SIGN OUT</Text>
