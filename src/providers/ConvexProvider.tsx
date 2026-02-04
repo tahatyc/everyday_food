@@ -5,7 +5,7 @@ import { convexAsyncStorage } from "./convexStorage";
 
 // Initialize Convex client
 // In production, this URL comes from environment variables
-const convexUrl = process.env.EXPO_PUBLIC_CONVEX_URL || "https://your-deployment.convex.cloud";
+const convexUrl = process.env.EXPO_PUBLIC_CONVEX_URL || "";
 
 const convex = new ConvexReactClient(convexUrl);
 
