@@ -52,13 +52,17 @@ jobs:
           cache: "npm"
 
       - name: Install Maestro
-        run: brew install maestro
+        run: |
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> $GITHUB_PATH
 
       - name: Install dependencies
         run: npm ci
 
       - name: Build app
         run: npx expo prebuild && npx expo run:ios --configuration Release
+        env:
+          EXPO_PUBLIC_CONVEX_URL: ${{ vars.EXPO_PUBLIC_CONVEX_URL }}
 
       - name: Run E2E tests
         run: maestro test .maestro/ --format junit --output e2e-results.xml
