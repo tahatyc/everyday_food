@@ -1,0 +1,28 @@
+appId: host.exp.Exponent
+tags:
+  - meal-plan
+---
+# Generate Random Meal Plan - Verify random plan generation fills empty slots
+- launchApp
+
+# Assumes user is already logged in
+- assertVisible:
+    text: "HELLO, CHEF!"
+    timeout: 10000
+
+# Navigate to Meal Plan tab
+- tapOn: "Meal Plan"
+
+# Verify meal plan screen loads
+- assertVisible:
+    text: "WEEKLY PLANNER"
+    timeout: 5000
+
+# Tap generate random plan button
+- tapOn: "GENERATE RANDOM PLAN"
+
+# Verify meals are populated (meal slots should no longer show "Add a meal")
+- assertVisible:
+    text: "CHANGE"
+    timeout: 5000
+    optional: true

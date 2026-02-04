@@ -1,0 +1,39 @@
+appId: host.exp.Exponent
+tags:
+  - everyday-food
+  - recipes
+  - sharing
+name: "Share Recipe with Friends"
+---
+# Navigate to a recipe
+- launchApp
+- tapOn: "Recipes"
+- tapOn:
+    index: 0
+
+# Open share modal
+- assertVisible: "RECIPE"
+- tapOn:
+    id: "icon-share-outline"
+- assertVisible: "SHARE RECIPE"
+
+# Test Friends tab
+- assertVisible: "FRIENDS"
+- assertVisible: "Share with friends"
+
+# Switch to Link tab
+- tapOn: "LINK"
+- assertVisible: "Create shareable link"
+- assertVisible: "Anyone with the link can view this recipe"
+
+# Create a share link
+- tapOn: "CREATE NEW LINK"
+- assertVisible: "Link Created"
+- tapOn: "OK"
+
+# Verify link was created
+- assertVisible: "Active links"
+
+# Close the modal
+- tapOn:
+    id: "icon-close"

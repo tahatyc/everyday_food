@@ -1,0 +1,47 @@
+appId: host.exp.Exponent
+tags:
+  - grocery
+  - critical-path
+---
+# View Grocery List - Verify grocery list displays items from meal plan
+- launchApp
+
+# Assumes user is already logged in
+- assertVisible:
+    text: "HELLO, CHEF!"
+    timeout: 10000
+
+# Navigate to Meal Plan tab first
+- tapOn: "Meal Plan"
+
+# Verify meal plan screen loads
+- assertVisible:
+    text: "WEEKLY PLANNER"
+    timeout: 5000
+
+# Navigate to Grocery List
+- tapOn: "GROCERY LIST"
+
+# Verify grocery list screen loads
+- assertVisible:
+    text: "SMART GROCERY LIST"
+    timeout: 5000
+
+# Verify view toggle buttons
+- assertVisible: "AISLE"
+- assertVisible: "RECIPE"
+
+# Toggle to recipe view
+- tapOn: "RECIPE"
+
+# Toggle back to aisle view
+- tapOn: "AISLE"
+
+# Verify checkout button is present
+- assertVisible: "CHECKOUT / ORDER LIST"
+
+# Navigate back
+- back
+- assertVisible:
+    text: "WEEKLY PLANNER"
+    timeout: 5000

@@ -11,7 +11,12 @@
       "Bash(npx convex:*)",
       "Bash(git fsck:*)",
       "WebFetch(domain:labs.convex.dev)",
-      "Bash(node generateKeys.mjs:*)"
+      "Bash(node generateKeys.mjs:*)",
+      "Bash(npm test)",
+      "Bash(npm test:*)",
+      "Bash(xargs:*)",
+      "Bash(grep:*)",
+      "Bash(npx jest:*)"
     ]
   }
 }

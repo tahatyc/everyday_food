@@ -1,0 +1,12 @@
+# Maestro E2E Test Configuration for Everyday Food
+#
+# Update the appId below to match your build:
+#   - Expo Go (dev):    host.exp.Exponent
+#   - Custom dev build: com.everydayfood.app (set in app.json ios.bundleIdentifier / android.package)
+#   - Production:       your.production.bundle.id
+
+appId: host.exp.Exponent
+
+# Default tags for test organization
+tags:
+  - everyday-food

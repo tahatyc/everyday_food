@@ -1,0 +1,37 @@
+appId: host.exp.Exponent
+tags:
+  - recipes
+  - critical-path
+---
+# Import Recipe Flow - Verify user can import a recipe via URL
+- launchApp
+
+# Assumes user is already logged in (run login.yaml first or use a pre-authenticated state)
+- assertVisible:
+    text: "HELLO, CHEF!"
+    timeout: 10000
+
+# Navigate to import screen via home screen button
+- tapOn: "IMPORT RECIPE"
+
+# Verify import screen elements
+- assertVisible: "Import & Sync"
+- assertVisible: "PASTE A LINK"
+- assertVisible: "RECIPE URL"
+
+# Enter a recipe URL
+- tapOn: "TikTok, YouTube, or Blog URL..."
+- inputText: "https://www.example.com/recipe/chocolate-cake"
+
+# Tap import button
+- tapOn: "IMPORT RECIPE"
+
+# Verify syncing state appears
+- assertVisible:
+    text: "SYNCING..."
+    timeout: 5000
+
+# Wait for import to complete (returns to previous screen)
+- assertVisible:
+    text: "HELLO, CHEF!"
+    timeout: 15000

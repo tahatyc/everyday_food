@@ -1,0 +1,38 @@
+appId: host.exp.Exponent
+tags:
+  - auth
+  - smoke
+---
+# Registration Flow - Verify new user can create an account
+- launchApp:
+    clearState: true
+
+# Navigate to register screen
+- tapOn: "Create Account"
+
+# Verify register screen elements
+- assertVisible: "Join Everyday Food"
+- assertVisible: "Create Account"
+
+# Fill in registration form
+- tapOn: "Your name"
+- inputText: "Test User"
+
+- tapOn: "you@example.com"
+- inputText: "newuser@example.com"
+
+- tapOn: "Create a password"
+- inputText: "SecurePass123!"
+
+- tapOn: "Confirm your password"
+- inputText: "SecurePass123!"
+
+# Submit registration
+- tapOn:
+    text: "Create Account"
+    index: 1
+
+# Verify navigation to home screen after successful registration
+- assertVisible:
+    text: "HELLO, CHEF!"
+    timeout: 10000

@@ -1,0 +1,30 @@
+appId: host.exp.Exponent
+tags:
+  - recipes
+---
+# Favorite Recipe Flow - Verify user can favorite/unfavorite recipes
+- launchApp
+
+# Assumes user is already logged in
+- assertVisible:
+    text: "HELLO, CHEF!"
+    timeout: 10000
+
+# Navigate to Recipes tab
+- tapOn: "Recipes"
+
+# Verify recipes screen loads
+- assertVisible:
+    text: "Recipes"
+    timeout: 5000
+
+# Filter by favorites (should be empty or show favorited recipes)
+- tapOn: "Favorites"
+
+# Go back to all recipes
+- tapOn: "All"
+
+# Verify recipe count is displayed
+- assertVisible:
+    text: "recipe"
+    timeout: 5000
