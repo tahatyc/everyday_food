@@ -18,7 +18,11 @@
       "Bash(grep:*)",
       "Bash(npx jest:*)",
       "Bash(npm run test:ci:*)",
-      "Bash(gh run list:*)"
+      "Bash(gh run list:*)",
+      "Bash(npx playwright install:*)",
+      "Bash(npx playwright:*)",
+      "Bash(npm run test:coverage:*)",
+      "Bash(dir:*)"
     ]
   }
 }

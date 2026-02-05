@@ -7,7 +7,7 @@ module.exports = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
   },
-  testPathIgnorePatterns: ['/node_modules/', '/convex/_generated/'],
+  testPathIgnorePatterns: ['/node_modules/', '/convex/_generated/', '/e2e/'],
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
     'app/**/*.{ts,tsx}',

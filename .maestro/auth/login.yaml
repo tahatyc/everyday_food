@@ -25,4 +25,3 @@ tags:
 # Verify navigation to home screen
 - assertVisible:
     text: "HELLO, CHEF!"
-    timeout: 10000

@@ -13,12 +13,16 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:ci": "jest --ci --coverage --reporters=default --reporters=jest-junit",
-    "test:e2e": "maestro test .maestro/",
-    "test:e2e:auth": "maestro test .maestro/auth/",
-    "test:e2e:recipes": "maestro test .maestro/recipes/",
-    "test:e2e:meal-plan": "maestro test .maestro/meal-plan/",
-    "test:e2e:grocery": "maestro test .maestro/grocery-list/",
-    "test:e2e:report": "maestro test .maestro/ --format junit --output e2e-results.xml"
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:report": "playwright show-report",
+    "test:e2e:auth": "playwright test e2e/auth/",
+    "test:e2e:recipes": "playwright test e2e/recipes/",
+    "test:e2e:meal-plan": "playwright test e2e/meal-plan/",
+    "test:e2e:grocery": "playwright test e2e/grocery-list/",
+    "test:e2e:maestro": "maestro test .maestro/"
   },
   "dependencies": {
     "@auth/core": "^0.37.4",
@@ -49,6 +53,7 @@
     "zustand": "^5.0.10"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.1",
     "@testing-library/jest-native": "^5.4.3",
     "@testing-library/react-native": "^13.3.3",
     "@types/jest": "^30.0.0",
