@@ -7,6 +7,10 @@
 
 appId: host.exp.Exponent
 
+# Include flows from all subdirectories
+flows:
+  - "**/**.yaml"
+
 # Default tags for test organization
 tags:
   - everyday-food
