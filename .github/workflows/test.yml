@@ -79,6 +79,9 @@ jobs:
         env:
           EXPO_PUBLIC_CONVEX_URL: ${{ vars.EXPO_PUBLIC_CONVEX_URL }}
 
+      - name: Install CocoaPods
+        run: cd ios && pod install
+
       - name: Cache Xcode DerivedData
         uses: actions/cache@v4
         with:
@@ -87,10 +90,29 @@ jobs:
           restore-keys: |
             xcode-deriveddata-
 
+      - name: Boot simulator
+        run: |
+          xcrun simctl boot "iPhone 16" || true
+          xcrun simctl bootstatus "iPhone 16" -b
+
       - name: Build app
-        run: npx expo run:ios --configuration Debug --no-install
+        timeout-minutes: 30
+        run: |
+          xcodebuild -workspace ios/everydayfoodapp.xcworkspace \
+            -scheme everydayfoodapp \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -derivedDataPath ~/Library/Developer/Xcode/DerivedData \
+            build \
+            CODE_SIGNING_ALLOWED=NO
         env:
           EXPO_PUBLIC_CONVEX_URL: ${{ vars.EXPO_PUBLIC_CONVEX_URL }}
+
+      - name: Install app on simulator
+        run: |
+          APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "*.app" -path "*Debug-iphonesimulator*" | head -1)
+          xcrun simctl install "iPhone 16" "$APP_PATH"
 
       - name: Run E2E tests
         run: maestro test .maestro/ --format junit --output e2e-results.xml

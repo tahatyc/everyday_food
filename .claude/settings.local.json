@@ -17,7 +17,8 @@
       "Bash(xargs:*)",
       "Bash(grep:*)",
       "Bash(npx jest:*)",
-      "Bash(npm run test:ci:*)"
+      "Bash(npm run test:ci:*)",
+      "Bash(gh run list:*)"
     ]
   }
 }
