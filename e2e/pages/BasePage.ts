@@ -3,6 +3,8 @@ import { Page, Locator, expect } from '@playwright/test';
 /**
  * Base Page Object class with common actions and utilities
  * All page objects should extend this class
+ *
+ * Optimized for React Native Web with mobile-first approach
  */
 export class BasePage {
   readonly page: Page;
@@ -12,17 +14,41 @@ export class BasePage {
   }
 
   /**
+   * Check if current context is mobile
+   */
+  get isMobile(): boolean {
+    const viewport = this.page.viewportSize();
+    return viewport ? viewport.width < 768 : false;
+  }
+
+  /**
    * Navigate to a specific URL
    */
   async goto(path: string = '/') {
-    await this.page.goto(path);
+    await this.page.goto(path, { waitUntil: 'domcontentloaded' });
+    // Wait for React Native Web hydration
+    await this.waitForHydration();
+  }
+
+  /**
+   * Wait for React Native Web to hydrate
+   */
+  async waitForHydration(timeout = 5000) {
+    await this.page.waitForFunction(
+      () => document.body && document.body.innerText.length > 0,
+      { timeout }
+    );
+    // Small delay for React to settle
+    await this.page.waitForTimeout(500);
   }
 
   /**
    * Wait for page to be fully loaded
+   * Uses domcontentloaded instead of networkidle for better SPA support
    */
   async waitForLoad() {
-    await this.page.waitForLoadState('networkidle');
+    await this.page.waitForLoadState('domcontentloaded');
+    await this.waitForHydration();
   }
 
   /**
@@ -140,18 +166,75 @@ export class BasePage {
 
   /**
    * Simulate swipe left (for cook mode, etc.)
-   * Falls back to keyboard navigation on web
+   * Uses touch gestures on mobile, keyboard on desktop
    */
   async swipeLeft() {
-    await this.page.keyboard.press('ArrowRight');
+    if (this.isMobile) {
+      const viewport = this.page.viewportSize();
+      if (viewport) {
+        const startX = viewport.width * 0.8;
+        const endX = viewport.width * 0.2;
+        const y = viewport.height / 2;
+
+        await this.page.touchscreen.tap(startX, y);
+        await this.page.mouse.move(startX, y);
+        await this.page.mouse.down();
+        await this.page.mouse.move(endX, y, { steps: 10 });
+        await this.page.mouse.up();
+      }
+    } else {
+      await this.page.keyboard.press('ArrowRight');
+    }
   }
 
   /**
    * Simulate swipe right
-   * Falls back to keyboard navigation on web
+   * Uses touch gestures on mobile, keyboard on desktop
    */
   async swipeRight() {
-    await this.page.keyboard.press('ArrowLeft');
+    if (this.isMobile) {
+      const viewport = this.page.viewportSize();
+      if (viewport) {
+        const startX = viewport.width * 0.2;
+        const endX = viewport.width * 0.8;
+        const y = viewport.height / 2;
+
+        await this.page.touchscreen.tap(startX, y);
+        await this.page.mouse.move(startX, y);
+        await this.page.mouse.down();
+        await this.page.mouse.move(endX, y, { steps: 10 });
+        await this.page.mouse.up();
+      }
+    } else {
+      await this.page.keyboard.press('ArrowLeft');
+    }
+  }
+
+  /**
+   * Tap on coordinates (for mobile touch)
+   */
+  async tap(x: number, y: number) {
+    if (this.isMobile) {
+      await this.page.touchscreen.tap(x, y);
+    } else {
+      await this.page.mouse.click(x, y);
+    }
+  }
+
+  /**
+   * Long press on element (for mobile context menus)
+   */
+  async longPress(locator: Locator, duration = 500) {
+    const box = await locator.boundingBox();
+    if (box) {
+      const x = box.x + box.width / 2;
+      const y = box.y + box.height / 2;
+
+      await this.page.mouse.move(x, y);
+      await this.page.mouse.down();
+      await this.page.waitForTimeout(duration);
+      await this.page.mouse.up();
+    }
   }
 
   /**

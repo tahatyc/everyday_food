@@ -5,9 +5,11 @@ import { BasePage } from './BasePage';
  * Home Page Object
  * Handles main dashboard/home screen interactions
  * Source: Common across all Maestro tests
+ *
+ * Uses case-insensitive selectors for React Native Web compatibility
  */
 export class HomePage extends BasePage {
-  // Locators
+  // Locators - use regex for case-insensitivity
   readonly welcomeText: Locator;
   readonly importRecipeButton: Locator;
   readonly recipesTab: Locator;
@@ -16,11 +18,12 @@ export class HomePage extends BasePage {
 
   constructor(page: Page) {
     super(page);
-    this.welcomeText = page.getByText('HELLO, CHEF!');
-    this.importRecipeButton = page.getByText('IMPORT RECIPE');
-    this.recipesTab = page.getByText('Recipes');
-    this.mealPlanTab = page.getByText('Meal Plan');
-    this.profileTab = page.getByText('PROFILE');
+    // Use case-insensitive matchers for React Native Web
+    this.welcomeText = page.getByText(/hello,?\s*chef/i);
+    this.importRecipeButton = page.getByText(/import\s*recipe/i);
+    this.recipesTab = page.getByText(/^recipes$/i);
+    this.mealPlanTab = page.getByText(/meal\s*plan/i);
+    this.profileTab = page.getByText(/^profile$/i);
   }
 
   /**
@@ -28,12 +31,15 @@ export class HomePage extends BasePage {
    */
   async goto() {
     await super.goto('/');
+    await this.waitForHydration();
   }
 
   /**
    * Verify home screen is displayed
    */
-  async verifyHomeScreen(timeout = 10000) {
+  async verifyHomeScreen(timeout = 15000) {
+    // Wait for hydration first
+    await this.waitForHydration();
     await expect(this.welcomeText).toBeVisible({ timeout });
   }
 
@@ -42,7 +48,8 @@ export class HomePage extends BasePage {
    */
   async isLoggedIn(): Promise<boolean> {
     try {
-      await this.welcomeText.waitFor({ state: 'visible', timeout: 5000 });
+      await this.waitForHydration();
+      await this.welcomeText.waitFor({ state: 'visible', timeout: 8000 });
       return true;
     } catch {
       return false;

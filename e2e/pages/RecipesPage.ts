@@ -21,16 +21,24 @@ export class RecipesPage extends BasePage {
 
   constructor(page: Page) {
     super(page);
-    this.pageTitle = page.getByText('Recipes').first();
-    this.searchInput = page.getByPlaceholder('Search recipes...');
-    this.allFilter = page.getByText('All');
-    this.myRecipesFilter = page.getByText('My Recipes');
-    this.favoritesFilter = page.getByText('Favorites');
-    this.breakfastFilter = page.getByText('Breakfast');
-    this.lunchFilter = page.getByText('Lunch');
-    this.dinnerFilter = page.getByText('Dinner');
-    this.snackFilter = page.getByText('Snack');
-    this.recipeCards = page.locator('[data-testid^="recipe-card"]');
+    // Use more specific selectors for React Native Web
+    this.pageTitle = page.getByText(/^recipes$/i).first();
+    this.searchInput = page.getByPlaceholder(/search recipes/i);
+
+    // Filter chips - use exact match and first occurrence (the chip, not recipe text)
+    // The filter chips are typically styled differently and appear in a filter bar
+    this.allFilter = page.getByText('All', { exact: true }).first();
+    this.myRecipesFilter = page.getByText('My Recipes', { exact: true }).first();
+    this.favoritesFilter = page.getByText('Favorites', { exact: true }).first();
+    this.breakfastFilter = page.getByText('Breakfast', { exact: true }).first();
+    this.lunchFilter = page.getByText('Lunch', { exact: true }).first();
+    this.dinnerFilter = page.getByText('Dinner', { exact: true }).first();
+    this.snackFilter = page.getByText('Snack', { exact: true }).first();
+
+    // Recipe cards - use general locator since test IDs might not exist
+    this.recipeCards = page.locator('[data-testid^="recipe-card"]').or(
+      page.locator('[role="button"]').filter({ hasText: /cook time|prep time|servings/i })
+    );
   }
 
   /**
@@ -128,15 +136,27 @@ export class RecipesPage extends BasePage {
 
   /**
    * Wait for search results to appear
+   * Waits for any recipe cards or the "no results" message
    */
   async waitForSearchResults(timeout = 5000) {
-    await expect(this.page.getByText('recipe')).toBeVisible({ timeout });
+    // Wait for either recipe cards or a count indicator like "X recipes"
+    await this.page.waitForTimeout(500); // Brief wait for search to execute
+    // Try to find recipe cards or count text
+    const hasResults = await Promise.race([
+      this.recipeCards.first().waitFor({ state: 'visible', timeout }).then(() => true),
+      this.page.getByText(/\d+\s*recipes?/i).first().waitFor({ state: 'visible', timeout }).then(() => true),
+      this.page.getByText(/no recipes found/i).waitFor({ state: 'visible', timeout }).then(() => true),
+    ]).catch(() => false);
+
+    if (!hasResults) {
+      throw new Error('No search results or feedback found');
+    }
   }
 
   /**
-   * Verify recipe count text is displayed
+   * Verify recipe count text is displayed (e.g., "6 recipes")
    */
   async verifyRecipeCountDisplayed(timeout = 5000) {
-    await expect(this.page.getByText('recipe')).toBeVisible({ timeout });
+    await expect(this.page.getByText(/\d+\s*recipes?/i).first()).toBeVisible({ timeout });
   }
 }

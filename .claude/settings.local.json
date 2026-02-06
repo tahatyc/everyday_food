@@ -22,7 +22,8 @@
       "Bash(npx playwright install:*)",
       "Bash(npx playwright:*)",
       "Bash(npm run test:coverage:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "WebFetch(domain:playwright.dev)"
     ]
   }
 }

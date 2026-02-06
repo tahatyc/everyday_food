@@ -10,6 +10,7 @@
 
 import type * as auth from "../auth.js";
 import type * as cookbooks from "../cookbooks.js";
+import type * as e2eSeed from "../e2eSeed.js";
 import type * as friends from "../friends.js";
 import type * as http from "../http.js";
 import type * as lib_accessControl from "../lib/accessControl.js";
@@ -31,6 +32,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   cookbooks: typeof cookbooks;
+  e2eSeed: typeof e2eSeed;
   friends: typeof friends;
   http: typeof http;
   "lib/accessControl": typeof lib_accessControl;

@@ -1,4 +1,4 @@
-import { Page, Locator, expect } from '@playwright/test';
+import { Locator, Page, expect } from '@playwright/test';
 import { BasePage } from './BasePage';
 
 /**
@@ -23,7 +23,7 @@ export class ImportRecipePage extends BasePage {
     this.urlLabel = page.getByText('RECIPE URL');
     this.urlInput = page.getByPlaceholder('TikTok, YouTube, or Blog URL...');
     this.importButton = page.getByText('IMPORT RECIPE').last(); // Button, not nav item
-    this.createManuallyButton = page.getByText('Create Manually');
+    this.createManuallyButton = page.getByText('MANUAL');
     this.syncingIndicator = page.getByText('SYNCING...');
   }
 
