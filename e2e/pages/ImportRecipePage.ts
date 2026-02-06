@@ -71,6 +71,10 @@ export class ImportRecipePage extends BasePage {
    */
   async clickCreateManually() {
     await this.createManuallyButton.click();
+    // Wait for navigation to manual recipe page
+    await this.page.waitForURL('**/manual-recipe', { timeout: 10000 });
+    // Wait for React Native Web hydration on new page
+    await this.waitForHydration();
   }
 
   /**

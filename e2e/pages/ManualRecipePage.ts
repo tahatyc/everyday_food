@@ -15,18 +15,20 @@ export class ManualRecipePage extends BasePage {
   readonly addIngredientButton: Locator;
   readonly addStepButton: Locator;
   readonly saveRecipeButton: Locator;
+  readonly nextButton: Locator;
   readonly ingredientInputs: Locator;
   readonly stepInputs: Locator;
 
   constructor(page: Page) {
     super(page);
-    this.titleInput = page.getByPlaceholder('Recipe Title');
-    this.servingsInput = page.getByPlaceholder('Servings');
-    this.prepTimeInput = page.getByPlaceholder('Prep Time');
-    this.cookTimeInput = page.getByPlaceholder('Cook Time');
-    this.addIngredientButton = page.getByText('Add Ingredient');
-    this.addStepButton = page.getByText('Add Step');
-    this.saveRecipeButton = page.getByText('Save Recipe');
+    this.titleInput = page.getByPlaceholder("e.g., Grandma's Apple Pie");
+    this.servingsInput = page.getByPlaceholder('4');
+    this.prepTimeInput = page.getByPlaceholder('15');
+    this.cookTimeInput = page.getByPlaceholder('30');
+    this.addIngredientButton = page.getByText('ADD INGREDIENT');
+    this.addStepButton = page.getByText('ADD STEP');
+    this.saveRecipeButton = page.getByText('SAVE RECIPE');
+    this.nextButton = page.getByText('NEXT');
     this.ingredientInputs = page.locator('[data-testid^="ingredient-input"]');
     this.stepInputs = page.locator('[data-testid^="step-input"]');
   }
@@ -42,7 +44,7 @@ export class ManualRecipePage extends BasePage {
    * Verify manual recipe screen is displayed
    */
   async verifyManualRecipeScreen() {
-    await expect(this.page.getByText('Recipe Title')).toBeVisible();
+    await expect(this.page.getByText('RECIPE TITLE', { exact: false })).toBeVisible();
   }
 
   /**
@@ -79,9 +81,72 @@ export class ManualRecipePage extends BasePage {
   }
 
   /**
-   * Add an ingredient
+   * Click Next to advance to the next wizard step
+   */
+  async clickNext() {
+    await this.nextButton.scrollIntoViewIfNeeded();
+    await this.nextButton.click();
+    // Wait for animation
+    await this.page.waitForTimeout(300);
+  }
+
+  /**
+   * Navigate to Ingredients step (step 2) from Basic Info (step 1)
+   */
+  async goToIngredientsStep() {
+    // Check if we're on step 1 (Basic Info)
+    const titleVisible = await this.titleInput.isVisible().catch(() => false);
+    if (titleVisible) {
+      await this.clickNext();
+    }
+    // Wait for ADD INGREDIENT button to be visible
+    await expect(this.addIngredientButton).toBeVisible({ timeout: 5000 });
+  }
+
+  /**
+   * Navigate to Steps step (step 3) from current step
+   */
+  async goToStepsStep() {
+    // Ensure we're on step 3
+    const addStepVisible = await this.addStepButton.isVisible().catch(() => false);
+    if (!addStepVisible) {
+      // If on step 1, go to step 2 first
+      const titleVisible = await this.titleInput.isVisible().catch(() => false);
+      if (titleVisible) {
+        await this.clickNext();
+      }
+      // Then go to step 3
+      await this.clickNext();
+    }
+    await expect(this.addStepButton).toBeVisible({ timeout: 5000 });
+  }
+
+  /**
+   * Navigate to Extras step (step 4)
+   */
+  async goToExtrasStep() {
+    // Click next until we reach step 4
+    for (let i = 0; i < 3; i++) {
+      const saveVisible = await this.saveRecipeButton.isVisible().catch(() => false);
+      if (saveVisible) break;
+      const nextVisible = await this.nextButton.isVisible().catch(() => false);
+      if (nextVisible) {
+        await this.clickNext();
+      }
+    }
+    await expect(this.saveRecipeButton).toBeVisible({ timeout: 5000 });
+  }
+
+  /**
+   * Add an ingredient (navigates to step 2 if needed)
    */
   async addIngredient(ingredient: string) {
+    // Navigate to ingredients step if not already there
+    const addIngredientVisible = await this.addIngredientButton.isVisible().catch(() => false);
+    if (!addIngredientVisible) {
+      await this.goToIngredientsStep();
+    }
+
     await this.addIngredientButton.scrollIntoViewIfNeeded();
     await this.addIngredientButton.click();
     // Fill the last (newly added) ingredient input
@@ -100,9 +165,15 @@ export class ManualRecipePage extends BasePage {
   }
 
   /**
-   * Add a step
+   * Add a step (navigates to step 3 if needed)
    */
   async addStep(step: string) {
+    // Navigate to steps step if not already there
+    const addStepVisible = await this.addStepButton.isVisible().catch(() => false);
+    if (!addStepVisible) {
+      await this.goToStepsStep();
+    }
+
     await this.addStepButton.scrollIntoViewIfNeeded();
     await this.addStepButton.click();
     // Fill the last (newly added) step input
@@ -121,9 +192,15 @@ export class ManualRecipePage extends BasePage {
   }
 
   /**
-   * Click save recipe button
+   * Click save recipe button (navigates to step 4 if needed)
    */
   async clickSaveRecipe() {
+    // Navigate to extras step if not already there
+    const saveVisible = await this.saveRecipeButton.isVisible().catch(() => false);
+    if (!saveVisible) {
+      await this.goToExtrasStep();
+    }
+
     await this.saveRecipeButton.scrollIntoViewIfNeeded();
     await this.saveRecipeButton.click();
   }
@@ -159,6 +236,16 @@ export class ManualRecipePage extends BasePage {
    * Verify recipe was created successfully
    */
   async verifyRecipeCreated(title: string) {
-    await expect(this.page.getByText(title)).toBeVisible();
+    // Wait for navigation to recipe detail page
+    await this.page.waitForURL(/\/recipe\//, { timeout: 30000 });
+
+    // Wait for loading state to disappear
+    await expect(this.page.getByText('Loading recipe...')).toBeHidden({ timeout: 30000 });
+
+    // The recipe title is rendered with .toUpperCase() in the app code
+    // Use exact: true to match only the element with actual uppercase text in DOM
+    // (avoiding CSS text-transform elements that show uppercase visually but have lowercase DOM text)
+    const titleLocator = this.page.getByText(title.toUpperCase(), { exact: true });
+    await expect(titleLocator).toBeVisible({ timeout: 10000 });
   }
 }

@@ -55,9 +55,22 @@ test.describe('Create Recipe Manually', () => {
     await homePage.clickImportRecipe();
     await importRecipePage.clickCreateManually();
 
-    // Verify all form fields are present
+    // Step 1: Verify basic info fields are present
     await expect(manualRecipePage.titleInput).toBeVisible();
+    await expect(manualRecipePage.servingsInput).toBeVisible();
+
+    // Fill required title to pass validation
+    await manualRecipePage.enterTitle('Test Recipe');
+
+    // Navigate to step 2 to verify ingredient fields
+    await manualRecipePage.clickNext();
     await expect(manualRecipePage.addIngredientButton).toBeVisible();
+
+    // Add an ingredient to pass step 2 validation
+    await manualRecipePage.addIngredient('Test Ingredient');
+
+    // Navigate to step 3 to verify step fields
+    await manualRecipePage.clickNext();
     await expect(manualRecipePage.addStepButton).toBeVisible();
   });
 
@@ -69,6 +82,9 @@ test.describe('Create Recipe Manually', () => {
     await homePage.verifyHomeScreen(10000);
     await homePage.clickImportRecipe();
     await importRecipePage.clickCreateManually();
+
+    // Fill required title to pass step 1 validation
+    await manualRecipePage.enterTitle('Ingredient Test Recipe');
 
     // Add multiple ingredients
     await manualRecipePage.addIngredients(['Flour', 'Sugar', 'Butter', 'Eggs']);

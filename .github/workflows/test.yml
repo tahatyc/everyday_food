@@ -1,4 +1,4 @@
-name: E2E Test
+name: Tests
 
 on:
   push:
@@ -41,7 +41,7 @@ jobs:
           files: ./coverage/lcov.info
 
   e2e-tests:
-    runs-on: macos-15
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -51,71 +51,25 @@ jobs:
           node-version: "20"
           cache: "npm"
 
-      - name: Cache Maestro
-        id: cache-maestro
-        uses: actions/cache@v4
-        with:
-          path: ~/.maestro
-          key: maestro-${{ runner.os }}
-
-      - name: Install Maestro
-        if: steps.cache-maestro.outputs.cache-hit != 'true'
-        run: curl -fsSL "https://get.maestro.mobile.dev" | bash
-
-      - name: Add Maestro to PATH
-        run: echo "$HOME/.maestro/bin" >> $GITHUB_PATH
-
       - name: Install dependencies
         run: npm ci
 
-      - name: Cache Expo prebuild
-        uses: actions/cache@v4
-        with:
-          path: ios
-          key: ios-prebuild-${{ hashFiles('package-lock.json', 'app.json') }}
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium webkit
 
-      - name: Prebuild iOS
-        run: npx expo prebuild --platform ios
+      - name: Run Playwright E2E tests (iOS)
+        run: npm run test:e2e:ci
         env:
+          CI: true
           EXPO_PUBLIC_CONVEX_URL: ${{ vars.EXPO_PUBLIC_CONVEX_URL }}
 
-      - name: Install CocoaPods
-        run: cd ios && pod install
-
-      - name: Cache Xcode DerivedData
-        uses: actions/cache@v4
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          path: ~/Library/Developer/Xcode/DerivedData
-          key: xcode-deriveddata-${{ hashFiles('ios/Podfile.lock', 'package-lock.json') }}
-          restore-keys: |
-            xcode-deriveddata-
-
-      - name: Boot simulator
-        run: |
-          xcrun simctl boot "iPhone 16" || true
-          xcrun simctl bootstatus "iPhone 16" -b
-
-      - name: Build app
-        timeout-minutes: 30
-        run: |
-          xcodebuild -workspace ios/everydayfoodapp.xcworkspace \
-            -scheme everydayfoodapp \
-            -configuration Debug \
-            -sdk iphonesimulator \
-            -destination 'platform=iOS Simulator,name=iPhone 16' \
-            -derivedDataPath ~/Library/Developer/Xcode/DerivedData \
-            build \
-            CODE_SIGNING_ALLOWED=NO
-        env:
-          EXPO_PUBLIC_CONVEX_URL: ${{ vars.EXPO_PUBLIC_CONVEX_URL }}
-
-      - name: Install app on simulator
-        run: |
-          APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "*.app" -path "*Debug-iphonesimulator*" | head -1)
-          xcrun simctl install "iPhone 16" "$APP_PATH"
-
-      - name: Run E2E tests
-        run: maestro test .maestro/ --format junit --output e2e-results.xml
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
 
       - name: Upload E2E results
         if: always()

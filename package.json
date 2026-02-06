@@ -22,7 +22,7 @@
     "test:e2e:recipes": "playwright test e2e/recipes/",
     "test:e2e:meal-plan": "playwright test e2e/meal-plan/",
     "test:e2e:grocery": "playwright test e2e/grocery-list/",
-    "test:e2e:maestro": "maestro test .maestro/"
+    "test:e2e:ci": "playwright test --project=mobile-ios --project=auth-mobile"
   },
   "dependencies": {
     "@auth/core": "^0.37.4",
