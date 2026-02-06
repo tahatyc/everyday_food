@@ -60,6 +60,9 @@ test.describe('Registration Flow', () => {
     await loginPage.goto();
     await loginPage.goToRegister();
 
+    // Wait for register page to be fully loaded (login page hidden)
+    await registerPage.waitForRegisterPageReady();
+
     // Verify all form fields are visible
     await expect(registerPage.nameInput).toBeVisible();
     await expect(registerPage.emailInput).toBeVisible();

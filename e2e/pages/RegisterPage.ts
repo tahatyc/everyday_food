@@ -26,10 +26,21 @@ export class RegisterPage extends BasePage {
   }
 
   /**
+   * Wait for navigation from login to register to complete
+   * Ensures login page elements are gone before interacting with register form
+   */
+  async waitForRegisterPageReady() {
+    // Wait for register page title to be visible
+    await expect(this.pageTitle).toBeVisible();
+    // Wait for login page's "Welcome Back" text to be hidden (navigation complete)
+    await expect(this.page.getByText('Welcome Back')).toBeHidden();
+  }
+
+  /**
    * Verify register screen is displayed
    */
   async verifyRegisterScreen() {
-    await expect(this.pageTitle).toBeVisible();
+    await this.waitForRegisterPageReady();
     await expect(this.createAccountButton).toBeVisible();
   }
 
@@ -45,6 +56,8 @@ export class RegisterPage extends BasePage {
    * Enter email address
    */
   async enterEmail(email: string) {
+    // Ensure login page is fully hidden before interacting (fixes CI timing issue)
+    await this.waitForRegisterPageReady();
     await this.emailInput.click();
     await this.emailInput.fill(email);
   }
