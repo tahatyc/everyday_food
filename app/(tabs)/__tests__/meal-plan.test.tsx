@@ -161,4 +161,178 @@ describe('MealPlanScreen', () => {
     fireEvent.press(getByTestId('icon-arrow-back'));
     expect(router.back).toHaveBeenCalled();
   });
+
+  it('fetches recipes with includeGlobal flag', () => {
+    (useQuery as jest.Mock)
+      .mockReturnValueOnce([])
+      .mockReturnValueOnce([]);
+
+    render(<MealPlanScreen />);
+
+    // Second useQuery call is for recipes.list — should include global recipes
+    const calls = (useQuery as jest.Mock).mock.calls;
+    const recipesListCall = calls[1];
+    expect(recipesListCall[1]).toEqual({ includeGlobal: true });
+  });
+
+  it('navigates to select-recipe with date and mealType params', () => {
+    (useQuery as jest.Mock)
+      .mockReturnValueOnce([])
+      .mockReturnValueOnce([]);
+
+    const { getAllByText } = render(<MealPlanScreen />);
+    const addButtons = getAllByText('Add a meal');
+    fireEvent.press(addButtons[1]); // Lunch slot
+
+    expect(router.push).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pathname: '/select-recipe',
+        params: expect.objectContaining({
+          mealType: 'lunch',
+        }),
+      })
+    );
+  });
+
+  it('passes breakfast mealType when adding meal to breakfast slot', () => {
+    (useQuery as jest.Mock)
+      .mockReturnValueOnce([])
+      .mockReturnValueOnce([]);
+
+    const { getAllByText } = render(<MealPlanScreen />);
+    const addButtons = getAllByText('Add a meal');
+    fireEvent.press(addButtons[0]); // Breakfast slot
+
+    expect(router.push).toHaveBeenCalledWith(
+      expect.objectContaining({
+        params: expect.objectContaining({
+          mealType: 'breakfast',
+        }),
+      })
+    );
+  });
+
+  it('passes dinner mealType when adding meal to dinner slot', () => {
+    (useQuery as jest.Mock)
+      .mockReturnValueOnce([])
+      .mockReturnValueOnce([]);
+
+    const { getAllByText } = render(<MealPlanScreen />);
+    const addButtons = getAllByText('Add a meal');
+    fireEvent.press(addButtons[2]); // Dinner slot
+
+    expect(router.push).toHaveBeenCalledWith(
+      expect.objectContaining({
+        params: expect.objectContaining({
+          mealType: 'dinner',
+        }),
+      })
+    );
+  });
+
+  it('shows breakfast emoji when breakfast recipe is in breakfast slot', () => {
+    const mockMealPlans = [
+      {
+        _id: 'mp1',
+        mealType: 'breakfast',
+        recipe: {
+          _id: 'r1',
+          title: 'Pancakes',
+          nutritionPerServing: { calories: 300 },
+          tags: ['breakfast'],
+        },
+      },
+    ];
+    (useQuery as jest.Mock)
+      .mockReturnValueOnce(mockMealPlans)
+      .mockReturnValueOnce([]);
+
+    const { getByText } = render(<MealPlanScreen />);
+    expect(getByText('🍳')).toBeTruthy();
+  });
+
+  it('shows breakfast emoji when breakfast recipe is placed in lunch slot', () => {
+    const mockMealPlans = [
+      {
+        _id: 'mp1',
+        mealType: 'lunch',
+        recipe: {
+          _id: 'r1',
+          title: 'Pancakes',
+          nutritionPerServing: { calories: 300 },
+          tags: ['breakfast'],
+        },
+      },
+    ];
+    (useQuery as jest.Mock)
+      .mockReturnValueOnce(mockMealPlans)
+      .mockReturnValueOnce([]);
+
+    const { getByText } = render(<MealPlanScreen />);
+    expect(getByText('🍳')).toBeTruthy();
+  });
+
+  it('shows dinner emoji when dinner recipe is placed in breakfast slot', () => {
+    const mockMealPlans = [
+      {
+        _id: 'mp1',
+        mealType: 'breakfast',
+        recipe: {
+          _id: 'r1',
+          title: 'Spaghetti Bolognese',
+          nutritionPerServing: { calories: 500 },
+          tags: ['dinner'],
+        },
+      },
+    ];
+    (useQuery as jest.Mock)
+      .mockReturnValueOnce(mockMealPlans)
+      .mockReturnValueOnce([]);
+
+    const { getByText } = render(<MealPlanScreen />);
+    expect(getByText('🍝')).toBeTruthy();
+  });
+
+  it('shows snack emoji when snack recipe is placed in any slot', () => {
+    const mockMealPlans = [
+      {
+        _id: 'mp1',
+        mealType: 'lunch',
+        recipe: {
+          _id: 'r1',
+          title: 'Cookie Bites',
+          nutritionPerServing: { calories: 150 },
+          tags: ['snack'],
+        },
+      },
+    ];
+    (useQuery as jest.Mock)
+      .mockReturnValueOnce(mockMealPlans)
+      .mockReturnValueOnce([]);
+
+    const { getByText } = render(<MealPlanScreen />);
+    expect(getByText('🍪')).toBeTruthy();
+  });
+
+  it('falls back to slot emoji when recipe has no meal type tag', () => {
+    const mockMealPlans = [
+      {
+        _id: 'mp1',
+        mealType: 'lunch',
+        recipe: {
+          _id: 'r1',
+          title: 'Mystery Dish',
+          nutritionPerServing: { calories: 200 },
+          tags: ['vegetarian'],
+        },
+      },
+    ];
+    (useQuery as jest.Mock)
+      .mockReturnValueOnce(mockMealPlans)
+      .mockReturnValueOnce([]);
+
+    const { getByText } = render(<MealPlanScreen />);
+    // No meal type tag, so falls back to lunch slot emoji
+    expect(getByText('🥗')).toBeTruthy();
+  });
 });

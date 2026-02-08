@@ -159,6 +159,105 @@ describe('RecipesScreen', () => {
     expect(getByText('Italian')).toBeTruthy();
   });
 
+  it('shows favorite recipes when Favorites filter is selected', () => {
+    const mockRecipes = [
+      {
+        _id: 'r1',
+        title: 'Personal Fav',
+        servings: 2,
+        isFavorite: true,
+        tags: [],
+        ingredients: [],
+        steps: [],
+      },
+      {
+        _id: 'r2',
+        title: 'Non-Fav',
+        servings: 4,
+        isFavorite: false,
+        tags: [],
+        ingredients: [],
+        steps: [],
+      },
+    ];
+    const mockFavorites = [
+      {
+        _id: 'r1',
+        title: 'Personal Fav',
+        servings: 2,
+        isFavorite: true,
+        tags: [],
+        ingredients: [],
+        steps: [],
+      },
+      {
+        _id: 'r3',
+        title: 'Global Fav Recipe',
+        servings: 4,
+        isGlobal: true,
+        tags: ['dinner'],
+        ingredients: [],
+        steps: [],
+      },
+    ];
+    let callCount = 0;
+    (useQuery as jest.Mock).mockImplementation(() => {
+      callCount++;
+      const idx = ((callCount - 1) % 3) + 1;
+      if (idx === 1) return mockRecipes;  // allRecipes
+      if (idx === 2) return undefined;     // searchResults
+      return mockFavorites;                // favoriteRecipes
+    });
+
+    const { getByText } = render(<RecipesScreen />);
+    fireEvent.press(getByText('Favorites'));
+    expect(getByText('Personal Fav')).toBeTruthy();
+    expect(getByText('Global Fav Recipe')).toBeTruthy();
+    expect(getByText('2 recipes')).toBeTruthy();
+  });
+
+  it('shows global favorites in Favorites filter (not just personal)', () => {
+    const mockFavorites = [
+      {
+        _id: 'r3',
+        title: 'Global Favorite',
+        servings: 2,
+        isGlobal: true,
+        tags: [],
+        ingredients: [],
+        steps: [],
+      },
+    ];
+    let callCount = 0;
+    (useQuery as jest.Mock).mockImplementation(() => {
+      callCount++;
+      const idx = ((callCount - 1) % 3) + 1;
+      if (idx === 1) return [];          // allRecipes
+      if (idx === 2) return undefined;    // searchResults
+      return mockFavorites;               // favoriteRecipes
+    });
+
+    const { getByText } = render(<RecipesScreen />);
+    fireEvent.press(getByText('Favorites'));
+    expect(getByText('Global Favorite')).toBeTruthy();
+    expect(getByText('1 recipe')).toBeTruthy();
+  });
+
+  it('shows empty state when no favorites exist', () => {
+    let callCount = 0;
+    (useQuery as jest.Mock).mockImplementation(() => {
+      callCount++;
+      const idx = ((callCount - 1) % 3) + 1;
+      if (idx === 1) return [];          // allRecipes
+      if (idx === 2) return undefined;    // searchResults
+      return [];                          // favoriteRecipes
+    });
+
+    const { getByText } = render(<RecipesScreen />);
+    fireEvent.press(getByText('Favorites'));
+    expect(getByText('No recipes found')).toBeTruthy();
+  });
+
   it('shows global badge for global recipes', () => {
     const mockRecipes = [
       {

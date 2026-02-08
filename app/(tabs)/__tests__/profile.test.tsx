@@ -70,6 +70,29 @@ describe('ProfileScreen', () => {
     expect(getByText('COOKED')).toBeTruthy();
   });
 
+  it('renders combined favorites count including global favorites', () => {
+    (useQuery as jest.Mock)
+      .mockReturnValueOnce({ name: 'John' })
+      .mockReturnValueOnce([])
+      .mockReturnValueOnce({ totalRecipes: 10, totalFavorites: 7, totalMealsCooked: 20 });
+
+    const { getByText } = render(<ProfileScreen />);
+    // totalFavorites: 7 = personal (e.g. 3) + global (e.g. 4) combined by backend
+    expect(getByText('7')).toBeTruthy();
+    expect(getByText('FAVORITES')).toBeTruthy();
+  });
+
+  it('shows zero favorites when none exist', () => {
+    (useQuery as jest.Mock)
+      .mockReturnValueOnce({ name: 'John' })
+      .mockReturnValueOnce([])
+      .mockReturnValueOnce({ totalRecipes: 5, totalFavorites: 0, totalMealsCooked: 10 });
+
+    const { getByText } = render(<ProfileScreen />);
+    expect(getByText('0')).toBeTruthy();
+    expect(getByText('FAVORITES')).toBeTruthy();
+  });
+
   it('renders edit profile button', () => {
     (useQuery as jest.Mock)
       .mockReturnValueOnce({ name: 'John' })

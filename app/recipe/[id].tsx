@@ -119,6 +119,7 @@ export default function RecipeDetailScreen() {
 
   // Convex mutations
   const toggleFavoriteMutation = useMutation(api.recipes.toggleFavorite);
+  const toggleGlobalFavoriteMutation = useMutation(api.recipes.toggleGlobalRecipeFavorite);
   const addToListMutation = useMutation(api.shoppingLists.addRecipeIngredients);
 
   // Get favorite state from recipe
@@ -173,7 +174,10 @@ export default function RecipeDetailScreen() {
 
   const handleToggleFavorite = async () => {
     try {
-      const result = await toggleFavoriteMutation({ recipeId: recipe._id });
+      const mutation = recipe.isGlobal
+        ? toggleGlobalFavoriteMutation
+        : toggleFavoriteMutation;
+      const result = await mutation({ recipeId: recipe._id });
       setIsFavorite(result.isFavorite);
     } catch (error) {
       console.error("Failed to toggle favorite:", error);

@@ -68,9 +68,19 @@ export const getStats = query({
 
     const totalMealsCooked = recipes.reduce((sum, r) => sum + (r.cookCount || 0), 0);
 
+    // Count global recipe favorites from userRecipeInteractions
+    const globalFavorites = await ctx.db
+      .query("userRecipeInteractions")
+      .withIndex("by_user_and_favorite", (q) =>
+        q.eq("userId", userId).eq("isFavorite", true)
+      )
+      .collect();
+
+    const personalFavorites = recipes.filter((r) => r.isFavorite).length;
+
     return {
       totalRecipes: recipes.length,
-      totalFavorites: recipes.filter((r) => r.isFavorite).length,
+      totalFavorites: personalFavorites + globalFavorites.length,
       totalCookbooks: cookbooks.length,
       totalMealsCooked,
     };

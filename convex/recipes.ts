@@ -240,12 +240,36 @@ export const getFavorites = query({
     const userId = await getCurrentUserIdOrNull(ctx);
     if (!userId) return [];
 
-    const recipes = await ctx.db
+    // Get personal favorite recipes
+    const personalFavorites = await ctx.db
       .query("recipes")
       .withIndex("by_user_and_favorite", (q) =>
         q.eq("userId", userId).eq("isFavorite", true)
       )
       .collect();
+
+    // Get global recipe favorites from userRecipeInteractions
+    const favoriteInteractions = await ctx.db
+      .query("userRecipeInteractions")
+      .withIndex("by_user_and_favorite", (q) =>
+        q.eq("userId", userId).eq("isFavorite", true)
+      )
+      .collect();
+
+    const globalFavorites = (
+      await Promise.all(
+        favoriteInteractions.map((interaction) =>
+          ctx.db.get(interaction.recipeId)
+        )
+      )
+    ).filter((r): r is NonNullable<typeof r> => r !== null);
+
+    // Merge and deduplicate
+    const seenIds = new Set(personalFavorites.map((r) => r._id));
+    const recipes = [
+      ...personalFavorites,
+      ...globalFavorites.filter((r) => !seenIds.has(r._id)),
+    ];
 
     // Fetch ingredients, steps, and tags for each recipe
     const recipesWithDetails = await Promise.all(

@@ -126,7 +126,10 @@ function MealSection({
   onAddMeal: () => void;
   onRemoveMeal: () => void;
 }) {
-  const bgColor = getMealTypeColor(type);
+  const recipeMealType = recipe?.tags?.find((t: string) =>
+    ["breakfast", "lunch", "dinner", "snack"].includes(t.toLowerCase())
+  )?.toLowerCase() || type;
+  const bgColor = getMealTypeColor(recipeMealType);
 
   return (
     <Animated.View
@@ -158,7 +161,7 @@ function MealSection({
               ]}
             >
               <Text style={styles.mealEmoji}>
-                {type === "breakfast" ? "🍳" : type === "lunch" ? "🥗" : "🍝"}
+                {recipeMealType === "breakfast" ? "🍳" : recipeMealType === "lunch" ? "🥗" : recipeMealType === "snack" ? "🍪" : "🍝"}
               </Text>
             </View>
           </View>
@@ -234,7 +237,7 @@ export default function MealPlanScreen() {
   );
 
   // Fetch all recipes for random generation
-  const allRecipes = useQuery(api.recipes.list, {});
+  const allRecipes = useQuery(api.recipes.list, { includeGlobal: true });
   const addMealMutation = useMutation(api.mealPlans.addMeal);
   const removeMealMutation = useMutation(api.mealPlans.removeMeal);
 
@@ -437,7 +440,7 @@ export default function MealPlanScreen() {
           recipe={mealPlan.breakfast.recipe}
           mealPlanId={mealPlan.breakfast.mealPlanId}
           index={0}
-          onChangeMeal={() => handleAddMeal("breakfast")}
+          onChangeMeal={() => handleChangeMeal("breakfast")}
           onAddMeal={() => handleAddMeal("breakfast")}
           onRemoveMeal={() => handleRemoveMeal(mealPlan.breakfast.mealPlanId)}
         />
@@ -447,7 +450,7 @@ export default function MealPlanScreen() {
           recipe={mealPlan.lunch.recipe}
           mealPlanId={mealPlan.lunch.mealPlanId}
           index={1}
-          onChangeMeal={() => handleAddMeal("lunch")}
+          onChangeMeal={() => handleChangeMeal("lunch")}
           onAddMeal={() => handleAddMeal("lunch")}
           onRemoveMeal={() => handleRemoveMeal(mealPlan.lunch.mealPlanId)}
         />
@@ -457,7 +460,7 @@ export default function MealPlanScreen() {
           recipe={mealPlan.dinner.recipe}
           mealPlanId={mealPlan.dinner.mealPlanId}
           index={2}
-          onChangeMeal={() => handleAddMeal("dinner")}
+          onChangeMeal={() => handleChangeMeal("dinner")}
           onAddMeal={() => handleAddMeal("dinner")}
           onRemoveMeal={() => handleRemoveMeal(mealPlan.dinner.mealPlanId)}
         />

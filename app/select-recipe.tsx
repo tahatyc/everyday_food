@@ -164,9 +164,11 @@ export default function SelectRecipeScreen() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState(mealType || "all");
+  const [targetMealType] = useState(mealType);
+  const [targetDate] = useState(date);
 
   // Fetch recipes from Convex
-  const allRecipes = useQuery(api.recipes.list, {});
+  const allRecipes = useQuery(api.recipes.list, { includeGlobal: true });
   const searchResults = useQuery(
     api.recipes.search,
     searchQuery ? { query: searchQuery } : "skip"
@@ -204,12 +206,12 @@ export default function SelectRecipeScreen() {
 
   // Handle recipe selection
   const handleSelectRecipe = async (recipeId: Id<"recipes">) => {
-    if (!date || !mealType) return;
+    if (!targetDate || !targetMealType) return;
 
     try {
       await addMealMutation({
-        date,
-        mealType: mealType as "breakfast" | "lunch" | "dinner" | "snack",
+        date: targetDate,
+        mealType: targetMealType as "breakfast" | "lunch" | "dinner" | "snack",
         recipeId,
       });
       router.back();
@@ -220,7 +222,7 @@ export default function SelectRecipeScreen() {
 
   // Get meal type label for header
   const getMealTypeLabel = () => {
-    switch (mealType) {
+    switch (targetMealType) {
       case "breakfast":
         return "BREAKFAST";
       case "lunch":
@@ -265,9 +267,9 @@ export default function SelectRecipeScreen() {
         </Pressable>
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>SELECT {getMealTypeLabel()}</Text>
-          {date && (
+          {targetDate && (
             <Text style={styles.headerSubtitle}>
-              {new Date(date).toLocaleDateString("en-US", {
+              {new Date(targetDate).toLocaleDateString("en-US", {
                 weekday: "short",
                 month: "short",
                 day: "numeric",

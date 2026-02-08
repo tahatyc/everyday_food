@@ -8,6 +8,7 @@ import RecipeDetailScreen from '../[id]';
 jest.spyOn(Alert, 'alert');
 
 const mockToggleFavorite = jest.fn();
+const mockToggleGlobalFavorite = jest.fn();
 const mockAddToList = jest.fn();
 
 jest.mock('expo-router', () => ({
@@ -25,19 +26,21 @@ const noopFn = jest.fn();
 beforeEach(() => {
   jest.clearAllMocks();
   mockToggleFavorite.mockReset();
+  mockToggleGlobalFavorite.mockReset();
   mockAddToList.mockReset();
   (useLocalSearchParams as jest.Mock).mockReturnValue({ id: 'recipe1' });
   // Default return [] for ShareRecipeModal's useQuery calls (friends, sharedWith, shareLinks)
   (useQuery as jest.Mock).mockReturnValue([]);
   // Use mockImplementation for useMutation to persist across re-renders
-  // RecipeDetailScreen: toggleFavorite (1), addToList (2)
-  // ShareRecipeModal: shareWithFriend (3), unshare (4), createLink (5), revokeLink (6)
+  // RecipeDetailScreen: toggleFavorite (1), toggleGlobalFavorite (2), addToList (3)
+  // ShareRecipeModal: shareWithFriend (4), unshare (5), createLink (6), revokeLink (7)
   let mutationCallCount = 0;
   (useMutation as jest.Mock).mockImplementation(() => {
     mutationCallCount++;
-    const idx = ((mutationCallCount - 1) % 6) + 1;
+    const idx = ((mutationCallCount - 1) % 7) + 1;
     if (idx === 1) return mockToggleFavorite;
-    if (idx === 2) return mockAddToList;
+    if (idx === 2) return mockToggleGlobalFavorite;
+    if (idx === 3) return mockAddToList;
     return noopFn;
   });
 });
@@ -237,5 +240,36 @@ describe('RecipeDetailScreen', () => {
 
     const { getByText } = render(<RecipeDetailScreen />);
     expect(getByText('INSTAGRAM IMPORT')).toBeTruthy();
+  });
+
+  it('uses toggleGlobalRecipeFavorite for global recipes', async () => {
+    mockToggleGlobalFavorite.mockResolvedValue({ isFavorite: true });
+    mockRecipeQuery({
+      ...mockRecipe,
+      isGlobal: true,
+      isOwner: false,
+      ownerName: 'System',
+    });
+
+    const { getByTestId } = render(<RecipeDetailScreen />);
+    fireEvent.press(getByTestId('icon-heart-outline'));
+
+    await waitFor(() => {
+      expect(mockToggleGlobalFavorite).toHaveBeenCalledWith({ recipeId: 'recipe1' });
+      expect(mockToggleFavorite).not.toHaveBeenCalled();
+    });
+  });
+
+  it('uses toggleFavorite for non-global recipes', async () => {
+    mockToggleFavorite.mockResolvedValue({ isFavorite: true });
+    mockRecipeQuery(mockRecipe);
+
+    const { getByTestId } = render(<RecipeDetailScreen />);
+    fireEvent.press(getByTestId('icon-heart-outline'));
+
+    await waitFor(() => {
+      expect(mockToggleFavorite).toHaveBeenCalledWith({ recipeId: 'recipe1' });
+      expect(mockToggleGlobalFavorite).not.toHaveBeenCalled();
+    });
   });
 });
