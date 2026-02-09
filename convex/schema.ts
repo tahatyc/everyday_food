@@ -121,32 +121,6 @@ export default defineSchema({
     .index("by_recipe", ["recipeId"])
     .index("by_recipe_and_step", ["recipeId", "stepNumber"]),
 
-  // ==================== COOKBOOKS (Collections) ====================
-  cookbooks: defineTable({
-    userId: v.id("users"),
-    name: v.string(),
-    description: v.optional(v.string()),
-    coverImage: v.optional(v.id("_storage")),
-    color: v.optional(v.string()), // theme color
-    isDefault: v.optional(v.boolean()), // e.g., "All Recipes"
-    sortOrder: v.optional(v.number()),
-    createdAt: v.number(),
-    updatedAt: v.number(),
-  })
-    .index("by_user", ["userId"])
-    .index("by_user_and_order", ["userId", "sortOrder"]),
-
-  // Junction table for recipes in cookbooks (many-to-many)
-  cookbookRecipes: defineTable({
-    cookbookId: v.id("cookbooks"),
-    recipeId: v.id("recipes"),
-    addedAt: v.number(),
-    sortOrder: v.optional(v.number()),
-  })
-    .index("by_cookbook", ["cookbookId"])
-    .index("by_recipe", ["recipeId"])
-    .index("by_cookbook_and_recipe", ["cookbookId", "recipeId"]),
-
   // ==================== TAGS ====================
   tags: defineTable({
     userId: v.optional(v.id("users")), // Optional for global tags
@@ -381,6 +355,7 @@ export default defineSchema({
     rating: v.optional(v.number()),
     notes: v.optional(v.string()),
     lastCookedAt: v.optional(v.number()),
+    lastViewedAt: v.optional(v.number()),
     cookCount: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -388,5 +363,6 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_recipe", ["recipeId"])
     .index("by_user_and_recipe", ["userId", "recipeId"])
-    .index("by_user_and_favorite", ["userId", "isFavorite"]),
+    .index("by_user_and_favorite", ["userId", "isFavorite"])
+    .index("by_user_and_last_viewed", ["userId", "lastViewedAt"]),
 });

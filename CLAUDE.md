@@ -40,7 +40,6 @@ everyday_food/
     (auth)/                     # Auth screens (login, register)
     (tabs)/                     # Tab navigation (home, recipes, meal-plan, profile, shopping)
     recipe/[id].tsx             # Recipe detail (dynamic route)
-    cookbook/[id].tsx            # Cookbook view (dynamic route)
     cook-mode/[id].tsx          # Step-by-step cooking mode
     friends.tsx                 # Friends management
     grocery-list.tsx            # Shopping list
@@ -60,9 +59,8 @@ everyday_food/
     types/recipe.ts             # Recipe TypeScript types
     test-utils/                 # Test helpers (ConvexMockProvider, testUtils)
   convex/                       # Backend (Convex BaaS)
-    schema.ts                   # Database schema (17 tables)
+    schema.ts                   # Database schema (15 tables)
     recipes.ts                  # Recipe CRUD, search, favorites
-    cookbooks.ts                # Cookbook collections
     mealPlans.ts                # Meal planning by date
     shoppingLists.ts            # Shopping list management
     friends.ts                  # Friendships & social
@@ -85,7 +83,7 @@ everyday_food/
 - **Tab Layout**: `app/(tabs)/_layout.tsx` — 4 tabs (Home, Recipes, Plan, Profile)
 - **Backend**: `convex/` directory auto-deployed by Convex
 
-## Database Schema (17 tables)
+## Database Schema (15 tables)
 
 | Table | Purpose | Key Indexes |
 |-------|---------|-------------|
@@ -93,8 +91,6 @@ everyday_food/
 | recipes | Recipe metadata, nutrition | by_user, by_global, search_recipes |
 | ingredients | Recipe ingredients | by_recipe, by_recipe_and_order |
 | steps | Cooking steps | by_recipe, by_recipe_and_step |
-| cookbooks | Recipe collections | by_user |
-| cookbookRecipes | Cookbook↔Recipe junction | by_cookbook, by_recipe |
 | tags | Meal/cuisine/diet tags | by_user_and_type, by_name |
 | recipeTags | Recipe↔Tag junction | by_recipe, by_tag |
 | mealPlans | Scheduled meals by date | by_user_and_date, by_user_date_meal |
@@ -122,10 +118,6 @@ everyday_food/
 - `createManual` (mutation) — Create recipe with ingredients/steps
 - `toggleFavorite` (mutation) — Toggle favorite status
 - `toggleGlobalRecipeFavorite` (mutation) — Favorite a global recipe
-
-### cookbooks.ts
-- `list`, `getById`, `getByName` (queries)
-- `create`, `addRecipe`, `removeRecipe` (mutations)
 
 ### mealPlans.ts
 - `getByDate`, `getByDateRange` (queries)
@@ -165,11 +157,10 @@ everyday_food/
 | `/(tabs)/` | Home | Dashboard, recent recipes, quick actions |
 | `/(tabs)/recipes` | Recipes | Recipe browser with search/filter |
 | `/(tabs)/meal-plan` | Meal Plan | Calendar-based meal planner |
-| `/(tabs)/profile` | Profile | User settings, stats, cookbooks |
+| `/(tabs)/profile` | Profile | User settings, stats |
 | `/(auth)/login` | Login | Authentication |
 | `/(auth)/register` | Register | User registration |
 | `/recipe/[id]` | Recipe Detail | Full recipe with ingredients, steps |
-| `/cookbook/[id]` | Cookbook | Collection of recipes |
 | `/cook-mode/[id]` | Cook Mode | Step-by-step cooking interface |
 | `/friends` | Friends | Friend management, search users |
 | `/grocery-list` | Grocery List | Shopping list |

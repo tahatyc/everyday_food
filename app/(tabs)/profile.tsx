@@ -26,42 +26,6 @@ import {
   typography,
 } from "../../src/styles/neobrutalism";
 
-// Cookbook Card Component
-function CookbookCard({
-  title,
-  recipeCount,
-  color,
-  index,
-  onPress,
-}: {
-  title: string;
-  recipeCount: number;
-  color: string;
-  index: number;
-  onPress: () => void;
-}) {
-  return (
-    <Animated.View
-      entering={FadeInDown.delay(300 + index * 100).duration(400)}
-      style={styles.cookbookCardContainer}
-    >
-      <Pressable
-        style={({ pressed }) => [
-          styles.cookbookCard,
-          { backgroundColor: color },
-          pressed && styles.cardPressed,
-        ]}
-        onPress={onPress}
-      >
-        <View style={styles.cookbookBadge}>
-          <Text style={styles.cookbookBadgeText}>{recipeCount} RECIPES</Text>
-        </View>
-        <Text style={styles.cookbookTitle}>{title}</Text>
-      </Pressable>
-    </Animated.View>
-  );
-}
-
 // Stats Item Component
 function StatsItem({
   icon,
@@ -104,18 +68,9 @@ function SocialButton({
   );
 }
 
-// Cookbook colors for variety
-const cookbookColors = [
-  colors.primaryLight,
-  colors.secondary,
-  colors.cyan,
-  colors.accent,
-];
-
 export default function ProfileScreen() {
   const { signOut } = useAuthActions();
   const user = useQuery(api.users.current);
-  const cookbooks = useQuery(api.cookbooks.list);
   const stats = useQuery(api.users.getStats);
 
   const handleSignOut = async () => {
@@ -123,7 +78,7 @@ export default function ProfileScreen() {
     router.replace("/(auth)/login");
   };
 
-  const isLoading = user === undefined || cookbooks === undefined || stats === undefined;
+  const isLoading = user === undefined || stats === undefined;
 
   if (isLoading) {
     return (
@@ -189,35 +144,29 @@ export default function ProfileScreen() {
           </Pressable>
         </Animated.View>
 
-        {/* My Cookbooks Section */}
+        {/* My Recipes */}
         <Animated.View
-          style={styles.sectionHeader}
           entering={FadeInDown.delay(200).duration(400)}
         >
-          <View style={styles.sectionLabelContainer}>
-            <Text style={styles.sectionLabel}>MY COOKBOOKS</Text>
-          </View>
-        </Animated.View>
-
-        <View style={styles.cookbooksGrid}>
-          {cookbooks && cookbooks.length > 0 ? (
-            cookbooks.slice(0, 2).map((cookbook, index) => (
-              <CookbookCard
-                key={cookbook._id}
-                title={cookbook.name.toUpperCase()}
-                recipeCount={cookbook.recipeCount}
-                color={cookbook.color || cookbookColors[index % cookbookColors.length]}
-                index={index}
-                onPress={() => router.push(`/cookbook/${cookbook._id}` as any)}
-              />
-            ))
-          ) : (
-            <View style={styles.emptyCookbooks}>
-              <Text style={styles.emptyCookbooksText}>No cookbooks yet</Text>
-              <Text style={styles.emptyCookbooksSubtext}>Create your first cookbook!</Text>
+          <Pressable
+            style={({ pressed }) => [
+              styles.settingsPreview,
+              pressed && styles.cardPressed,
+            ]}
+            onPress={() => router.push({ pathname: "/(tabs)/recipes", params: { filter: "my-recipes" } })}
+          >
+            <View style={styles.settingsPreviewContent}>
+              <Ionicons name="book-outline" size={24} color={colors.text} />
+              <View style={styles.settingsPreviewText}>
+                <Text style={styles.settingsPreviewTitle}>MY RECIPES</Text>
+                <Text style={styles.settingsPreviewSubtitle}>
+                  View your personal recipes
+                </Text>
+              </View>
             </View>
-          )}
-        </View>
+            <Ionicons name="chevron-forward" size={24} color={colors.text} />
+          </Pressable>
+        </Animated.View>
 
         {/* Stats Section */}
         <Animated.View
@@ -412,82 +361,6 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.bold,
     color: colors.text,
     letterSpacing: typography.letterSpacing.wide,
-  },
-  sectionHeader: {
-    marginBottom: spacing.md,
-  },
-  sectionLabelContainer: {
-    alignSelf: "flex-start",
-    backgroundColor: colors.text,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.sm,
-  },
-  sectionLabel: {
-    fontSize: typography.sizes.xs,
-    fontWeight: typography.weights.bold,
-    color: colors.textLight,
-    letterSpacing: typography.letterSpacing.wider,
-  },
-  cookbooksGrid: {
-    flexDirection: "row",
-    gap: spacing.md,
-    marginBottom: spacing.xl,
-  },
-  cookbookCardContainer: {
-    flex: 1,
-  },
-  cookbookCard: {
-    height: 140,
-    borderWidth: borders.regular,
-    borderColor: borders.color,
-    borderRadius: borderRadius.xl,
-    padding: spacing.md,
-    justifyContent: "flex-end",
-    ...shadows.sm,
-  },
-  cookbookBadge: {
-    alignSelf: "flex-start",
-    backgroundColor: colors.surface,
-    borderWidth: borders.thin,
-    borderColor: borders.color,
-    borderRadius: borderRadius.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    marginBottom: spacing.sm,
-  },
-  cookbookBadgeText: {
-    fontSize: typography.sizes.xs,
-    fontWeight: typography.weights.bold,
-    color: colors.text,
-  },
-  cookbookTitle: {
-    fontSize: typography.sizes.md,
-    fontWeight: typography.weights.black,
-    fontStyle: "italic",
-    color: colors.text,
-  },
-  emptyCookbooks: {
-    flex: 1,
-    backgroundColor: colors.surfaceAlt,
-    borderWidth: borders.regular,
-    borderColor: borders.color,
-    borderRadius: borderRadius.xl,
-    padding: spacing.xl,
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 140,
-    ...shadows.sm,
-  },
-  emptyCookbooksText: {
-    fontSize: typography.sizes.md,
-    fontWeight: typography.weights.bold,
-    color: colors.text,
-    marginBottom: spacing.xs,
-  },
-  emptyCookbooksSubtext: {
-    fontSize: typography.sizes.sm,
-    color: colors.textSecondary,
   },
   statsContainer: {
     flexDirection: "row",

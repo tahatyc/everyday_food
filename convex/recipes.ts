@@ -331,34 +331,6 @@ export const toggleFavorite = mutation({
       updatedAt: Date.now(),
     });
 
-    // Sync with Favorites cookbook
-    const favoritesCookbook = await ctx.db
-      .query("cookbooks")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .filter((q) => q.eq(q.field("name"), "Favorites"))
-      .first();
-
-    if (favoritesCookbook) {
-      const existingLink = await ctx.db
-        .query("cookbookRecipes")
-        .withIndex("by_cookbook_and_recipe", (q) =>
-          q.eq("cookbookId", favoritesCookbook._id).eq("recipeId", args.recipeId)
-        )
-        .first();
-
-      if (newFavoriteStatus && !existingLink) {
-        // Add to Favorites cookbook
-        await ctx.db.insert("cookbookRecipes", {
-          cookbookId: favoritesCookbook._id,
-          recipeId: args.recipeId,
-          addedAt: Date.now(),
-        });
-      } else if (!newFavoriteStatus && existingLink) {
-        // Remove from Favorites cookbook
-        await ctx.db.delete(existingLink._id);
-      }
-    }
-
     return { isFavorite: newFavoriteStatus };
   },
 });
@@ -504,6 +476,87 @@ export const createManual = mutation({
     }
 
     return { recipeId };
+  },
+});
+
+// Record a recipe view (for "recently viewed" tracking)
+export const recordView = mutation({
+  args: { recipeId: v.id("recipes") },
+  handler: async (ctx, args) => {
+    const userId = await getCurrentUserId(ctx);
+    const now = Date.now();
+
+    const interaction = await ctx.db
+      .query("userRecipeInteractions")
+      .withIndex("by_user_and_recipe", (q) =>
+        q.eq("userId", userId).eq("recipeId", args.recipeId)
+      )
+      .first();
+
+    if (interaction) {
+      await ctx.db.patch(interaction._id, {
+        lastViewedAt: now,
+        updatedAt: now,
+      });
+    } else {
+      await ctx.db.insert("userRecipeInteractions", {
+        userId,
+        recipeId: args.recipeId,
+        lastViewedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+  },
+});
+
+// Get recently viewed recipes
+export const getRecentlyViewed = query({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const userId = await getCurrentUserIdOrNull(ctx);
+    if (!userId) return [];
+
+    const limit = args.limit || 10;
+
+    // Get interactions with lastViewedAt, ordered desc
+    const interactions = await ctx.db
+      .query("userRecipeInteractions")
+      .withIndex("by_user_and_last_viewed", (q) => q.eq("userId", userId))
+      .order("desc")
+      .collect();
+
+    // Filter out those without lastViewedAt and limit
+    const viewed = interactions
+      .filter((i) => i.lastViewedAt)
+      .slice(0, limit);
+
+    // Fetch recipe details
+    const recipes = await Promise.all(
+      viewed.map(async (interaction) => {
+        const recipe = await ctx.db.get(interaction.recipeId);
+        if (!recipe) return null;
+
+        const recipeTags = await ctx.db
+          .query("recipeTags")
+          .withIndex("by_recipe", (q) => q.eq("recipeId", recipe._id))
+          .collect();
+
+        const tags = await Promise.all(
+          recipeTags.map(async (rt) => {
+            const tag = await ctx.db.get(rt.tagId);
+            return tag?.name || "";
+          })
+        );
+
+        return {
+          ...recipe,
+          tags: tags.filter(Boolean),
+        };
+      })
+    );
+
+    return recipes.filter(Boolean);
   },
 });
 

@@ -130,19 +130,6 @@ export async function getRecipeWithOwnership(
 }
 
 /**
- * Check if a user owns a cookbook.
- */
-export async function canAccessCookbook(
-  ctx: QueryCtx | MutationCtx,
-  cookbookId: Id<"cookbooks">,
-  userId: Id<"users">
-): Promise<boolean> {
-  const cookbook = await ctx.db.get(cookbookId);
-  if (!cookbook) return false;
-  return cookbook.userId === userId;
-}
-
-/**
  * Check if a user owns a shopping list.
  */
 export async function canAccessShoppingList(

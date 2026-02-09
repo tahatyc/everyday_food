@@ -209,16 +209,6 @@ const seedTags = [
   { name: "Healthy", type: "custom" as const, color: "#7BC950" },
 ];
 
-// Seed cookbooks
-const seedCookbooks = [
-  { name: "Favorites", description: "My favorite recipes", color: "#FF6B6B", isDefault: true },
-  { name: "Quick & Easy", description: "30 minutes or less", color: "#4ECDC4", isDefault: false },
-  { name: "Italian Favorites", description: "Classic Italian dishes", color: "#E8D5E0", isDefault: false },
-  { name: "Healthy Eating", description: "Nutritious and delicious", color: "#D4E8D5", isDefault: false },
-  { name: "Meal Prep", description: "Great for weekly meal prep", color: "#7BC950", isDefault: false },
-  { name: "Special Occasions", description: "For dinner parties and holidays", color: "#FFE66D", isDefault: false },
-];
-
 // Main seed function - creates a demo user and populates data
 export const seedDatabase = mutation({
   args: {},
@@ -289,34 +279,6 @@ export const seedDatabase = mutation({
       }
     }
     console.log("Created/found user tags:", Object.keys(tagMap).length);
-
-    // Create cookbooks
-    const cookbookMap: Record<string, any> = {};
-    for (let i = 0; i < seedCookbooks.length; i++) {
-      const cookbook = seedCookbooks[i];
-      const existingCookbook = await ctx.db
-        .query("cookbooks")
-        .withIndex("by_user", (q) => q.eq("userId", userId))
-        .filter((q) => q.eq(q.field("name"), cookbook.name))
-        .first();
-
-      if (!existingCookbook) {
-        const cookbookId = await ctx.db.insert("cookbooks", {
-          userId,
-          name: cookbook.name,
-          description: cookbook.description,
-          color: cookbook.color,
-          isDefault: cookbook.isDefault,
-          sortOrder: i,
-          createdAt: now,
-          updatedAt: now,
-        });
-        cookbookMap[cookbook.name] = cookbookId;
-      } else {
-        cookbookMap[cookbook.name] = existingCookbook._id;
-      }
-    }
-    console.log("Created/found cookbooks:", Object.keys(cookbookMap).length);
 
     // Create GLOBAL recipes (no userId, not tied to any user)
     let globalRecipesCreated = 0;
@@ -488,37 +450,6 @@ export const seedDatabase = mutation({
         }
       }
 
-      // Add to cookbooks based on criteria
-      const totalTime = recipe.prepTime + recipe.cookTime;
-
-      // Quick & Easy: under 30 min
-      if (totalTime <= 30 && cookbookMap["Quick & Easy"]) {
-        await ctx.db.insert("cookbookRecipes", {
-          cookbookId: cookbookMap["Quick & Easy"],
-          recipeId,
-          addedAt: now,
-        });
-      }
-
-      // Italian Favorites
-      if (recipe.cuisine === "Italian" && cookbookMap["Italian Favorites"]) {
-        await ctx.db.insert("cookbookRecipes", {
-          cookbookId: cookbookMap["Italian Favorites"],
-          recipeId,
-          addedAt: now,
-        });
-      }
-
-      // Healthy Eating: vegetarian/vegan/healthy tags
-      const healthyTags = ["vegetarian", "vegan", "healthy"];
-      if (recipe.tags.some(t => healthyTags.includes(t.toLowerCase())) && cookbookMap["Healthy Eating"]) {
-        await ctx.db.insert("cookbookRecipes", {
-          cookbookId: cookbookMap["Healthy Eating"],
-          recipeId,
-          addedAt: now,
-        });
-      }
-
       recipesCreated++;
     }
 
@@ -611,33 +542,9 @@ export const seedDatabase = mutation({
       }
     }
 
-    // Add favorites to Favorites cookbook
-    const favoriteRecipes = await ctx.db
-      .query("recipes")
-      .withIndex("by_user_and_favorite", (q) => q.eq("userId", userId).eq("isFavorite", true))
-      .collect();
-
-    for (const recipe of favoriteRecipes) {
-      if (cookbookMap["Favorites"]) {
-        const existing = await ctx.db
-          .query("cookbookRecipes")
-          .withIndex("by_cookbook_and_recipe", (q) =>
-            q.eq("cookbookId", cookbookMap["Favorites"]).eq("recipeId", recipe._id)
-          )
-          .first();
-        if (!existing) {
-          await ctx.db.insert("cookbookRecipes", {
-            cookbookId: cookbookMap["Favorites"],
-            recipeId: recipe._id,
-            addedAt: now,
-          });
-        }
-      }
-    }
-
     return {
       success: true,
-      message: `Seeded database with ${globalRecipesCreated} global recipes, ${recipesCreated} user recipes, ${Object.keys(globalTagMap).length} global tags, ${Object.keys(tagMap).length} user tags, ${Object.keys(cookbookMap).length} cookbooks`,
+      message: `Seeded database with ${globalRecipesCreated} global recipes, ${recipesCreated} user recipes, ${Object.keys(globalTagMap).length} global tags, ${Object.keys(tagMap).length} user tags`,
       userId,
     };
   },
@@ -670,10 +577,6 @@ export const clearUserData = mutation({
       const steps = await ctx.db.query("steps").withIndex("by_recipe", (q) => q.eq("recipeId", recipe._id)).collect();
       for (const step of steps) await ctx.db.delete(step._id);
 
-      // Delete cookbook recipes
-      const cbRecipes = await ctx.db.query("cookbookRecipes").withIndex("by_recipe", (q) => q.eq("recipeId", recipe._id)).collect();
-      for (const cbr of cbRecipes) await ctx.db.delete(cbr._id);
-
       // Delete meal plans
       const mealPlans = await ctx.db.query("mealPlans").withIndex("by_recipe", (q) => q.eq("recipeId", recipe._id)).collect();
       for (const mp of mealPlans) await ctx.db.delete(mp._id);
@@ -684,10 +587,6 @@ export const clearUserData = mutation({
     // Delete tags
     const tags = await ctx.db.query("tags").withIndex("by_user", (q) => q.eq("userId", userId)).collect();
     for (const tag of tags) await ctx.db.delete(tag._id);
-
-    // Delete cookbooks
-    const cookbooks = await ctx.db.query("cookbooks").withIndex("by_user", (q) => q.eq("userId", userId)).collect();
-    for (const cb of cookbooks) await ctx.db.delete(cb._id);
 
     // Delete shopping lists and items
     const lists = await ctx.db.query("shoppingLists").withIndex("by_user", (q) => q.eq("userId", userId)).collect();

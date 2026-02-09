@@ -92,21 +92,6 @@ export interface Tag {
   icon?: string;
 }
 
-export interface Cookbook {
-  _id: Id<"cookbooks">;
-  userId: Id<"users">;
-  name: string;
-  description?: string;
-  coverImage?: Id<"_storage">;
-  coverImageUrl?: string;
-  color?: string;
-  isDefault?: boolean;
-  sortOrder?: number;
-  createdAt: number;
-  updatedAt: number;
-  recipeCount?: number;
-}
-
 // ==================== MEAL PLANNING TYPES ====================
 
 export interface MealPlan {

@@ -47,7 +47,7 @@ export const getOrCreateProfile = mutation({
   },
 });
 
-// Get user stats (recipes, favorites, cookbooks count)
+// Get user stats (recipes, favorites count)
 export const getStats = query({
   args: {},
   handler: async (ctx) => {
@@ -58,11 +58,6 @@ export const getStats = query({
 
     const recipes = await ctx.db
       .query("recipes")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .collect();
-
-    const cookbooks = await ctx.db
-      .query("cookbooks")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
 
@@ -81,7 +76,6 @@ export const getStats = query({
     return {
       totalRecipes: recipes.length,
       totalFavorites: personalFavorites + globalFavorites.length,
-      totalCookbooks: cookbooks.length,
       totalMealsCooked,
     };
   },

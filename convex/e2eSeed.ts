@@ -73,13 +73,6 @@ export const clearE2ETestUser = mutation({
         .collect();
       for (const step of steps) await ctx.db.delete(step._id);
 
-      // Delete cookbook recipes
-      const cbRecipes = await ctx.db
-        .query("cookbookRecipes")
-        .withIndex("by_recipe", (q) => q.eq("recipeId", recipe._id))
-        .collect();
-      for (const cbr of cbRecipes) await ctx.db.delete(cbr._id);
-
       // Delete meal plans
       const mealPlans = await ctx.db
         .query("mealPlans")
@@ -127,21 +120,6 @@ export const clearE2ETestUser = mutation({
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
     for (const tag of tags) await ctx.db.delete(tag._id);
-
-    // Delete user's cookbooks
-    const cookbooks = await ctx.db
-      .query("cookbooks")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .collect();
-    for (const cb of cookbooks) {
-      // Delete cookbook recipes junction
-      const cbRecipes = await ctx.db
-        .query("cookbookRecipes")
-        .withIndex("by_cookbook", (q) => q.eq("cookbookId", cb._id))
-        .collect();
-      for (const cbr of cbRecipes) await ctx.db.delete(cbr._id);
-      await ctx.db.delete(cb._id);
-    }
 
     // Delete user's shopping lists and items
     const lists = await ctx.db
@@ -259,25 +237,6 @@ export const seedE2ETestData = mutation({
 
     const userId = user._id;
     const now = Date.now();
-
-    // Create a default cookbook
-    const existingCookbook = await ctx.db
-      .query("cookbooks")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .first();
-
-    if (!existingCookbook) {
-      await ctx.db.insert("cookbooks", {
-        userId,
-        name: "Favorites",
-        description: "My favorite recipes",
-        color: "#FF6B6B",
-        isDefault: true,
-        sortOrder: 0,
-        createdAt: now,
-        updatedAt: now,
-      });
-    }
 
     // Create a sample recipe for testing
     const existingRecipe = await ctx.db

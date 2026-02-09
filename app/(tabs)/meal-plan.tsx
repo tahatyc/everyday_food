@@ -226,9 +226,14 @@ function MealSection({
 export default function MealPlanScreen() {
   const weekDays = generateWeekDays();
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
+  const [isAddingToGrocery, setIsAddingToGrocery] = useState(false);
 
   // Get the selected day's date string
   const selectedDate = weekDays[selectedDayIndex]?.dateStr || "";
+
+  // Get the week's date range for grocery list
+  const weekStartDate = weekDays[0]?.dateStr || "";
+  const weekEndDate = weekDays[weekDays.length - 1]?.dateStr || "";
 
   // Fetch meal plans for the selected date from Convex
   const mealPlansData = useQuery(
@@ -236,10 +241,19 @@ export default function MealPlanScreen() {
     selectedDate ? { date: selectedDate } : "skip"
   );
 
+  // Fetch all meal plans for the week (for grocery list)
+  const weekMealPlans = useQuery(
+    api.mealPlans.getByDateRange,
+    weekStartDate && weekEndDate
+      ? { startDate: weekStartDate, endDate: weekEndDate }
+      : "skip"
+  );
+
   // Fetch all recipes for random generation
   const allRecipes = useQuery(api.recipes.list, { includeGlobal: true });
   const addMealMutation = useMutation(api.mealPlans.addMeal);
   const removeMealMutation = useMutation(api.mealPlans.removeMeal);
+  const addRecipeIngredientsMutation = useMutation(api.shoppingLists.addRecipeIngredients);
 
   // Build meal plan object from Convex data
   const getMealPlan = () => {
@@ -372,6 +386,38 @@ export default function MealPlanScreen() {
     }
   };
 
+  // Handler for grocery list - add all week's recipe ingredients then navigate
+  const handleOpenGroceryList = async () => {
+    if (!weekMealPlans || weekMealPlans.length === 0) {
+      router.push("/grocery-list" as any);
+      return;
+    }
+
+    setIsAddingToGrocery(true);
+    try {
+      // Get unique recipe IDs from the week's meal plans
+      const recipeIds = new Set<string>();
+      for (const meal of weekMealPlans) {
+        if (meal.recipeId) {
+          recipeIds.add(meal.recipeId);
+        }
+      }
+
+      // Add each recipe's ingredients to the shopping list
+      for (const recipeId of recipeIds) {
+        await addRecipeIngredientsMutation({
+          recipeId: recipeId as Id<"recipes">,
+        });
+      }
+    } catch (error) {
+      console.error("Failed to add ingredients to grocery list:", error);
+    } finally {
+      setIsAddingToGrocery(false);
+    }
+
+    router.push("/grocery-list" as any);
+  };
+
   // Loading state
   if (mealPlansData === undefined) {
     return (
@@ -489,15 +535,23 @@ export default function MealPlanScreen() {
             style={({ pressed }) => [
               styles.groceryButton,
               pressed && styles.cardPressed,
+              isAddingToGrocery && styles.groceryButtonDisabled,
             ]}
-            onPress={() => router.push("/grocery-list" as any)}
+            onPress={handleOpenGroceryList}
+            disabled={isAddingToGrocery}
           >
             <View style={styles.groceryButtonContent}>
-              <Ionicons name="cart-outline" size={24} color={colors.text} />
+              {isAddingToGrocery ? (
+                <ActivityIndicator size="small" color={colors.text} />
+              ) : (
+                <Ionicons name="cart-outline" size={24} color={colors.text} />
+              )}
               <View style={styles.groceryButtonText}>
                 <Text style={styles.groceryButtonTitle}>GROCERY LIST</Text>
                 <Text style={styles.groceryButtonSubtitle}>
-                  View items for this week
+                  {isAddingToGrocery
+                    ? "Adding ingredients..."
+                    : `${weekMealPlans?.filter((m) => m.recipeId).length || 0} recipes this week`}
                 </Text>
               </View>
             </View>
@@ -754,6 +808,9 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     marginTop: spacing.lg,
     ...shadows.sm,
+  },
+  groceryButtonDisabled: {
+    opacity: 0.7,
   },
   groceryButtonContent: {
     flexDirection: "row",

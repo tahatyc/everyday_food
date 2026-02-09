@@ -121,16 +121,24 @@ export default function RecipeDetailScreen() {
   const toggleFavoriteMutation = useMutation(api.recipes.toggleFavorite);
   const toggleGlobalFavoriteMutation = useMutation(api.recipes.toggleGlobalRecipeFavorite);
   const addToListMutation = useMutation(api.shoppingLists.addRecipeIngredients);
+  const recordViewMutation = useMutation(api.recipes.recordView);
 
   // Get favorite state from recipe
   const [isFavorite, setIsFavorite] = useState(false);
 
-  // Update favorite state when recipe loads
+  // Update favorite state and record view when recipe loads
   useEffect(() => {
     if (recipe) {
       setIsFavorite(recipe.isFavorite || false);
     }
   }, [recipe]);
+
+  // Record view when recipe is first loaded
+  useEffect(() => {
+    if (id) {
+      recordViewMutation({ recipeId: id as Id<"recipes"> }).catch(() => {});
+    }
+  }, [id]);
 
   // Loading state
   if (recipe === undefined) {

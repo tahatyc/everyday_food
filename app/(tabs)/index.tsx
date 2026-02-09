@@ -225,7 +225,7 @@ export default function HomeScreen() {
   const dateInfo = getCurrentDateInfo();
 
   // Fetch data from Convex
-  const allRecipes = useQuery(api.recipes.list, { limit: 6 });
+  const recentlyViewed = useQuery(api.recipes.getRecentlyViewed, { limit: 6 });
   const todaysMealPlans = useQuery(api.mealPlans.getByDate, { date: dateInfo.dateStr });
 
   // Build today's meals from meal plans
@@ -251,10 +251,10 @@ export default function HomeScreen() {
   };
 
   const todaysMeals = buildTodaysMeals();
-  const recentRecipes = (allRecipes || []) as ConvexRecipe[];
+  const recentRecipes = (recentlyViewed || []) as ConvexRecipe[];
 
   // Loading state
-  if (allRecipes === undefined) {
+  if (recentlyViewed === undefined) {
     return (
       <SafeAreaView style={styles.container} edges={["top"]}>
         <View style={styles.loadingContainer}>
