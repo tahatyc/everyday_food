@@ -551,7 +551,7 @@ export default function MealPlanScreen() {
                 <Text style={styles.groceryButtonSubtitle}>
                   {isAddingToGrocery
                     ? "Adding ingredients..."
-                    : `${weekMealPlans?.filter((m) => m.recipeId).length || 0} recipes this week`}
+                    : "View items for this week"}
                 </Text>
               </View>
             </View>

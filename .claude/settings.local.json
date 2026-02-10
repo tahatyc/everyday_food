@@ -23,7 +23,10 @@
       "Bash(npx playwright:*)",
       "Bash(npm run test:coverage:*)",
       "Bash(dir:*)",
-      "WebFetch(domain:playwright.dev)"
+      "WebFetch(domain:playwright.dev)",
+      "Bash(if not exist \"d:\\\\xamp\\\\htdocs\\\\everyday_food\\\\claudedocs\" mkdir \"d:\\\\xamp\\\\htdocs\\\\everyday_food\\\\claudedocs\")",
+      "Bash(powershell:*)",
+      "Bash(if not exist \"d:\\\\xamp\\\\htdocs\\\\everyday_food\\\\src\\\\constants\" mkdir \"d:\\\\xamp\\\\htdocs\\\\everyday_food\\\\src\\\\constants\")"
     ]
   }
 }

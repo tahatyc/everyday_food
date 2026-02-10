@@ -10,6 +10,7 @@ jest.spyOn(Alert, 'alert');
 const mockToggleFavorite = jest.fn();
 const mockToggleGlobalFavorite = jest.fn();
 const mockAddToList = jest.fn();
+const mockRecordView = jest.fn().mockResolvedValue(undefined);
 
 jest.mock('expo-router', () => ({
   ...jest.requireActual('expo-router'),
@@ -28,19 +29,21 @@ beforeEach(() => {
   mockToggleFavorite.mockReset();
   mockToggleGlobalFavorite.mockReset();
   mockAddToList.mockReset();
+  mockRecordView.mockReset().mockResolvedValue(undefined);
   (useLocalSearchParams as jest.Mock).mockReturnValue({ id: 'recipe1' });
   // Default return [] for ShareRecipeModal's useQuery calls (friends, sharedWith, shareLinks)
   (useQuery as jest.Mock).mockReturnValue([]);
   // Use mockImplementation for useMutation to persist across re-renders
-  // RecipeDetailScreen: toggleFavorite (1), toggleGlobalFavorite (2), addToList (3)
-  // ShareRecipeModal: shareWithFriend (4), unshare (5), createLink (6), revokeLink (7)
+  // RecipeDetailScreen: toggleFavorite (1), toggleGlobalFavorite (2), addToList (3), recordView (4)
+  // ShareRecipeModal: shareWithFriend (5), unshare (6), createLink (7), revokeLink (8)
   let mutationCallCount = 0;
   (useMutation as jest.Mock).mockImplementation(() => {
     mutationCallCount++;
-    const idx = ((mutationCallCount - 1) % 7) + 1;
+    const idx = ((mutationCallCount - 1) % 8) + 1;
     if (idx === 1) return mockToggleFavorite;
     if (idx === 2) return mockToggleGlobalFavorite;
     if (idx === 3) return mockAddToList;
+    if (idx === 4) return mockRecordView;
     return noopFn;
   });
 });

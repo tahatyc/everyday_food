@@ -87,9 +87,11 @@ export const updateProfile = mutation({
     name: v.optional(v.string()),
     email: v.optional(v.string()),
     imageUrl: v.optional(v.string()),
+    bio: v.optional(v.string()),
     defaultServings: v.optional(v.number()),
     preferredUnits: v.optional(v.union(v.literal("metric"), v.literal("imperial"))),
     dietaryPreferences: v.optional(v.array(v.string())),
+    weekStartDay: v.optional(v.union(v.literal("monday"), v.literal("sunday"))),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);

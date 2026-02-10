@@ -169,9 +169,9 @@ describe('MealPlanScreen', () => {
 
     render(<MealPlanScreen />);
 
-    // Second useQuery call is for recipes.list — should include global recipes
+    // Third useQuery call is for recipes.list — should include global recipes
     const calls = (useQuery as jest.Mock).mock.calls;
-    const recipesListCall = calls[1];
+    const recipesListCall = calls[2];
     expect(recipesListCall[1]).toEqual({ includeGlobal: true });
   });
 

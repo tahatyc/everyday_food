@@ -1,6 +1,6 @@
 import { api } from "@/convex/_generated/api";
-import { Ionicons } from "@expo/vector-icons";
 import { useAuthActions } from "@convex-dev/auth/react";
+import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "convex/react";
 import { router } from "expo-router";
 import React from "react";
@@ -12,9 +12,7 @@ import {
   Text,
   View,
 } from "react-native";
-import Animated, {
-  FadeInDown,
-} from "react-native-reanimated";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
@@ -99,15 +97,15 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       {/* Header */}
-      <Animated.View
-        style={styles.header}
-        entering={FadeInDown.duration(300)}
-      >
+      <Animated.View style={styles.header} entering={FadeInDown.duration(300)}>
         <Pressable style={styles.headerButton} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </Pressable>
         <Text style={styles.headerTitle}>CHEF PROFILE</Text>
-        <Pressable style={styles.headerButton}>
+        <Pressable
+          style={styles.headerButton}
+          onPress={() => router.push("/settings" as any)}
+        >
           <Ionicons name="settings-outline" size={24} color={colors.text} />
         </Pressable>
       </Animated.View>
@@ -129,9 +127,7 @@ export default function ProfileScreen() {
           </View>
 
           <Text style={styles.userName}>{displayName.toUpperCase()}</Text>
-          <Text style={styles.userBio}>
-            {displayBio}
-          </Text>
+          <Text style={styles.userBio}>{displayBio}</Text>
 
           {/* Edit Profile Button */}
           <Pressable
@@ -139,32 +135,9 @@ export default function ProfileScreen() {
               styles.editProfileButton,
               pressed && styles.cardPressed,
             ]}
+            onPress={() => router.push("/edit-profile" as any)}
           >
             <Text style={styles.editProfileText}>EDIT PROFILE</Text>
-          </Pressable>
-        </Animated.View>
-
-        {/* My Recipes */}
-        <Animated.View
-          entering={FadeInDown.delay(200).duration(400)}
-        >
-          <Pressable
-            style={({ pressed }) => [
-              styles.settingsPreview,
-              pressed && styles.cardPressed,
-            ]}
-            onPress={() => router.push({ pathname: "/(tabs)/recipes", params: { filter: "my-recipes" } })}
-          >
-            <View style={styles.settingsPreviewContent}>
-              <Ionicons name="book-outline" size={24} color={colors.text} />
-              <View style={styles.settingsPreviewText}>
-                <Text style={styles.settingsPreviewTitle}>MY RECIPES</Text>
-                <Text style={styles.settingsPreviewSubtitle}>
-                  View your personal recipes
-                </Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={24} color={colors.text} />
           </Pressable>
         </Animated.View>
 
@@ -192,10 +165,35 @@ export default function ProfileScreen() {
           />
         </Animated.View>
 
+        {/* My Recipes */}
+        <Animated.View entering={FadeInDown.delay(200).duration(400)}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.settingsPreview,
+              pressed && styles.cardPressed,
+            ]}
+            onPress={() =>
+              router.push({
+                pathname: "/(tabs)/recipes",
+                params: { filter: "my-recipes" },
+              })
+            }
+          >
+            <View style={styles.settingsPreviewContent}>
+              <Ionicons name="book-outline" size={24} color={colors.text} />
+              <View style={styles.settingsPreviewText}>
+                <Text style={styles.settingsPreviewTitle}>MY RECIPES</Text>
+                <Text style={styles.settingsPreviewSubtitle}>
+                  View your personal recipes
+                </Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color={colors.text} />
+          </Pressable>
+        </Animated.View>
+
         {/* Friends Section */}
-        <Animated.View
-          entering={FadeInDown.delay(600).duration(400)}
-        >
+        <Animated.View entering={FadeInDown.delay(600).duration(400)}>
           <Pressable
             style={({ pressed }) => [
               styles.settingsPreview,
@@ -216,22 +214,25 @@ export default function ProfileScreen() {
           </Pressable>
         </Animated.View>
 
-        {/* Settings Preview */}
-        <Animated.View
-          entering={FadeInDown.delay(700).duration(400)}
-        >
+        {/* App Settings */}
+        <Animated.View entering={FadeInDown.delay(700).duration(400)}>
           <Pressable
             style={({ pressed }) => [
               styles.settingsPreview,
               pressed && styles.cardPressed,
             ]}
+            onPress={() => router.push("/settings" as any)}
           >
             <View style={styles.settingsPreviewContent}>
-              <Ionicons name="settings-outline" size={24} color={colors.text} />
+              <Ionicons
+                name="settings-outline"
+                size={24}
+                color={colors.text}
+              />
               <View style={styles.settingsPreviewText}>
                 <Text style={styles.settingsPreviewTitle}>APP SETTINGS</Text>
                 <Text style={styles.settingsPreviewSubtitle}>
-                  Preferences, notifications, sync
+                  Preferences & app configuration
                 </Text>
               </View>
             </View>
@@ -240,9 +241,7 @@ export default function ProfileScreen() {
         </Animated.View>
 
         {/* Sign Out */}
-        <Animated.View
-          entering={FadeInDown.delay(800).duration(400)}
-        >
+        <Animated.View entering={FadeInDown.delay(800).duration(400)}>
           <Pressable
             style={({ pressed }) => [
               styles.signOutButton,
@@ -471,6 +470,7 @@ const styles = StyleSheet.create({
     borderColor: colors.error,
     borderRadius: borderRadius.lg,
     paddingVertical: spacing.md,
+    marginTop: spacing.lg,
     gap: spacing.sm,
   },
   signOutText: {
