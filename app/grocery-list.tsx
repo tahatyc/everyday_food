@@ -1,13 +1,15 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQuery } from "convex/react";
-import { router } from "expo-router";
-import React, { useMemo, useState } from "react";
+import { format } from "date-fns";
+import { router, useLocalSearchParams } from "expo-router";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import Animated, {
@@ -182,12 +184,117 @@ function ViewToggle({
   );
 }
 
+// Change Detection Banner
+function ChangeBanner({
+  onSync,
+  onDismiss,
+}: {
+  onSync: () => void;
+  onDismiss: () => void;
+}) {
+  return (
+    <Animated.View
+      style={styles.changeBanner}
+      entering={FadeInDown.duration(300)}
+    >
+      <Text style={styles.changeBannerText}>Your meal plan has changed.</Text>
+      <View style={styles.changeBannerActions}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.changeBannerButton,
+            pressed && styles.changeBannerButtonPressed,
+          ]}
+          onPress={onSync}
+        >
+          <Text style={styles.changeBannerButtonText}>UPDATE LIST</Text>
+        </Pressable>
+        <Pressable
+          style={({ pressed }) => [
+            styles.changeBannerDismiss,
+            pressed && { opacity: 0.7 },
+          ]}
+          onPress={onDismiss}
+        >
+          <Text style={styles.changeBannerDismissText}>DISMISS</Text>
+        </Pressable>
+      </View>
+    </Animated.View>
+  );
+}
+
 export default function GroceryListScreen() {
   const [activeView, setActiveView] = useState<"aisle" | "recipe">("aisle");
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [newItemName, setNewItemName] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
 
-  // Fetch shopping list from Convex
-  const shoppingList = useQuery(api.shoppingLists.getActive);
+  // 4.1 Route Params
+  const { weekStartDate, weekEndDate } = useLocalSearchParams<{
+    weekStartDate: string;
+    weekEndDate: string;
+  }>();
+
+  const isWeekScoped = !!weekStartDate && !!weekEndDate;
+
+  // 4.2 Data Fetching
+  // Week-scoped list (when navigated from meal plan)
+  const weekList = useQuery(
+    api.shoppingLists.getByWeek,
+    isWeekScoped ? { weekStartDate } : "skip"
+  );
+
+  // Legacy active list (when opened directly without week params)
+  const activeList = useQuery(
+    api.shoppingLists.getActive,
+    !isWeekScoped ? {} : "skip"
+  );
+
+  // Use whichever list applies
+  const shoppingList = isWeekScoped ? weekList : activeList;
+
+  // Detect meal plan changes (only for week-scoped lists that exist)
+  const changeDetection = useQuery(
+    api.shoppingLists.detectMealPlanChanges,
+    isWeekScoped && shoppingList?._id ? { listId: shoppingList._id } : "skip"
+  );
+
+  // Mutations
+  const createForWeek = useMutation(api.shoppingLists.createForWeek);
+  const syncWithMealPlan = useMutation(api.shoppingLists.syncWithMealPlan);
   const toggleItemMutation = useMutation(api.shoppingLists.toggleItem);
+  const addItemMutation = useMutation(api.shoppingLists.addItem);
+  const clearCheckedMutation = useMutation(api.shoppingLists.clearChecked);
+
+  // 4.3 Auto-Create on First Visit
+  const hasTriggeredCreate = useRef(false);
+  useEffect(() => {
+    if (
+      isWeekScoped &&
+      weekList === null &&
+      !hasTriggeredCreate.current &&
+      !isCreating
+    ) {
+      hasTriggeredCreate.current = true;
+      setIsCreating(true);
+      createForWeek({ weekStartDate: weekStartDate!, weekEndDate: weekEndDate! })
+        .catch((err) => console.error("Failed to create week list:", err))
+        .finally(() => setIsCreating(false));
+    }
+  }, [weekList, isWeekScoped, weekStartDate, weekEndDate]);
+
+  // 4.5 Header Title with Week Range
+  const headerTitle = useMemo(() => {
+    if (!isWeekScoped) return "GROCERY LIST";
+    try {
+      const start = new Date(weekStartDate + "T00:00:00");
+      const end = new Date(weekEndDate + "T00:00:00");
+      const startStr = format(start, "MMM d").toUpperCase();
+      const endStr = format(end, "d").toUpperCase();
+      return `GROCERY LIST — ${startStr}-${endStr}`;
+    } catch {
+      return "GROCERY LIST";
+    }
+  }, [isWeekScoped, weekStartDate, weekEndDate]);
 
   const toggleItem = async (id: Id<"shoppingItems">) => {
     try {
@@ -197,43 +304,89 @@ export default function GroceryListScreen() {
     }
   };
 
-  // Group items by category/aisle
-  const groupedItems = useMemo(() => {
-    if (!shoppingList?.items) {
-      return { Produce: [], Dairy: [], Meat: [], Bakery: [], Pantry: [], Other: [] };
+  // 4.4 Sync handler
+  const handleSync = async () => {
+    if (!shoppingList?._id) return;
+    try {
+      await syncWithMealPlan({ listId: shoppingList._id });
+      setBannerDismissed(true);
+    } catch (error) {
+      console.error("Failed to sync with meal plan:", error);
     }
+  };
 
-    const groups: Record<string, GroceryItem[]> = {
-      Produce: [],
-      Dairy: [],
-      Meat: [],
-      Bakery: [],
-      Pantry: [],
-      Other: [],
-    };
+  // 4.7 Add manual item handler
+  const handleAddManualItem = async () => {
+    const trimmed = newItemName.trim();
+    if (!trimmed || !shoppingList?._id) return;
+    try {
+      await addItemMutation({ name: trimmed, listId: shoppingList._id });
+      setNewItemName("");
+    } catch (error) {
+      console.error("Failed to add item:", error);
+    }
+  };
+
+  // 4.8 Clear checked handler
+  const handleClearChecked = async () => {
+    if (!shoppingList?._id) return;
+    try {
+      await clearCheckedMutation({ listId: shoppingList._id });
+    } catch (error) {
+      console.error("Failed to clear checked items:", error);
+    }
+  };
+
+  // Group items by aisle
+  const aisleGroupedItems = useMemo(() => {
+    if (!shoppingList?.items) return {};
+
+    const groups: Record<string, GroceryItem[]> = {};
 
     for (const item of shoppingList.items) {
       const category = item.aisle || "Other";
-      if (!groups[category]) {
-        groups[category] = [];
-      }
+      if (!groups[category]) groups[category] = [];
       groups[category].push(item as GroceryItem);
     }
 
     return groups;
   }, [shoppingList?.items]);
 
+  // 4.6 Group items by recipe
+  const recipeGroupedItems = useMemo(() => {
+    if (!shoppingList?.items) return {};
+
+    const groups: Record<string, GroceryItem[]> = {};
+
+    for (const item of shoppingList.items) {
+      const groupName = (item as GroceryItem).recipeName || "Other Items";
+      if (!groups[groupName]) groups[groupName] = [];
+      groups[groupName].push(item as GroceryItem);
+    }
+
+    return groups;
+  }, [shoppingList?.items]);
+
+  const displayedGroups = activeView === "aisle" ? aisleGroupedItems : recipeGroupedItems;
+
   const totalItems = shoppingList?.items?.length || 0;
   const checkedItems = shoppingList?.items?.filter((item) => item.isChecked).length || 0;
   const uncheckedItems = totalItems - checkedItems;
 
+  const showChangeBanner =
+    isWeekScoped &&
+    changeDetection?.hasChanges &&
+    !bannerDismissed;
+
   // Loading state
-  if (shoppingList === undefined) {
+  if (shoppingList === undefined || isCreating) {
     return (
       <SafeAreaView style={styles.container} edges={["top"]}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.cyan} />
-          <Text style={styles.loadingText}>Loading grocery list...</Text>
+          <Text style={styles.loadingText}>
+            {isCreating ? "Generating grocery list..." : "Loading grocery list..."}
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -247,16 +400,46 @@ export default function GroceryListScreen() {
           <Pressable style={styles.headerButton} onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={24} color={colors.text} />
           </Pressable>
-          <Text style={styles.headerTitle}>SMART GROCERY LIST</Text>
-          <Pressable style={styles.headerButton}>
+          <Text style={styles.headerTitle}>{headerTitle}</Text>
+          <View style={styles.headerButton}>
             <Ionicons name="ellipsis-horizontal" size={24} color={colors.text} />
-          </Pressable>
+          </View>
         </Animated.View>
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyEmoji}>🛒</Text>
           <Text style={styles.emptyTitle}>Your list is empty</Text>
-          <Text style={styles.emptySubtitle}>Add ingredients from recipes to get started</Text>
+          <Text style={styles.emptySubtitle}>
+            {isWeekScoped
+              ? "Add meals to your plan, then come back to generate your list"
+              : "Add ingredients from recipes to get started"}
+          </Text>
         </View>
+
+        {/* Add Manual Item even on empty state */}
+        {shoppingList && (
+          <View style={styles.addItemContainer}>
+            <View style={styles.addItemRow}>
+              <TextInput
+                style={styles.addItemInput}
+                placeholder="Add an item..."
+                placeholderTextColor={colors.textMuted}
+                value={newItemName}
+                onChangeText={setNewItemName}
+                onSubmitEditing={handleAddManualItem}
+                returnKeyType="done"
+              />
+              <Pressable
+                style={({ pressed }) => [
+                  styles.addItemButton,
+                  pressed && { opacity: 0.7 },
+                ]}
+                onPress={handleAddManualItem}
+              >
+                <Ionicons name="add-circle" size={32} color={colors.cyan} />
+              </Pressable>
+            </View>
+          </View>
+        )}
       </SafeAreaView>
     );
   }
@@ -271,11 +454,19 @@ export default function GroceryListScreen() {
         <Pressable style={styles.headerButton} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </Pressable>
-        <Text style={styles.headerTitle}>SMART GROCERY LIST</Text>
-        <Pressable style={styles.headerButton}>
-          <Ionicons name="ellipsis-horizontal" size={24} color={colors.text} />
+        <Text style={styles.headerTitle} numberOfLines={1}>{headerTitle}</Text>
+        <Pressable style={styles.headerButton} onPress={handleClearChecked}>
+          <Ionicons name="trash-outline" size={22} color={checkedItems > 0 ? colors.accent : colors.textMuted} />
         </Pressable>
       </Animated.View>
+
+      {/* Change Detection Banner */}
+      {showChangeBanner && (
+        <ChangeBanner
+          onSync={handleSync}
+          onDismiss={() => setBannerDismissed(true)}
+        />
+      )}
 
       {/* View Toggle */}
       <Animated.View
@@ -290,8 +481,8 @@ export default function GroceryListScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Categories */}
-        {Object.entries(groupedItems).map(([category, categoryItems], index) => (
+        {/* Categories / Recipe Groups */}
+        {Object.entries(displayedGroups).map(([category, categoryItems], index) => (
           <CategorySection
             key={category}
             title={category.toUpperCase()}
@@ -304,6 +495,30 @@ export default function GroceryListScreen() {
         {/* Bottom Spacing */}
         <View style={styles.bottomSpacer} />
       </ScrollView>
+
+      {/* Add Manual Item Input */}
+      <View style={styles.addItemContainer}>
+        <View style={styles.addItemRow}>
+          <TextInput
+            style={styles.addItemInput}
+            placeholder="Add an item..."
+            placeholderTextColor={colors.textMuted}
+            value={newItemName}
+            onChangeText={setNewItemName}
+            onSubmitEditing={handleAddManualItem}
+            returnKeyType="done"
+          />
+          <Pressable
+            style={({ pressed }) => [
+              styles.addItemButton,
+              pressed && { opacity: 0.7 },
+            ]}
+            onPress={handleAddManualItem}
+          >
+            <Ionicons name="add-circle" size={32} color={colors.cyan} />
+          </Pressable>
+        </View>
+      </View>
 
       {/* Checkout Button */}
       <Animated.View
@@ -357,11 +572,66 @@ const styles = StyleSheet.create({
     ...shadows.sm,
   },
   headerTitle: {
-    fontSize: typography.sizes.md,
+    flex: 1,
+    fontSize: typography.sizes.sm,
     fontWeight: typography.weights.bold,
     color: colors.text,
     letterSpacing: typography.letterSpacing.wider,
+    textAlign: "center",
+    marginHorizontal: spacing.sm,
   },
+  // Change Detection Banner
+  changeBanner: {
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    backgroundColor: colors.secondary,
+    borderWidth: borders.regular,
+    borderColor: borders.color,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    ...shadows.sm,
+  },
+  changeBannerText: {
+    fontSize: typography.sizes.md,
+    fontWeight: typography.weights.bold,
+    color: colors.text,
+    marginBottom: spacing.md,
+  },
+  changeBannerActions: {
+    flexDirection: "row",
+    gap: spacing.md,
+  },
+  changeBannerButton: {
+    backgroundColor: colors.text,
+    borderWidth: borders.thin,
+    borderColor: borders.color,
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
+  changeBannerButtonPressed: {
+    opacity: 0.8,
+  },
+  changeBannerButtonText: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.bold,
+    color: colors.textLight,
+    letterSpacing: typography.letterSpacing.wide,
+  },
+  changeBannerDismiss: {
+    borderWidth: borders.thin,
+    borderColor: borders.color,
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
+  changeBannerDismissText: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.bold,
+    color: colors.text,
+    letterSpacing: typography.letterSpacing.wide,
+  },
+  // View Toggle
   toggleContainer: {
     paddingHorizontal: spacing.lg,
     marginBottom: spacing.lg,
@@ -497,6 +767,34 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     letterSpacing: typography.letterSpacing.wide,
   },
+  // Add Manual Item
+  addItemContainer: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderTopWidth: borders.thin,
+    borderTopColor: colors.borderLight,
+    backgroundColor: colors.background,
+  },
+  addItemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  addItemInput: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderWidth: borders.regular,
+    borderColor: borders.color,
+    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    fontSize: typography.sizes.md,
+    color: colors.text,
+  },
+  addItemButton: {
+    padding: spacing.xs,
+  },
+  // Checkout
   checkoutContainer: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
@@ -546,7 +844,7 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   bottomSpacer: {
-    height: 170,
+    height: 20,
   },
   loadingContainer: {
     flex: 1,

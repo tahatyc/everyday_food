@@ -180,12 +180,15 @@ export default defineSchema({
     userId: v.id("users"),
     name: v.string(),
     isActive: v.optional(v.boolean()), // current active list
+    weekStartDate: v.optional(v.string()), // "YYYY-MM-DD" — week scope
+    weekEndDate: v.optional(v.string()), // "YYYY-MM-DD" — week scope
     createdAt: v.number(),
     updatedAt: v.number(),
     completedAt: v.optional(v.number()),
   })
     .index("by_user", ["userId"])
-    .index("by_user_and_active", ["userId", "isActive"]),
+    .index("by_user_and_active", ["userId", "isActive"])
+    .index("by_user_and_week", ["userId", "weekStartDate"]),
 
   shoppingItems: defineTable({
     listId: v.id("shoppingLists"),

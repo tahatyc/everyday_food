@@ -87,7 +87,8 @@ describe('MealPlanScreen', () => {
 
     const { getByText } = render(<MealPlanScreen />);
     expect(getByText('GROCERY LIST')).toBeTruthy();
-    expect(getByText('View items for this week')).toBeTruthy();
+    // Subtitle now shows week date range (e.g., "Generate list for FEB 8 - FEB 14")
+    expect(getByText(/list for/)).toBeTruthy();
   });
 
   it('navigates to grocery list when pressed', () => {
@@ -95,7 +96,15 @@ describe('MealPlanScreen', () => {
 
     const { getByText } = render(<MealPlanScreen />);
     fireEvent.press(getByText('GROCERY LIST'));
-    expect(router.push).toHaveBeenCalledWith('/grocery-list');
+    expect(router.push).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pathname: '/grocery-list',
+        params: expect.objectContaining({
+          weekStartDate: expect.any(String),
+          weekEndDate: expect.any(String),
+        }),
+      })
+    );
   });
 
   it('renders meal with recipe data', () => {

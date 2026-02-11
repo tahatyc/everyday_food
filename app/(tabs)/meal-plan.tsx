@@ -232,7 +232,6 @@ function MealSection({
 
 export default function MealPlanScreen() {
   const [weekOffset, setWeekOffset] = useState(0);
-  const [isAddingToGrocery, setIsAddingToGrocery] = useState(false);
 
   const weekDays = useMemo(() => generateWeekDays(weekOffset), [weekOffset]);
 
@@ -279,19 +278,16 @@ export default function MealPlanScreen() {
     selectedDate ? { date: selectedDate } : "skip"
   );
 
-  // Fetch all meal plans for the week (for grocery list)
-  const weekMealPlans = useQuery(
-    api.mealPlans.getByDateRange,
-    weekStartDate && weekEndDate
-      ? { startDate: weekStartDate, endDate: weekEndDate }
-      : "skip"
+  // Check if a grocery list exists for the current week
+  const weekListInfo = useQuery(
+    api.shoppingLists.weekListExists,
+    weekStartDate ? { weekStartDate } : "skip"
   );
 
   // Fetch all recipes for random generation
   const allRecipes = useQuery(api.recipes.list, { includeGlobal: true });
   const addMealMutation = useMutation(api.mealPlans.addMeal);
   const removeMealMutation = useMutation(api.mealPlans.removeMeal);
-  const addRecipeIngredientsMutation = useMutation(api.shoppingLists.addRecipeIngredients);
 
   // Build meal plan object from Convex data
   const getMealPlan = () => {
@@ -424,37 +420,22 @@ export default function MealPlanScreen() {
     }
   };
 
-  // Handler for grocery list - add all week's recipe ingredients then navigate
-  const handleOpenGroceryList = async () => {
-    if (!weekMealPlans || weekMealPlans.length === 0) {
-      router.push("/grocery-list" as any);
-      return;
-    }
-
-    setIsAddingToGrocery(true);
-    try {
-      // Get unique recipe IDs from the week's meal plans
-      const recipeIds = new Set<string>();
-      for (const meal of weekMealPlans) {
-        if (meal.recipeId) {
-          recipeIds.add(meal.recipeId);
-        }
-      }
-
-      // Add each recipe's ingredients to the shopping list
-      for (const recipeId of recipeIds) {
-        await addRecipeIngredientsMutation({
-          recipeId: recipeId as Id<"recipes">,
-        });
-      }
-    } catch (error) {
-      console.error("Failed to add ingredients to grocery list:", error);
-    } finally {
-      setIsAddingToGrocery(false);
-    }
-
-    router.push("/grocery-list" as any);
+  // Handler for grocery list - navigate with week params
+  const handleOpenGroceryList = () => {
+    router.push({
+      pathname: "/grocery-list",
+      params: { weekStartDate, weekEndDate },
+    } as any);
   };
+
+  // Dynamic subtitle for grocery button
+  const groceryButtonSubtitle = useMemo(() => {
+    if (!weekListInfo) return "Loading...";
+    if (weekListInfo.exists) {
+      return `View list for ${weekLabel} (${weekListInfo.itemCount} items)`;
+    }
+    return `Generate list for ${weekLabel}`;
+  }, [weekListInfo, weekLabel]);
 
   // Loading state
   if (mealPlansData === undefined) {
@@ -601,23 +582,18 @@ export default function MealPlanScreen() {
             style={({ pressed }) => [
               styles.groceryButton,
               pressed && styles.cardPressed,
-              isAddingToGrocery && styles.groceryButtonDisabled,
             ]}
             onPress={handleOpenGroceryList}
-            disabled={isAddingToGrocery}
           >
             <View style={styles.groceryButtonContent}>
-              {isAddingToGrocery ? (
-                <ActivityIndicator size="small" color={colors.text} />
-              ) : (
+              <View style={styles.cartIconContainer}>
                 <Ionicons name="cart-outline" size={24} color={colors.text} />
-              )}
+                {weekListInfo?.exists && <View style={styles.cartBadgeDot} />}
+              </View>
               <View style={styles.groceryButtonText}>
                 <Text style={styles.groceryButtonTitle}>GROCERY LIST</Text>
                 <Text style={styles.groceryButtonSubtitle}>
-                  {isAddingToGrocery
-                    ? "Adding ingredients..."
-                    : "View items for this week"}
+                  {groceryButtonSubtitle}
                 </Text>
               </View>
             </View>
@@ -886,8 +862,19 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     ...shadows.sm,
   },
-  groceryButtonDisabled: {
-    opacity: 0.7,
+  cartIconContainer: {
+    position: "relative",
+  },
+  cartBadgeDot: {
+    position: "absolute",
+    top: -2,
+    right: -2,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.primary,
+    borderWidth: 1,
+    borderColor: borders.color,
   },
   groceryButtonContent: {
     flexDirection: "row",

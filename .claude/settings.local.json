@@ -26,7 +26,11 @@
       "WebFetch(domain:playwright.dev)",
       "Bash(if not exist \"d:\\\\xamp\\\\htdocs\\\\everyday_food\\\\claudedocs\" mkdir \"d:\\\\xamp\\\\htdocs\\\\everyday_food\\\\claudedocs\")",
       "Bash(powershell:*)",
-      "Bash(if not exist \"d:\\\\xamp\\\\htdocs\\\\everyday_food\\\\src\\\\constants\" mkdir \"d:\\\\xamp\\\\htdocs\\\\everyday_food\\\\src\\\\constants\")"
+      "Bash(if not exist \"d:\\\\xamp\\\\htdocs\\\\everyday_food\\\\src\\\\constants\" mkdir \"d:\\\\xamp\\\\htdocs\\\\everyday_food\\\\src\\\\constants\")",
+      "Bash(findstr:*)",
+      "Bash(npx expo export:*)",
+      "Bash(netstat:*)",
+      "Bash(taskkill:*)"
     ]
   }
 }
