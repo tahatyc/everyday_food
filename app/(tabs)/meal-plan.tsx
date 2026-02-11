@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQuery } from "convex/react";
+import { format } from "date-fns";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -43,21 +44,27 @@ type ConvexRecipe = {
   tags: string[];
 };
 
-// Generate week days with date strings
-const generateWeekDays = () => {
+// Generate week days with date strings, offset by weeks
+const generateWeekDays = (weekOffset: number = 0) => {
   const days = [];
   const today = new Date();
   const dayNames = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+  const todayStr = today.toISOString().split("T")[0];
+
+  // Start from the beginning of the current week (Sunday), then apply offset
+  const startOfWeek = new Date(today);
+  startOfWeek.setDate(today.getDate() - today.getDay() + weekOffset * 7);
 
   for (let i = 0; i < 7; i++) {
-    const date = new Date(today);
-    date.setDate(today.getDate() + i);
+    const date = new Date(startOfWeek);
+    date.setDate(startOfWeek.getDate() + i);
+    const dateStr = date.toISOString().split("T")[0];
     days.push({
       id: i.toString(),
       dayName: dayNames[date.getDay()],
       dayNumber: date.getDate(),
-      dateStr: date.toISOString().split("T")[0],
-      isToday: i === 0,
+      dateStr,
+      isToday: dateStr === todayStr,
     });
   }
   return days;
@@ -224,9 +231,40 @@ function MealSection({
 }
 
 export default function MealPlanScreen() {
-  const weekDays = generateWeekDays();
-  const [selectedDayIndex, setSelectedDayIndex] = useState(0);
+  const [weekOffset, setWeekOffset] = useState(0);
   const [isAddingToGrocery, setIsAddingToGrocery] = useState(false);
+
+  const weekDays = useMemo(() => generateWeekDays(weekOffset), [weekOffset]);
+
+  // Initialize selectedDayIndex to today's position in the week
+  const [selectedDayIndex, setSelectedDayIndex] = useState(() => {
+    const days = generateWeekDays(0);
+    const idx = days.findIndex((d) => d.isToday);
+    return idx >= 0 ? idx : 0;
+  });
+
+  // Week label: "FEB 9 - FEB 15"
+  const weekLabel = useMemo(() => {
+    if (weekDays.length === 0) return "";
+    const firstDay = new Date(weekDays[0].dateStr + "T00:00:00");
+    const lastDay = new Date(weekDays[weekDays.length - 1].dateStr + "T00:00:00");
+    return `${format(firstDay, "MMM d").toUpperCase()} - ${format(lastDay, "MMM d").toUpperCase()}`;
+  }, [weekDays]);
+
+  // Reset selected day when navigating weeks (skip initial mount)
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    if (weekOffset === 0) {
+      const todayIndex = weekDays.findIndex((d) => d.isToday);
+      setSelectedDayIndex(todayIndex >= 0 ? todayIndex : 0);
+    } else {
+      setSelectedDayIndex(0);
+    }
+  }, [weekOffset]);
 
   // Get the selected day's date string
   const selectedDate = weekDays[selectedDayIndex]?.dateStr || "";
@@ -423,12 +461,26 @@ export default function MealPlanScreen() {
     return (
       <SafeAreaView style={styles.container} edges={["top"]}>
         <View style={styles.header}>
-          <Pressable style={styles.headerButton} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={24} color={colors.text} />
+          <Pressable
+            style={styles.headerButton}
+            onPress={() => setWeekOffset((prev) => prev - 1)}
+          >
+            <Ionicons name="chevron-back" size={24} color={colors.text} />
           </Pressable>
-          <Text style={styles.headerTitle}>WEEKLY PLANNER</Text>
-          <Pressable style={styles.headerButton}>
-            <Ionicons name="calendar-outline" size={24} color={colors.text} />
+          <Pressable
+            style={styles.weekLabelContainer}
+            onPress={() => setWeekOffset(0)}
+          >
+            <Text style={styles.headerTitle}>{weekLabel}</Text>
+            {weekOffset !== 0 && (
+              <Text style={styles.tapForTodayText}>TAP FOR TODAY</Text>
+            )}
+          </Pressable>
+          <Pressable
+            style={styles.headerButton}
+            onPress={() => setWeekOffset((prev) => prev + 1)}
+          >
+            <Ionicons name="chevron-forward" size={24} color={colors.text} />
           </Pressable>
         </View>
         <View style={styles.loadingContainer}>
@@ -441,17 +493,31 @@ export default function MealPlanScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      {/* Header */}
+      {/* Header with Week Navigation */}
       <Animated.View
         style={styles.header}
         entering={FadeInDown.duration(300)}
       >
-        <Pressable style={styles.headerButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
+        <Pressable
+          style={styles.headerButton}
+          onPress={() => setWeekOffset((prev) => prev - 1)}
+        >
+          <Ionicons name="chevron-back" size={24} color={colors.text} />
         </Pressable>
-        <Text style={styles.headerTitle}>WEEKLY PLANNER</Text>
-        <Pressable style={styles.headerButton}>
-          <Ionicons name="calendar-outline" size={24} color={colors.text} />
+        <Pressable
+          style={styles.weekLabelContainer}
+          onPress={() => setWeekOffset(0)}
+        >
+          <Text style={styles.headerTitle}>{weekLabel}</Text>
+          {weekOffset !== 0 && (
+            <Text style={styles.tapForTodayText}>TAP FOR TODAY</Text>
+          )}
+        </Pressable>
+        <Pressable
+          style={styles.headerButton}
+          onPress={() => setWeekOffset((prev) => prev + 1)}
+        >
+          <Ionicons name="chevron-forward" size={24} color={colors.text} />
         </Pressable>
       </Animated.View>
 
@@ -594,6 +660,17 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.bold,
     color: colors.text,
     letterSpacing: typography.letterSpacing.wider,
+  },
+  weekLabelContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tapForTodayText: {
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.bold,
+    color: colors.primary,
+    marginTop: 2,
+    letterSpacing: typography.letterSpacing.wide,
   },
   daySelectorContainer: {
     paddingVertical: spacing.md,

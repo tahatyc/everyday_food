@@ -1,21 +1,29 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "convex/react";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
+  Dimensions,
   FlatList,
+  Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import Animated, { FadeIn } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 
 import { Badge, Card, IconButton, Input } from "../../src/components/ui";
+import {
+  COOK_TIME_OPTIONS,
+  CUISINE_OPTIONS,
+  DIETARY_OPTIONS,
+} from "../../src/constants/dietary";
 import {
   borderRadius,
   borders,
@@ -43,11 +51,25 @@ type ConvexRecipe = {
   steps: any[];
 };
 
+// Advanced filter state
+type RecipeFilters = {
+  cookTime: number | null; // max minutes, null = any
+  difficulty: string[]; // multi-select
+  cuisine: string[]; // multi-select
+  dietary: string[]; // multi-select
+};
+
+const DEFAULT_FILTERS: RecipeFilters = {
+  cookTime: null,
+  difficulty: [],
+  cuisine: [],
+  dietary: [],
+};
+
 // Recipe list item component
 function RecipeListItem({ recipe }: { recipe: ConvexRecipe }) {
   const totalTime = (recipe.prepTime || 0) + (recipe.cookTime || 0);
 
-  // Get meal type from tags
   const getMealType = () => {
     const mealTypes = ["breakfast", "lunch", "dinner", "snack"];
     return recipe.tags?.find((t: string) => mealTypes.includes(t.toLowerCase()))?.toLowerCase() || "dinner";
@@ -56,7 +78,6 @@ function RecipeListItem({ recipe }: { recipe: ConvexRecipe }) {
 
   return (
     <Card style={styles.recipeItem} onPress={() => router.push(`/recipe/${recipe._id}` as any)}>
-      {/* Add badge for global recipes */}
       {recipe.isGlobal && (
         <View style={styles.globalBadge}>
           <Ionicons name="globe-outline" size={12} color={colors.primary} />
@@ -64,7 +85,6 @@ function RecipeListItem({ recipe }: { recipe: ConvexRecipe }) {
         </View>
       )}
 
-      {/* Recipe image placeholder */}
       <View
         style={[
           styles.recipeImage,
@@ -152,10 +172,36 @@ function FilterChip({
   );
 }
 
+// Multi-select chip for filter sheet
+function SheetChip({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[styles.sheetChip, active && styles.sheetChipActive]}
+    >
+      <Text style={[styles.sheetChipText, active && styles.sheetChipTextActive]}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
 export default function RecipesScreen() {
   const { filter } = useLocalSearchParams<{ filter?: string }>();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState(filter || "all");
+  const [showFilterSheet, setShowFilterSheet] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState<RecipeFilters>(DEFAULT_FILTERS);
+  // Pending filters while the sheet is open (applied on "Apply")
+  const [pendingFilters, setPendingFilters] = useState<RecipeFilters>(DEFAULT_FILTERS);
 
   // Fetch recipes from Convex
   const allRecipes = useQuery(api.recipes.list, {
@@ -178,8 +224,76 @@ export default function RecipesScreen() {
     { id: "favorites", label: "Favorites" },
   ];
 
-  // Filter recipes based on active filter
-  const getFilteredRecipes = (): ConvexRecipe[] => {
+  // Count active advanced filters
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (advancedFilters.cookTime !== null) count++;
+    count += advancedFilters.difficulty.length;
+    count += advancedFilters.cuisine.length;
+    count += advancedFilters.dietary.length;
+    return count;
+  }, [advancedFilters]);
+
+  // Extract unique cuisines from loaded recipes
+  const availableCuisines = useMemo(() => {
+    if (!allRecipes) return [...CUISINE_OPTIONS];
+    const recipeCuisines = new Set<string>();
+    (allRecipes as ConvexRecipe[]).forEach((r) => {
+      r.tags?.forEach((tag: string) => {
+        const normalized = tag.charAt(0).toUpperCase() + tag.slice(1).toLowerCase();
+        if (CUISINE_OPTIONS.includes(normalized as any)) {
+          recipeCuisines.add(normalized);
+        }
+      });
+    });
+    // If recipes have cuisines, show those first; otherwise fallback to all options
+    return recipeCuisines.size > 0
+      ? Array.from(recipeCuisines).sort()
+      : [...CUISINE_OPTIONS];
+  }, [allRecipes]);
+
+  // Apply advanced filters to a recipe list
+  const applyAdvancedFilters = (recipes: ConvexRecipe[]): ConvexRecipe[] => {
+    if (activeFilterCount === 0) return recipes;
+
+    return recipes.filter((recipe) => {
+      // Cook time filter
+      if (advancedFilters.cookTime !== null) {
+        const totalTime = (recipe.prepTime || 0) + (recipe.cookTime || 0);
+        if (totalTime > advancedFilters.cookTime) return false;
+      }
+
+      // Difficulty filter
+      if (advancedFilters.difficulty.length > 0) {
+        if (!recipe.difficulty || !advancedFilters.difficulty.includes(recipe.difficulty)) {
+          return false;
+        }
+      }
+
+      // Cuisine filter
+      if (advancedFilters.cuisine.length > 0) {
+        const recipeTags = recipe.tags?.map((t: string) => t.toLowerCase()) || [];
+        const hasCuisine = advancedFilters.cuisine.some((c) =>
+          recipeTags.includes(c.toLowerCase())
+        );
+        if (!hasCuisine) return false;
+      }
+
+      // Dietary filter
+      if (advancedFilters.dietary.length > 0) {
+        const recipeTags = recipe.tags?.map((t: string) => t.toLowerCase()) || [];
+        const hasDietary = advancedFilters.dietary.some((d) =>
+          recipeTags.includes(d.toLowerCase())
+        );
+        if (!hasDietary) return false;
+      }
+
+      return true;
+    });
+  };
+
+  // Filter recipes based on active tab filter
+  const getBaseFilteredRecipes = (): ConvexRecipe[] => {
     if (searchQuery && searchResults) {
       return searchResults as ConvexRecipe[];
     }
@@ -208,7 +322,69 @@ export default function RecipesScreen() {
     );
   };
 
-  const filteredRecipes = getFilteredRecipes();
+  const baseRecipes = getBaseFilteredRecipes();
+  const filteredRecipes = applyAdvancedFilters(baseRecipes);
+
+  // Preview count for pending filters in the sheet
+  const pendingFilteredCount = useMemo(() => {
+    const base = getBaseFilteredRecipes();
+    const pendingCount =
+      (pendingFilters.cookTime !== null ? 1 : 0) +
+      pendingFilters.difficulty.length +
+      pendingFilters.cuisine.length +
+      pendingFilters.dietary.length;
+
+    if (pendingCount === 0) return base.length;
+
+    return base.filter((recipe) => {
+      if (pendingFilters.cookTime !== null) {
+        const totalTime = (recipe.prepTime || 0) + (recipe.cookTime || 0);
+        if (totalTime > pendingFilters.cookTime) return false;
+      }
+      if (pendingFilters.difficulty.length > 0) {
+        if (!recipe.difficulty || !pendingFilters.difficulty.includes(recipe.difficulty)) {
+          return false;
+        }
+      }
+      if (pendingFilters.cuisine.length > 0) {
+        const recipeTags = recipe.tags?.map((t: string) => t.toLowerCase()) || [];
+        if (!pendingFilters.cuisine.some((c) => recipeTags.includes(c.toLowerCase()))) return false;
+      }
+      if (pendingFilters.dietary.length > 0) {
+        const recipeTags = recipe.tags?.map((t: string) => t.toLowerCase()) || [];
+        if (!pendingFilters.dietary.some((d) => recipeTags.includes(d.toLowerCase()))) return false;
+      }
+      return true;
+    }).length;
+  }, [pendingFilters, allRecipes, searchResults, favoriteRecipes, activeFilter, searchQuery]);
+
+  // Toggle a value in a multi-select array
+  const togglePendingMultiSelect = (
+    key: "difficulty" | "cuisine" | "dietary",
+    value: string
+  ) => {
+    setPendingFilters((prev) => {
+      const current = prev[key];
+      const updated = current.includes(value)
+        ? current.filter((v) => v !== value)
+        : [...current, value];
+      return { ...prev, [key]: updated };
+    });
+  };
+
+  const handleOpenFilterSheet = () => {
+    setPendingFilters(advancedFilters);
+    setShowFilterSheet(true);
+  };
+
+  const handleApplyFilters = () => {
+    setAdvancedFilters(pendingFilters);
+    setShowFilterSheet(false);
+  };
+
+  const handleResetFilters = () => {
+    setPendingFilters(DEFAULT_FILTERS);
+  };
 
   // Loading state
   if (allRecipes === undefined) {
@@ -243,13 +419,18 @@ export default function RecipesScreen() {
           leftIcon="search-outline"
           containerStyle={styles.searchInput}
         />
-        <IconButton icon="options-outline" variant="default" onPress={() => {
-          Alert.alert(
-            "Filter Recipes",
-            "Use the category chips below to filter recipes by meal type, or search by name.",
-            [{ text: "OK" }]
-          );
-        }} />
+        <View>
+          <IconButton
+            icon="options-outline"
+            variant="default"
+            onPress={handleOpenFilterSheet}
+          />
+          {activeFilterCount > 0 && (
+            <View style={styles.filterBadge}>
+              <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
+            </View>
+          )}
+        </View>
       </View>
 
       {/* Filters */}
@@ -272,6 +453,7 @@ export default function RecipesScreen() {
       {/* Recipe count */}
       <Text style={styles.recipeCount}>
         {filteredRecipes.length} recipe{filteredRecipes.length !== 1 ? "s" : ""}
+        {activeFilterCount > 0 && " (filtered)"}
       </Text>
 
       {/* Recipe list */}
@@ -284,13 +466,140 @@ export default function RecipesScreen() {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Ionicons name="book-outline" size={60} color={colors.textMuted} />
-            <Text style={styles.emptyStateText}>No recipes found</Text>
+            <Text style={styles.emptyStateText}>
+              {activeFilterCount > 0 ? "No recipes match your filters" : "No recipes found"}
+            </Text>
+            {activeFilterCount > 0 && (
+              <Pressable
+                style={styles.clearFiltersButton}
+                onPress={() => setAdvancedFilters(DEFAULT_FILTERS)}
+              >
+                <Text style={styles.clearFiltersText}>CLEAR FILTERS</Text>
+              </Pressable>
+            )}
           </View>
         }
       />
+
+      {/* Filter Bottom Sheet Modal */}
+      <Modal
+        visible={showFilterSheet}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowFilterSheet(false)}
+      >
+        <View style={styles.sheetOverlay}>
+          <Pressable
+            style={styles.sheetBackdrop}
+            onPress={() => setShowFilterSheet(false)}
+          />
+          <Animated.View
+            style={styles.sheetContainer}
+            entering={FadeIn.duration(200)}
+          >
+            {/* Sheet Header */}
+            <View style={styles.sheetHeader}>
+              <Text style={styles.sheetTitle}>FILTER RECIPES</Text>
+              <Pressable style={styles.resetButton} onPress={handleResetFilters}>
+                <Ionicons name="refresh" size={16} color={colors.accent} />
+                <Text style={styles.resetButtonText}>RESET</Text>
+              </Pressable>
+            </View>
+
+            <ScrollView
+              style={styles.sheetContent}
+              contentContainerStyle={styles.sheetContentContainer}
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Cook Time Section */}
+              <View style={styles.sheetSection}>
+                <Text style={styles.sheetSectionTitle}>COOK TIME</Text>
+                <View style={styles.sheetChipRow}>
+                  {COOK_TIME_OPTIONS.map((option) => (
+                    <SheetChip
+                      key={option.label}
+                      label={option.label}
+                      active={pendingFilters.cookTime === option.maxMinutes}
+                      onPress={() =>
+                        setPendingFilters((prev) => ({
+                          ...prev,
+                          cookTime:
+                            prev.cookTime === option.maxMinutes ? null : option.maxMinutes,
+                        }))
+                      }
+                    />
+                  ))}
+                </View>
+              </View>
+
+              {/* Difficulty Section */}
+              <View style={styles.sheetSection}>
+                <Text style={styles.sheetSectionTitle}>DIFFICULTY</Text>
+                <View style={styles.sheetChipRow}>
+                  {["easy", "medium", "hard"].map((level) => (
+                    <SheetChip
+                      key={level}
+                      label={level.charAt(0).toUpperCase() + level.slice(1)}
+                      active={pendingFilters.difficulty.includes(level)}
+                      onPress={() => togglePendingMultiSelect("difficulty", level)}
+                    />
+                  ))}
+                </View>
+              </View>
+
+              {/* Cuisine Section */}
+              <View style={styles.sheetSection}>
+                <Text style={styles.sheetSectionTitle}>CUISINE</Text>
+                <View style={styles.sheetChipRow}>
+                  {availableCuisines.map((cuisine) => (
+                    <SheetChip
+                      key={cuisine}
+                      label={cuisine}
+                      active={pendingFilters.cuisine.includes(cuisine)}
+                      onPress={() => togglePendingMultiSelect("cuisine", cuisine)}
+                    />
+                  ))}
+                </View>
+              </View>
+
+              {/* Dietary Section */}
+              <View style={styles.sheetSection}>
+                <Text style={styles.sheetSectionTitle}>DIETARY</Text>
+                <View style={styles.sheetChipRow}>
+                  {DIETARY_OPTIONS.map((option) => (
+                    <SheetChip
+                      key={option}
+                      label={option}
+                      active={pendingFilters.dietary.includes(option)}
+                      onPress={() => togglePendingMultiSelect("dietary", option)}
+                    />
+                  ))}
+                </View>
+              </View>
+            </ScrollView>
+
+            {/* Apply Button */}
+            <View style={styles.sheetFooter}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.applyButton,
+                  pressed && styles.applyButtonPressed,
+                ]}
+                onPress={handleApplyFilters}
+              >
+                <Text style={styles.applyButtonText}>
+                  APPLY FILTERS ({pendingFilteredCount})
+                </Text>
+              </Pressable>
+            </View>
+          </Animated.View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
+
+const SCREEN_HEIGHT = Dimensions.get("window").height;
 
 const styles = StyleSheet.create({
   container: {
@@ -457,5 +766,164 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.bold,
     color: colors.text,
     textTransform: "uppercase",
+  },
+
+  // Filter badge on icon
+  filterBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    backgroundColor: colors.accent,
+    borderWidth: borders.thin,
+    borderColor: borders.color,
+    borderRadius: borderRadius.full,
+    width: 20,
+    height: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1,
+  },
+  filterBadgeText: {
+    fontSize: 10,
+    fontWeight: typography.weights.bold,
+    color: colors.textLight,
+  },
+
+  // Clear filters button in empty state
+  clearFiltersButton: {
+    marginTop: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.accent,
+    borderWidth: borders.thin,
+    borderColor: borders.color,
+    borderRadius: borderRadius.lg,
+    ...shadows.sm,
+  },
+  clearFiltersText: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.bold,
+    color: colors.textLight,
+    letterSpacing: typography.letterSpacing.wide,
+  },
+
+  // Bottom sheet modal
+  sheetOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  sheetBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  sheetContainer: {
+    backgroundColor: colors.background,
+    borderTopLeftRadius: borderRadius.xxl,
+    borderTopRightRadius: borderRadius.xxl,
+    borderWidth: borders.thick,
+    borderBottomWidth: 0,
+    borderColor: borders.color,
+    maxHeight: SCREEN_HEIGHT * 0.8,
+  },
+  sheetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.md,
+  },
+  sheetTitle: {
+    fontSize: typography.sizes.lg,
+    fontWeight: typography.weights.black,
+    fontStyle: "italic",
+    color: colors.text,
+  },
+  resetButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.surface,
+    borderWidth: borders.thin,
+    borderColor: colors.accent,
+    borderRadius: borderRadius.lg,
+  },
+  resetButtonText: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.bold,
+    color: colors.accent,
+    letterSpacing: typography.letterSpacing.wide,
+  },
+  sheetContent: {
+    flexShrink: 1,
+  },
+  sheetContentContainer: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
+  },
+  sheetSection: {
+    marginBottom: spacing.xl,
+  },
+  sheetSectionTitle: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.bold,
+    color: colors.textSecondary,
+    letterSpacing: typography.letterSpacing.wider,
+    marginBottom: spacing.md,
+  },
+  sheetChipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
+  sheetChip: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.surface,
+    borderWidth: borders.thin,
+    borderColor: borders.color,
+  },
+  sheetChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+    ...shadows.xs,
+  },
+  sheetChipText: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.medium,
+    color: colors.textSecondary,
+  },
+  sheetChipTextActive: {
+    color: colors.textLight,
+    fontWeight: typography.weights.bold,
+  },
+  sheetFooter: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    borderTopWidth: borders.thin,
+    borderTopColor: borders.color,
+  },
+  applyButton: {
+    backgroundColor: colors.text,
+    borderWidth: borders.regular,
+    borderColor: borders.color,
+    borderRadius: borderRadius.lg,
+    paddingVertical: spacing.lg,
+    alignItems: "center",
+    justifyContent: "center",
+    ...shadows.md,
+  },
+  applyButtonPressed: {
+    transform: [{ translateX: 2 }, { translateY: 2 }],
+    ...shadows.pressed,
+  },
+  applyButtonText: {
+    fontSize: typography.sizes.md,
+    fontWeight: typography.weights.bold,
+    color: colors.textLight,
+    letterSpacing: typography.letterSpacing.wider,
   },
 });
