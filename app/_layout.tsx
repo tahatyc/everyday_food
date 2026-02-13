@@ -112,14 +112,7 @@ function RootLayoutNav() {
             animation: "slide_from_right",
           }}
         />
-        <Stack.Screen
-          name="cookbook/[id]"
-          options={{
-            headerShown: false,
-            animation: "slide_from_right",
-          }}
-        />
-        <Stack.Screen
+<Stack.Screen
           name="cook-mode/[id]"
           options={{
             headerShown: false,
