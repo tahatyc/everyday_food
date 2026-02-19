@@ -430,18 +430,6 @@ describe("GroceryListScreen", () => {
       expect(getAllByText("Pasta Sauce").length).toBe(1);
     });
 
-    it("shows checked item count and unchecked count on checkout button", () => {
-      mockWeekParams();
-      mockQueriesSequential(sampleList, undefined, {
-        hasChanges: false,
-        addedRecipes: [],
-        removedRecipes: [],
-      });
-
-      const { getByText } = render(<GroceryListScreen />);
-      // 1 checked (Tomatoes), 3 unchecked
-      expect(getByText("3 Items remaining")).toBeTruthy();
-    });
   });
 
   // ── Toggle Item ──────────────────────────────────────────────────
@@ -578,10 +566,14 @@ describe("GroceryListScreen", () => {
       expect(getByText("Your list is empty")).toBeTruthy();
     });
 
-    it("shows week-scoped empty message when week params present", () => {
+    it("shows week-scoped empty message when week params present and no changes", () => {
       mockWeekParams();
       const emptyList = { ...sampleList, items: [] };
-      mockQueriesSequential(emptyList, undefined, undefined);
+      mockQueriesSequential(emptyList, undefined, {
+        hasChanges: false,
+        addedRecipes: [],
+        removedRecipes: [],
+      });
 
       const { getByText } = render(<GroceryListScreen />);
       expect(
@@ -589,6 +581,79 @@ describe("GroceryListScreen", () => {
           "Add meals to your plan, then come back to generate your list"
         )
       ).toBeTruthy();
+    });
+
+    it("shows change banner in empty state when meal plan has changes", () => {
+      mockWeekParams();
+      const emptyList = { ...sampleList, items: [] };
+      mockQueriesSequential(emptyList, undefined, {
+        hasChanges: true,
+        addedRecipes: ["recipe1", "recipe2"],
+        removedRecipes: [],
+      });
+
+      const { getByText } = render(<GroceryListScreen />);
+      expect(getByText("Your meal plan has changed.")).toBeTruthy();
+      expect(getByText("UPDATE LIST")).toBeTruthy();
+      expect(getByText("DISMISS")).toBeTruthy();
+    });
+
+    it("shows helpful subtitle in empty state when change banner is visible", () => {
+      mockWeekParams();
+      const emptyList = { ...sampleList, items: [] };
+      mockQueriesSequential(emptyList, undefined, {
+        hasChanges: true,
+        addedRecipes: ["recipe1"],
+        removedRecipes: [],
+      });
+
+      const { getByText } = render(<GroceryListScreen />);
+      expect(
+        getByText(/Tap "UPDATE LIST" to populate your grocery list/)
+      ).toBeTruthy();
+    });
+
+    it("calls syncWithMealPlan from empty state when UPDATE LIST is pressed", async () => {
+      mockWeekParams();
+      mockSyncWithMealPlan.mockResolvedValue({ success: true });
+      const emptyList = { ...sampleList, items: [] };
+      mockQueriesSequential(emptyList, undefined, {
+        hasChanges: true,
+        addedRecipes: ["recipe1"],
+        removedRecipes: [],
+      });
+
+      const { getByText } = render(<GroceryListScreen />);
+      fireEvent.press(getByText("UPDATE LIST"));
+
+      await waitFor(() => {
+        expect(mockSyncWithMealPlan).toHaveBeenCalledWith({ listId: "list1" });
+      });
+    });
+
+    it("hides change banner from empty state when DISMISS is pressed", () => {
+      mockWeekParams();
+      const emptyList = { ...sampleList, items: [] };
+      mockQueriesSequential(emptyList, undefined, {
+        hasChanges: true,
+        addedRecipes: ["recipe1"],
+        removedRecipes: [],
+      });
+
+      const { getByText, queryByText } = render(<GroceryListScreen />);
+      expect(getByText("Your meal plan has changed.")).toBeTruthy();
+
+      fireEvent.press(getByText("DISMISS"));
+      expect(queryByText("Your meal plan has changed.")).toBeNull();
+    });
+
+    it("does not show change banner in empty state when not week-scoped", () => {
+      // No week params — legacy mode
+      const emptyList = { ...sampleList, items: [] };
+      mockQueriesSequential(undefined, emptyList, undefined);
+
+      const { queryByText } = render(<GroceryListScreen />);
+      expect(queryByText("Your meal plan has changed.")).toBeNull();
     });
 
     it("shows legacy empty message when no week params", () => {
@@ -696,35 +761,5 @@ describe("GroceryListScreen", () => {
       expect(getByText("Mystery Ingredient")).toBeTruthy();
     });
 
-    it("shows checkout button with correct remaining count", () => {
-      mockWeekParams();
-      // 3 unchecked, 1 checked
-      mockQueriesSequential(sampleList, undefined, {
-        hasChanges: false,
-        addedRecipes: [],
-        removedRecipes: [],
-      });
-
-      const { getByText } = render(<GroceryListScreen />);
-      expect(getByText("CHECKOUT / ORDER LIST")).toBeTruthy();
-      expect(getByText("3 Items remaining")).toBeTruthy();
-      expect(getByText("3")).toBeTruthy(); // Badge number
-    });
-
-    it("handles all items checked — shows 0 remaining", () => {
-      mockWeekParams();
-      const allCheckedList = {
-        ...sampleList,
-        items: sampleItems.map((item) => ({ ...item, isChecked: true })),
-      };
-      mockQueriesSequential(allCheckedList, undefined, {
-        hasChanges: false,
-        addedRecipes: [],
-        removedRecipes: [],
-      });
-
-      const { getByText } = render(<GroceryListScreen />);
-      expect(getByText("0 Items remaining")).toBeTruthy();
-    });
   });
 });

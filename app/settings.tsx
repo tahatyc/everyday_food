@@ -65,11 +65,7 @@ function SettingsRow({
       <View style={styles.rowRight}>
         {value && <Text style={styles.rowValue}>{value}</Text>}
         {onPress && (
-          <Ionicons
-            name="chevron-forward"
-            size={18}
-            color={colors.textMuted}
-          />
+          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
         )}
       </View>
     </Pressable>
@@ -116,12 +112,15 @@ export default function SettingsScreen() {
             // TODO: Implement clear history
           },
         },
-      ]
+      ],
     );
   };
 
   const handleExportRecipes = () => {
-    Alert.alert("Coming Soon", "Recipe export will be available in a future update.");
+    Alert.alert(
+      "Coming Soon",
+      "Recipe export will be available in a future update.",
+    );
   };
 
   const handleDeleteAccount = () => {
@@ -134,10 +133,13 @@ export default function SettingsScreen() {
           text: "Delete",
           style: "destructive",
           onPress: () => {
-            Alert.alert("Coming Soon", "Account deletion will be available in a future update.");
+            Alert.alert(
+              "Coming Soon",
+              "Account deletion will be available in a future update.",
+            );
           },
         },
-      ]
+      ],
     );
   };
 
@@ -193,13 +195,7 @@ export default function SettingsScreen() {
               value={units === "metric" ? "Metric" : "Imperial"}
               onPress={handleUnitsChange}
               testID="units-row"
-            />
-            <View style={styles.divider} />
-            <SettingsRow
-              icon="people-outline"
-              label="Default servings"
-              value={String(user?.defaultServings || 4)}
-            />
+            />            
           </View>
         </Animated.View>
 

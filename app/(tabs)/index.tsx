@@ -10,10 +10,7 @@ import {
   Text,
   View,
 } from "react-native";
-import Animated, {
-  FadeInDown,
-  FadeInRight,
-} from "react-native-reanimated";
+import Animated, { FadeInDown, FadeInRight } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
@@ -57,7 +54,20 @@ type TodayMeal = {
 // Get current date info
 const getCurrentDateInfo = () => {
   const now = new Date();
-  const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+  const months = [
+    "JAN",
+    "FEB",
+    "MAR",
+    "APR",
+    "MAY",
+    "JUN",
+    "JUL",
+    "AUG",
+    "SEP",
+    "OCT",
+    "NOV",
+    "DEC",
+  ];
   return {
     month: months[now.getMonth()],
     day: now.getDate(),
@@ -66,20 +76,12 @@ const getCurrentDateInfo = () => {
 };
 
 // Meal Card Component
-function MealCard({
-  meal,
-  index,
-}: {
-  meal: TodayMeal;
-  index: number;
-}) {
+function MealCard({ meal, index }: { meal: TodayMeal; index: number }) {
   const bgColor = getMealTypeColor(meal.type);
   const recipe = meal.recipe;
 
   return (
-    <Animated.View
-      entering={FadeInDown.delay(200 + index * 100).duration(400)}
-    >
+    <Animated.View entering={FadeInDown.delay(200 + index * 100).duration(400)}>
       <Pressable
         style={({ pressed }) => [
           styles.mealCard,
@@ -93,7 +95,11 @@ function MealCard({
           {recipe ? (
             <View style={styles.mealImagePlaceholder}>
               <Text style={styles.mealEmoji}>
-                {meal.type === "breakfast" ? "🍳" : meal.type === "lunch" ? "🥗" : "🍝"}
+                {meal.type === "breakfast"
+                  ? "🍳"
+                  : meal.type === "lunch"
+                  ? "🥗"
+                  : "🍝"}
               </Text>
             </View>
           ) : (
@@ -118,7 +124,8 @@ function MealCard({
                 {recipe.title}
               </Text>
               <Text style={styles.mealMeta}>
-                {(recipe.prepTime || 0) + (recipe.cookTime || 0)} mins • {recipe.nutritionPerServing?.calories || 0} kcal
+                {(recipe.prepTime || 0) + (recipe.cookTime || 0)} mins •{" "}
+                {recipe.nutritionPerServing?.calories || 0} kcal
               </Text>
             </>
           ) : (
@@ -148,7 +155,11 @@ function RecipeCard({
   // Get meal type from tags
   const getMealType = () => {
     const mealTypes = ["breakfast", "lunch", "dinner", "snack"];
-    return recipe.tags?.find((t: string) => mealTypes.includes(t.toLowerCase()))?.toLowerCase() || "dinner";
+    return (
+      recipe.tags
+        ?.find((t: string) => mealTypes.includes(t.toLowerCase()))
+        ?.toLowerCase() || "dinner"
+    );
   };
   const mealType = getMealType();
 
@@ -226,7 +237,9 @@ export default function HomeScreen() {
 
   // Fetch data from Convex
   const recentlyViewed = useQuery(api.recipes.getRecentlyViewed, { limit: 6 });
-  const todaysMealPlans = useQuery(api.mealPlans.getByDate, { date: dateInfo.dateStr });
+  const todaysMealPlans = useQuery(api.mealPlans.getByDate, {
+    date: dateInfo.dateStr,
+  });
 
   // Build today's meals from meal plans
   const buildTodaysMeals = (): TodayMeal[] => {
@@ -238,7 +251,7 @@ export default function HomeScreen() {
 
     return mealTypes.map((meal, index) => {
       const plannedMeal = todaysMealPlans?.find(
-        (m: any) => m.mealType === meal.type
+        (m: any) => m.mealType === meal.type,
       );
       return {
         id: `${index}`,
@@ -252,6 +265,8 @@ export default function HomeScreen() {
 
   const todaysMeals = buildTodaysMeals();
   const recentRecipes = (recentlyViewed || []) as ConvexRecipe[];
+  const user = useQuery(api.users.current);
+  const displayName = user?.name || "CHEF";
 
   // Loading state
   if (recentlyViewed === undefined) {
@@ -281,27 +296,19 @@ export default function HomeScreen() {
             <View style={styles.chefIcon}>
               <Ionicons name="restaurant" size={24} color={colors.text} />
             </View>
-            <Text style={styles.headerTitle}>HELLO, CHEF!</Text>
+            <Text style={styles.headerTitle}>HELLO, {displayName}!</Text>
           </View>
           <Pressable style={styles.notificationButton}>
-            <Ionicons name="notifications-outline" size={24} color={colors.text} />
-          </Pressable>
-        </Animated.View>
-
-        {/* Search Bar */}
-        <Animated.View
-          entering={FadeInDown.delay(100).duration(400)}
-        >
-          <Pressable style={styles.searchBar}>
-            <Ionicons name="search-outline" size={20} color={colors.textMuted} />
-            <Text style={styles.searchPlaceholder}>Search recipes or paste URL...</Text>
+            <Ionicons
+              name="notifications-outline"
+              size={24}
+              color={colors.text}
+            />
           </Pressable>
         </Animated.View>
 
         {/* Import Recipe Button */}
-        <Animated.View
-          entering={FadeInDown.delay(150).duration(400)}
-        >
+        <Animated.View entering={FadeInDown.delay(150).duration(400)}>
           <Pressable
             style={({ pressed }) => [
               styles.importButton,

@@ -29,19 +29,24 @@ function StatsItem({
   icon,
   value,
   label,
+  onPress,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   value: string;
   label: string;
+  onPress?: () => void;
 }) {
   return (
-    <View style={styles.statsItem}>
+    <Pressable
+      style={({ pressed }) => [styles.statsItem, pressed && styles.statsItemPressed]}
+      onPress={onPress}
+    >
       <View style={styles.statsIconContainer}>
         <Ionicons name={icon} size={20} color={colors.textSecondary} />
       </View>
       <Text style={styles.statsValue}>{value}</Text>
       <Text style={styles.statsLabel}>{label}</Text>
-    </View>
+    </Pressable>
   );
 }
 
@@ -90,9 +95,10 @@ export default function ProfileScreen() {
   }
 
   const displayName = user?.name || "CHEF";
-  const displayBio = user?.dietaryPreferences?.length
-    ? `Preferences: ${user.dietaryPreferences.join(", ")}`
-    : "Home chef & flavor seeker.\nExploring new recipes every day.";
+  const displayBio = (user as any)?.bio ||
+    (user?.dietaryPreferences?.length
+      ? `Preferences: ${user.dietaryPreferences.join(", ")}`
+      : "Home chef & flavor seeker.\nExploring new recipes every day.");
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -150,46 +156,22 @@ export default function ProfileScreen() {
             icon="restaurant"
             value={stats?.totalRecipes?.toString() || "0"}
             label="RECIPES"
+            onPress={() => router.push({ pathname: "/(tabs)/recipes", params: { filter: "my-recipes" } })}
           />
           <View style={styles.statsDivider} />
           <StatsItem
             icon="heart"
             value={stats?.totalFavorites?.toString() || "0"}
             label="FAVORITES"
+            onPress={() => router.push({ pathname: "/(tabs)/recipes", params: { filter: "favorites" } })}
           />
           <View style={styles.statsDivider} />
           <StatsItem
             icon="flame"
             value={stats?.totalMealsCooked?.toString() || "0"}
             label="COOKED"
+            onPress={() => router.push({ pathname: "/(tabs)/recipes", params: { filter: "cooked" } })}
           />
-        </Animated.View>
-
-        {/* My Recipes */}
-        <Animated.View entering={FadeInDown.delay(200).duration(400)}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.settingsPreview,
-              pressed && styles.cardPressed,
-            ]}
-            onPress={() =>
-              router.push({
-                pathname: "/(tabs)/recipes",
-                params: { filter: "my-recipes" },
-              })
-            }
-          >
-            <View style={styles.settingsPreviewContent}>
-              <Ionicons name="book-outline" size={24} color={colors.text} />
-              <View style={styles.settingsPreviewText}>
-                <Text style={styles.settingsPreviewTitle}>MY RECIPES</Text>
-                <Text style={styles.settingsPreviewSubtitle}>
-                  View your personal recipes
-                </Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={24} color={colors.text} />
-          </Pressable>
         </Animated.View>
 
         {/* Friends Section */}
@@ -207,32 +189,6 @@ export default function ProfileScreen() {
                 <Text style={styles.settingsPreviewTitle}>MY FRIENDS</Text>
                 <Text style={styles.settingsPreviewSubtitle}>
                   Manage friends & share recipes
-                </Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={24} color={colors.text} />
-          </Pressable>
-        </Animated.View>
-
-        {/* App Settings */}
-        <Animated.View entering={FadeInDown.delay(700).duration(400)}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.settingsPreview,
-              pressed && styles.cardPressed,
-            ]}
-            onPress={() => router.push("/settings" as any)}
-          >
-            <View style={styles.settingsPreviewContent}>
-              <Ionicons
-                name="settings-outline"
-                size={24}
-                color={colors.text}
-              />
-              <View style={styles.settingsPreviewText}>
-                <Text style={styles.settingsPreviewTitle}>APP SETTINGS</Text>
-                <Text style={styles.settingsPreviewSubtitle}>
-                  Preferences & app configuration
                 </Text>
               </View>
             </View>
@@ -375,6 +331,9 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
   },
+  statsItemPressed: {
+    opacity: 0.6,
+  },
   statsIconContainer: {
     width: 40,
     height: 40,
@@ -470,7 +429,7 @@ const styles = StyleSheet.create({
     borderColor: colors.error,
     borderRadius: borderRadius.lg,
     paddingVertical: spacing.md,
-    marginTop: spacing.lg,
+    marginTop: spacing.xxxxl,
     gap: spacing.sm,
   },
   signOutText: {

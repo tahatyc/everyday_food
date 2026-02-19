@@ -1,6 +1,6 @@
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
-import { useQuery } from 'convex/react';
+import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { useQuery, useMutation } from 'convex/react';
 import { router, useLocalSearchParams } from 'expo-router';
 import CookModeScreen from '../[id]';
 
@@ -14,9 +14,12 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: jest.fn(() => ({ id: 'recipe1' })),
 }));
 
+const mockRecordCookCompletion = jest.fn().mockResolvedValue(undefined);
+
 beforeEach(() => {
   jest.clearAllMocks();
   (useLocalSearchParams as jest.Mock).mockReturnValue({ id: 'recipe1' });
+  (useMutation as jest.Mock).mockReturnValue(mockRecordCookCompletion);
 });
 
 const mockRecipe = {
@@ -125,7 +128,7 @@ describe('CookModeScreen', () => {
     expect(getByText('Finish')).toBeTruthy();
   });
 
-  it('navigates back when Finish is pressed on last step', () => {
+  it('navigates back when Finish is pressed on last step', async () => {
     (useQuery as jest.Mock).mockReturnValue(mockRecipe);
 
     const { getByText } = render(<CookModeScreen />);
@@ -134,7 +137,34 @@ describe('CookModeScreen', () => {
     fireEvent.press(getByText('Next Step')); // Step 3
     fireEvent.press(getByText('Next Step')); // Step 4
     fireEvent.press(getByText('Finish'));
-    expect(router.back).toHaveBeenCalled();
+
+    await waitFor(() => {
+      expect(router.back).toHaveBeenCalled();
+    });
+  });
+
+  it('calls recordCookCompletion with recipe id when Finish is pressed', async () => {
+    (useQuery as jest.Mock).mockReturnValue(mockRecipe);
+
+    const { getByText } = render(<CookModeScreen />);
+    fireEvent.press(getByText('Next Step')); // Step 2
+    fireEvent.press(getByText('Next Step')); // Step 3
+    fireEvent.press(getByText('Next Step')); // Step 4
+    fireEvent.press(getByText('Finish'));
+
+    await waitFor(() => {
+      expect(mockRecordCookCompletion).toHaveBeenCalledWith({ recipeId: 'recipe1' });
+    });
+  });
+
+  it('does not call recordCookCompletion when navigating between steps', () => {
+    (useQuery as jest.Mock).mockReturnValue(mockRecipe);
+
+    const { getByText } = render(<CookModeScreen />);
+    fireEvent.press(getByText('Next Step')); // Step 2
+    fireEvent.press(getByText('Next Step')); // Step 3
+
+    expect(mockRecordCookCompletion).not.toHaveBeenCalled();
   });
 
   it('shows tips when step has tips', () => {

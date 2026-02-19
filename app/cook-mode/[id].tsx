@@ -1,36 +1,32 @@
+import { Ionicons } from "@expo/vector-icons";
+import { useQuery, useMutation } from "convex/react";
+import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  Dimensions,
   ActivityIndicator,
+  Dimensions,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { router, useLocalSearchParams } from "expo-router";
 import Animated, {
   FadeIn,
-  FadeInDown,
-  FadeInLeft,
-  FadeInRight,
-  SlideInRight,
-  SlideOutLeft,
+  FadeInDown
 } from "react-native-reanimated";
-import { useQuery } from "convex/react";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 
 import {
-  colors,
-  spacing,
-  borders,
   borderRadius,
-  shadows,
-  typography,
+  borders,
+  colors,
   getMealTypeColor,
+  shadows,
+  spacing,
+  typography,
 } from "../../src/styles/neobrutalism";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -40,10 +36,12 @@ export default function CookModeScreen() {
   const [currentStep, setCurrentStep] = useState(0);
   const [screenAlwaysOn, setScreenAlwaysOn] = useState(true);
 
+  const recordCookCompletion = useMutation(api.recipes.recordCookCompletion);
+
   // Fetch recipe from Convex
   const recipe = useQuery(
     api.recipes.getById,
-    id ? { id: id as Id<"recipes"> } : "skip"
+    id ? { id: id as Id<"recipes"> } : "skip",
   );
 
   // Loading state
@@ -63,7 +61,10 @@ export default function CookModeScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Recipe not found</Text>
-          <Pressable style={styles.backButtonLarge} onPress={() => router.back()}>
+          <Pressable
+            style={styles.backButtonLarge}
+            onPress={() => router.back()}
+          >
             <Text style={styles.backButtonText}>Go Back</Text>
           </Pressable>
         </View>
@@ -81,11 +82,12 @@ export default function CookModeScreen() {
     }
   };
 
-  const goToNextStep = () => {
+  const goToNextStep = async () => {
     if (currentStep < totalSteps - 1) {
       setCurrentStep(currentStep + 1);
     } else {
-      // Finished cooking
+      // Finished cooking — record completion then navigate back
+      await recordCookCompletion({ recipeId: id as Id<"recipes"> });
       router.back();
     }
   };
@@ -93,16 +95,36 @@ export default function CookModeScreen() {
   // Determine step category based on keywords
   const getStepCategory = (instruction: string) => {
     const lower = instruction.toLowerCase();
-    if (lower.includes("prep") || lower.includes("chop") || lower.includes("cut") || lower.includes("dice")) {
+    if (
+      lower.includes("prep") ||
+      lower.includes("chop") ||
+      lower.includes("cut") ||
+      lower.includes("dice")
+    ) {
       return "PREPARATION";
     }
-    if (lower.includes("cook") || lower.includes("heat") || lower.includes("fry") || lower.includes("boil") || lower.includes("bake")) {
+    if (
+      lower.includes("cook") ||
+      lower.includes("heat") ||
+      lower.includes("fry") ||
+      lower.includes("boil") ||
+      lower.includes("bake")
+    ) {
       return "COOKING";
     }
-    if (lower.includes("mix") || lower.includes("stir") || lower.includes("combine") || lower.includes("whisk")) {
+    if (
+      lower.includes("mix") ||
+      lower.includes("stir") ||
+      lower.includes("combine") ||
+      lower.includes("whisk")
+    ) {
       return "MIXING";
     }
-    if (lower.includes("serve") || lower.includes("plate") || lower.includes("garnish")) {
+    if (
+      lower.includes("serve") ||
+      lower.includes("plate") ||
+      lower.includes("garnish")
+    ) {
       return "PLATING";
     }
     return "STEP";
@@ -113,10 +135,7 @@ export default function CookModeScreen() {
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       {/* Header */}
-      <Animated.View
-        style={styles.header}
-        entering={FadeInDown.duration(300)}
-      >
+      <Animated.View style={styles.header} entering={FadeInDown.duration(300)}>
         <Pressable style={styles.closeButton} onPress={() => router.back()}>
           <Ionicons name="close" size={24} color={colors.text} />
         </Pressable>
@@ -146,7 +165,12 @@ export default function CookModeScreen() {
             style={styles.screenToggle}
             onPress={() => setScreenAlwaysOn(!screenAlwaysOn)}
           >
-            <View style={[styles.toggleDot, screenAlwaysOn && styles.toggleDotActive]} />
+            <View
+              style={[
+                styles.toggleDot,
+                screenAlwaysOn && styles.toggleDotActive,
+              ]}
+            />
             <Text style={styles.screenToggleText}>SCREEN ALWAYS ON</Text>
           </Pressable>
         </View>
@@ -172,16 +196,29 @@ export default function CookModeScreen() {
           <View
             style={[
               styles.stepImage,
-              { backgroundColor: getMealTypeColor(
-                recipe.tags?.find(t => ["breakfast", "lunch", "dinner", "snack"].includes(t.toLowerCase()))?.toLowerCase() || "dinner"
-              ) },
+              {
+                backgroundColor: getMealTypeColor(
+                  recipe.tags
+                    ?.find((t) =>
+                      ["breakfast", "lunch", "dinner", "snack"].includes(
+                        t.toLowerCase(),
+                      ),
+                    )
+                    ?.toLowerCase() || "dinner",
+                ),
+              },
             ]}
           >
             <Text style={styles.stepImageEmoji}>
-              {stepCategory === "PREPARATION" ? "🔪" :
-               stepCategory === "COOKING" ? "🍳" :
-               stepCategory === "MIXING" ? "🥄" :
-               stepCategory === "PLATING" ? "🍽️" : "👨‍🍳"}
+              {stepCategory === "PREPARATION"
+                ? "🔪"
+                : stepCategory === "COOKING"
+                ? "🍳"
+                : stepCategory === "MIXING"
+                ? "🥄"
+                : stepCategory === "PLATING"
+                ? "🍽️"
+                : "👨‍🍳"}
             </Text>
           </View>
         </Animated.View>
@@ -265,22 +302,6 @@ export default function CookModeScreen() {
             {currentStep === totalSteps - 1 ? "Finish" : "Next Step"}
           </Text>
           <Ionicons name="arrow-forward" size={20} color={colors.text} />
-        </Pressable>
-      </Animated.View>
-
-      {/* Bottom Tools */}
-      <Animated.View
-        style={styles.bottomTools}
-        entering={FadeInDown.delay(400).duration(400)}
-      >
-        <Pressable style={styles.toolButton}>
-          <Ionicons name="timer-outline" size={24} color={colors.textSecondary} />
-        </Pressable>
-        <Pressable style={styles.toolButton}>
-          <Ionicons name="list-outline" size={24} color={colors.textSecondary} />
-        </Pressable>
-        <Pressable style={styles.toolButton}>
-          <Ionicons name="volume-high-outline" size={24} color={colors.textSecondary} />
         </Pressable>
       </Animated.View>
     </SafeAreaView>
@@ -479,6 +500,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     gap: spacing.md,
+    marginBottom: spacing.xxl,
   },
   navButton: {
     flex: 1,

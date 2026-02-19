@@ -299,6 +299,7 @@ export const getFavorites = query({
 
         return {
           ...recipe,
+          isFavorite: true as const,
           ingredients: ingredients.sort((a, b) => a.sortOrder - b.sortOrder),
           steps: steps.sort((a, b) => a.stepNumber - b.stepNumber),
           tags: tags.filter(Boolean),
@@ -557,6 +558,53 @@ export const getRecentlyViewed = query({
     );
 
     return recipes.filter(Boolean);
+  },
+});
+
+// Record a cook completion — increments cookCount and sets lastCookedAt
+export const recordCookCompletion = mutation({
+  args: { recipeId: v.id("recipes") },
+  handler: async (ctx, args) => {
+    const userId = await getCurrentUserId(ctx);
+    const now = Date.now();
+
+    const recipe = await ctx.db.get(args.recipeId);
+    if (!recipe) throw new Error("Recipe not found");
+
+    // Personal recipe: update cookCount directly on the recipe row
+    if (recipe.userId === userId) {
+      await ctx.db.patch(args.recipeId, {
+        cookCount: (recipe.cookCount || 0) + 1,
+        lastCookedAt: now,
+        updatedAt: now,
+      });
+      return;
+    }
+
+    // Global / shared recipe: track via userRecipeInteractions
+    const interaction = await ctx.db
+      .query("userRecipeInteractions")
+      .withIndex("by_user_and_recipe", (q) =>
+        q.eq("userId", userId).eq("recipeId", args.recipeId)
+      )
+      .first();
+
+    if (interaction) {
+      await ctx.db.patch(interaction._id, {
+        cookCount: (interaction.cookCount || 0) + 1,
+        lastCookedAt: now,
+        updatedAt: now,
+      });
+    } else {
+      await ctx.db.insert("userRecipeInteractions", {
+        userId,
+        recipeId: args.recipeId,
+        cookCount: 1,
+        lastCookedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
   },
 });
 

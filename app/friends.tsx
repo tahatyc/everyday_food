@@ -179,7 +179,7 @@ function FriendCard({
             [
               { text: "Cancel", style: "cancel" },
               { text: "Remove", style: "destructive", onPress: onRemove },
-            ]
+            ],
           );
         }}
       >
@@ -197,7 +197,7 @@ export default function FriendsScreen() {
   const pending = useQuery(api.friends.getPending);
   const searchResults = useQuery(
     api.friends.searchUsers,
-    searchQuery.length >= 2 ? { query: searchQuery } : "skip"
+    searchQuery.length >= 2 ? { query: searchQuery } : "skip",
   );
   const stats = useQuery(api.friends.getStats);
 
@@ -212,7 +212,7 @@ export default function FriendsScreen() {
       await sendRequest({ friendId });
       setSearchQuery("");
       Alert.alert("Success", "Friend request sent!");
-    } catch (error: any) {
+    } catch (error) {
       Alert.alert("Error", error.message || "Failed to send request");
     }
   };
@@ -220,7 +220,7 @@ export default function FriendsScreen() {
   const handleAcceptRequest = async (friendshipId: Id<"friendships">) => {
     try {
       await acceptRequest({ friendshipId });
-    } catch (error: any) {
+    } catch (error) {
       Alert.alert("Error", error.message || "Failed to accept request");
     }
   };
@@ -228,7 +228,7 @@ export default function FriendsScreen() {
   const handleRejectRequest = async (friendshipId: Id<"friendships">) => {
     try {
       await rejectRequest({ friendshipId });
-    } catch (error: any) {
+    } catch (error) {
       Alert.alert("Error", error.message || "Failed to reject request");
     }
   };
@@ -236,7 +236,7 @@ export default function FriendsScreen() {
   const handleCancelRequest = async (friendshipId: Id<"friendships">) => {
     try {
       await cancelRequest({ friendshipId });
-    } catch (error: any) {
+    } catch (error) {
       Alert.alert("Error", error.message || "Failed to cancel request");
     }
   };
@@ -244,7 +244,7 @@ export default function FriendsScreen() {
   const handleRemoveFriend = async (friendId: Id<"users">) => {
     try {
       await removeFriend({ friendId });
-    } catch (error: any) {
+    } catch (error) {
       Alert.alert("Error", error.message || "Failed to remove friend");
     }
   };
@@ -260,11 +260,10 @@ export default function FriendsScreen() {
         </Pressable>
         <Text style={styles.headerTitle}>FRIENDS</Text>
         <View style={styles.headerButton}>
-          {stats && stats.pendingIncoming > 0 && (
-            <View style={styles.badgeContainer}>
-              <Text style={styles.badgeText}>{stats.pendingIncoming}</Text>
-            </View>
-          )}
+          <Ionicons name="person" size={24} color={colors.text} />
+          <View style={styles.badgeContainer}>
+            <Text style={styles.badgeText}>{stats?.pendingIncoming}</Text>
+          </View>
         </View>
       </Animated.View>
 
@@ -299,7 +298,11 @@ export default function FriendsScreen() {
             />
             {searchQuery.length > 0 && (
               <Pressable onPress={() => setSearchQuery("")}>
-                <Ionicons name="close-circle" size={20} color={colors.textMuted} />
+                <Ionicons
+                  name="close-circle"
+                  size={20}
+                  color={colors.textMuted}
+                />
               </Pressable>
             )}
           </View>
@@ -326,49 +329,50 @@ export default function FriendsScreen() {
         </Animated.View>
 
         {/* Pending Requests Section */}
-        {pending && (pending.incoming.length > 0 || pending.outgoing.length > 0) && (
-          <Animated.View
-            style={styles.section}
-            entering={FadeInDown.delay(200).duration(400)}
-          >
-            <View style={styles.sectionLabelContainer}>
-              <Text style={styles.sectionLabel}>PENDING REQUESTS</Text>
-            </View>
-
-            {/* Incoming Requests */}
-            {pending.incoming.length > 0 && (
-              <View style={styles.subsection}>
-                <Text style={styles.subsectionTitle}>Incoming</Text>
-                {pending.incoming.map((request, index) => (
-                  <RequestCard
-                    key={request.friendshipId}
-                    request={request}
-                    type="incoming"
-                    onAccept={() => handleAcceptRequest(request.friendshipId)}
-                    onReject={() => handleRejectRequest(request.friendshipId)}
-                    index={index}
-                  />
-                ))}
+        {pending &&
+          (pending.incoming.length > 0 || pending.outgoing.length > 0) && (
+            <Animated.View
+              style={styles.section}
+              entering={FadeInDown.delay(200).duration(400)}
+            >
+              <View style={styles.sectionLabelContainer}>
+                <Text style={styles.sectionLabel}>PENDING REQUESTS</Text>
               </View>
-            )}
 
-            {/* Outgoing Requests */}
-            {pending.outgoing.length > 0 && (
-              <View style={styles.subsection}>
-                <Text style={styles.subsectionTitle}>Sent</Text>
-                {pending.outgoing.map((request, index) => (
-                  <RequestCard
-                    key={request.friendshipId}
-                    request={request}
-                    type="outgoing"
-                    onCancel={() => handleCancelRequest(request.friendshipId)}
-                    index={index}
-                  />
-                ))}
-              </View>
-            )}
-          </Animated.View>
-        )}
+              {/* Incoming Requests */}
+              {pending.incoming.length > 0 && (
+                <View style={styles.subsection}>
+                  <Text style={styles.subsectionTitle}>Incoming</Text>
+                  {pending.incoming.map((request, index) => (
+                    <RequestCard
+                      key={request.friendshipId}
+                      request={request}
+                      type="incoming"
+                      onAccept={() => handleAcceptRequest(request.friendshipId)}
+                      onReject={() => handleRejectRequest(request.friendshipId)}
+                      index={index}
+                    />
+                  ))}
+                </View>
+              )}
+
+              {/* Outgoing Requests */}
+              {pending.outgoing.length > 0 && (
+                <View style={styles.subsection}>
+                  <Text style={styles.subsectionTitle}>Sent</Text>
+                  {pending.outgoing.map((request, index) => (
+                    <RequestCard
+                      key={request.friendshipId}
+                      request={request}
+                      type="outgoing"
+                      onCancel={() => handleCancelRequest(request.friendshipId)}
+                      index={index}
+                    />
+                  ))}
+                </View>
+              )}
+            </Animated.View>
+          )}
 
         {/* Friends List Section */}
         <Animated.View

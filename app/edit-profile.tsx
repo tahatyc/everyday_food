@@ -143,40 +143,6 @@ export default function EditProfileScreen() {
           />
         </Animated.View>
 
-        {/* Default Servings */}
-        <Animated.View entering={FadeInDown.delay(300).duration(400)}>
-          <Text style={styles.label}>DEFAULT SERVINGS</Text>
-          <View style={styles.stepperContainer}>
-            <Pressable
-              style={({ pressed }) => [
-                styles.stepperButton,
-                pressed && styles.buttonPressed,
-              ]}
-              onPress={() =>
-                setDefaultServings((prev) => Math.max(1, prev - 1))
-              }
-              testID="servings-decrease"
-            >
-              <Ionicons name="remove" size={20} color={colors.text} />
-            </Pressable>
-            <Text style={styles.stepperValue} testID="servings-value">
-              {defaultServings}
-            </Text>
-            <Pressable
-              style={({ pressed }) => [
-                styles.stepperButton,
-                pressed && styles.buttonPressed,
-              ]}
-              onPress={() =>
-                setDefaultServings((prev) => Math.min(12, prev + 1))
-              }
-              testID="servings-increase"
-            >
-              <Ionicons name="add" size={20} color={colors.text} />
-            </Pressable>
-          </View>
-        </Animated.View>
-
         {/* Preferred Units */}
         <Animated.View entering={FadeInDown.delay(400).duration(400)}>
           <Text style={styles.label}>PREFERRED UNITS</Text>

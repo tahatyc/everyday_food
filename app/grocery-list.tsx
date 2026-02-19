@@ -405,12 +405,20 @@ export default function GroceryListScreen() {
             <Ionicons name="ellipsis-horizontal" size={24} color={colors.text} />
           </View>
         </Animated.View>
+        {showChangeBanner && (
+          <ChangeBanner
+            onSync={handleSync}
+            onDismiss={() => setBannerDismissed(true)}
+          />
+        )}
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyEmoji}>🛒</Text>
           <Text style={styles.emptyTitle}>Your list is empty</Text>
           <Text style={styles.emptySubtitle}>
             {isWeekScoped
-              ? "Add meals to your plan, then come back to generate your list"
+              ? showChangeBanner
+                ? "Your meal plan has recipes. Tap \"UPDATE LIST\" to populate your grocery list."
+                : "Add meals to your plan, then come back to generate your list"
               : "Add ingredients from recipes to get started"}
           </Text>
         </View>
@@ -519,31 +527,6 @@ export default function GroceryListScreen() {
           </Pressable>
         </View>
       </View>
-
-      {/* Checkout Button */}
-      <Animated.View
-        style={styles.checkoutContainer}
-        entering={FadeInDown.delay(500).duration(400)}
-      >
-        <Pressable
-          style={({ pressed }) => [
-            styles.checkoutButton,
-            pressed && styles.checkoutButtonPressed,
-          ]}
-        >
-          <View style={styles.checkoutContent}>
-            <Text style={styles.checkoutTitle}>CHECKOUT / ORDER LIST</Text>
-            <Text style={styles.checkoutSubtitle}>
-              {uncheckedItems} Items remaining
-            </Text>
-          </View>
-          <View style={styles.checkoutBadge}>
-            <Text style={styles.checkoutBadgeText}>{uncheckedItems}</Text>
-            <Text style={styles.checkoutBadgeLabel}>Items</Text>
-          </View>
-          <Ionicons name="cart" size={24} color={colors.textLight} />
-        </Pressable>
-      </Animated.View>
     </SafeAreaView>
   );
 }
@@ -770,7 +753,7 @@ const styles = StyleSheet.create({
   // Add Manual Item
   addItemContainer: {
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.lg,
     borderTopWidth: borders.thin,
     borderTopColor: colors.borderLight,
     backgroundColor: colors.background,

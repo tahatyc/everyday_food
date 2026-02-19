@@ -152,5 +152,50 @@ describe('EditProfileScreen', () => {
     expect(getByText('Vegan')).toBeTruthy();
     expect(getByText('Gluten-Free')).toBeTruthy();
     expect(getByText('Keto')).toBeTruthy();
+    expect(getByText('Dairy-Free')).toBeTruthy();
+    expect(getByText('Paleo')).toBeTruthy();
+  });
+
+  it('stays on screen when save fails', async () => {
+    mockUpdateProfile.mockRejectedValue(new Error('Network error'));
+    (useQuery as jest.Mock).mockReturnValue(mockUser);
+    const { getByTestId } = render(<EditProfileScreen />);
+
+    fireEvent.press(getByTestId('save-button'));
+
+    await waitFor(() => {
+      expect(mockUpdateProfile).toHaveBeenCalled();
+      expect(router.back).not.toHaveBeenCalled();
+    });
+  });
+
+  it('saves with metric units when metric is selected', async () => {
+    mockUpdateProfile.mockResolvedValue({});
+    (useQuery as jest.Mock).mockReturnValue(mockUser);
+    const { getByTestId } = render(<EditProfileScreen />);
+
+    fireEvent.press(getByTestId('units-metric'));
+    fireEvent.press(getByTestId('save-button'));
+
+    await waitFor(() => {
+      expect(mockUpdateProfile).toHaveBeenCalledWith(
+        expect.objectContaining({ preferredUnits: 'metric' })
+      );
+    });
+  });
+
+  it('sends undefined name when field is cleared to whitespace', async () => {
+    mockUpdateProfile.mockResolvedValue({});
+    (useQuery as jest.Mock).mockReturnValue(mockUser);
+    const { getByTestId } = render(<EditProfileScreen />);
+
+    fireEvent.changeText(getByTestId('name-input'), '   ');
+    fireEvent.press(getByTestId('save-button'));
+
+    await waitFor(() => {
+      expect(mockUpdateProfile).toHaveBeenCalledWith(
+        expect.objectContaining({ name: undefined })
+      );
+    });
   });
 });

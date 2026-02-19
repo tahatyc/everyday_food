@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -46,6 +46,7 @@ type ConvexRecipe = {
   difficulty?: "easy" | "medium" | "hard";
   isFavorite?: boolean;
   isGlobal?: boolean;
+  cookCount?: number;
   tags: string[];
   ingredients: any[];
   steps: any[];
@@ -69,6 +70,16 @@ const DEFAULT_FILTERS: RecipeFilters = {
 // Recipe list item component
 function RecipeListItem({ recipe }: { recipe: ConvexRecipe }) {
   const totalTime = (recipe.prepTime || 0) + (recipe.cookTime || 0);
+  const toggleFavorite = useMutation(api.recipes.toggleFavorite);
+  const toggleGlobalFavorite = useMutation(api.recipes.toggleGlobalRecipeFavorite);
+
+  const handleToggleFavorite = () => {
+    if (recipe.isGlobal) {
+      toggleGlobalFavorite({ recipeId: recipe._id });
+    } else {
+      toggleFavorite({ recipeId: recipe._id });
+    }
+  };
 
   const getMealType = () => {
     const mealTypes = ["breakfast", "lunch", "dinner", "snack"];
@@ -139,7 +150,14 @@ function RecipeListItem({ recipe }: { recipe: ConvexRecipe }) {
         </View>
       </View>
 
-      <Pressable style={styles.favoriteButton}>
+      <Pressable
+        style={({ pressed }) => [
+          styles.favoriteButton,
+          pressed && styles.favoriteButtonPressed,
+        ]}
+        onPress={handleToggleFavorite}
+        hitSlop={8}
+      >
         <Ionicons
           name={recipe.isFavorite ? "heart" : "heart-outline"}
           size={22}
@@ -198,14 +216,25 @@ export default function RecipesScreen() {
   const { filter } = useLocalSearchParams<{ filter?: string }>();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState(filter || "all");
+
+  useEffect(() => {
+    if (filter) {
+      setActiveFilter(filter);
+    }
+  }, [filter]);
   const [showFilterSheet, setShowFilterSheet] = useState(false);
   const [advancedFilters, setAdvancedFilters] = useState<RecipeFilters>(DEFAULT_FILTERS);
   // Pending filters while the sheet is open (applied on "Apply")
   const [pendingFilters, setPendingFilters] = useState<RecipeFilters>(DEFAULT_FILTERS);
 
   // Fetch recipes from Convex
+  const MEAL_TYPE_FILTERS = ["breakfast", "lunch", "dinner", "snack"];
   const allRecipes = useQuery(api.recipes.list, {
-    includeGlobal: activeFilter === "all" || activeFilter === "global",
+    includeGlobal:
+      activeFilter === "all" ||
+      activeFilter === "global" ||
+      activeFilter === "cooked" ||
+      MEAL_TYPE_FILTERS.includes(activeFilter),
     globalOnly: activeFilter === "global",
   });
   const searchResults = useQuery(
@@ -222,6 +251,7 @@ export default function RecipesScreen() {
     { id: "lunch", label: "Lunch" },
     { id: "dinner", label: "Dinner" },
     { id: "favorites", label: "Favorites" },
+    { id: "cooked", label: "Cooked" },
   ];
 
   // Count active advanced filters
@@ -314,6 +344,10 @@ export default function RecipesScreen() {
 
     if (activeFilter === "favorites") {
       return (favoriteRecipes || []) as ConvexRecipe[];
+    }
+
+    if (activeFilter === "cooked") {
+      return (allRecipes as ConvexRecipe[]).filter(r => (r.cookCount || 0) > 0);
     }
 
     // Filter by meal type tag
@@ -629,8 +663,8 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   filterContainer: {
-    minHeight: 56,
-    maxHeight: 60,
+    minHeight: 60,
+    maxHeight: 65,
   },
   filterList: {
     paddingHorizontal: spacing.lg,
@@ -648,10 +682,10 @@ const styles = StyleSheet.create({
     minWidth: 60,
     alignItems: "center" as const,
     justifyContent: "center" as const,
+    ...shadows.sm,
   },
   filterChipActive: {
-    backgroundColor: colors.accent,
-    ...shadows.sm,
+    backgroundColor: colors.accent,    
   },
   filterChipText: {
     fontSize: typography.sizes.sm,
@@ -724,6 +758,10 @@ const styles = StyleSheet.create({
   favoriteButton: {
     padding: spacing.md,
     alignSelf: "flex-start",
+  },
+  favoriteButtonPressed: {
+    opacity: 0.6,
+    transform: [{ scale: 0.85 }],
   },
   emptyState: {
     alignItems: "center",

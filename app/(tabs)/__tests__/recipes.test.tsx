@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import { useQuery } from 'convex/react';
+import { useMutation, useQuery } from 'convex/react';
 import { router } from 'expo-router';
 import RecipesScreen from '../recipes';
 
@@ -648,5 +648,270 @@ describe('RecipesScreen - Advanced Filters', () => {
     expect(getByText('Smoothie Bowl')).toBeTruthy();
     expect(queryByText('Pasta Carbonara')).toBeNull();
     expect(queryByText('Beef Stew')).toBeNull();
+  });
+});
+
+// ─── Meal-Type Filter Chips (BUG-4 fix: case-insensitive tag matching) ─────────
+
+describe('RecipesScreen - Meal Type Filter Chips', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  const allRecipes = [
+    {
+      _id: 'b1',
+      title: 'Scrambled Eggs',
+      servings: 2,
+      tags: ['breakfast'],
+      ingredients: [],
+      steps: [],
+    },
+    {
+      _id: 'b2',
+      title: 'Oatmeal',
+      servings: 1,
+      tags: ['Breakfast'], // uppercase — BUG-4: must match case-insensitively
+      ingredients: [],
+      steps: [],
+    },
+    {
+      _id: 'l1',
+      title: 'Caesar Salad',
+      servings: 2,
+      tags: ['lunch'],
+      ingredients: [],
+      steps: [],
+    },
+    {
+      _id: 'd1',
+      title: 'Beef Stew',
+      servings: 4,
+      tags: ['dinner', 'American'],
+      ingredients: [],
+      steps: [],
+    },
+    {
+      _id: 'd2',
+      title: 'Pasta Carbonara',
+      servings: 4,
+      tags: ['Dinner', 'Italian'], // uppercase — BUG-4 fix covers this too
+      ingredients: [],
+      steps: [],
+    },
+  ];
+
+  function setupMealTypeMock(recipes = allRecipes, favorites: any[] = []) {
+    (useQuery as jest.Mock).mockImplementation((_queryFn: any, args: any) => {
+      if (args === 'skip') return undefined;
+      if (args === undefined) return favorites;
+      return recipes;
+    });
+  }
+
+  // Helper to press a filter chip by label (chips appear before recipe tag badges)
+  function pressFilterChip(getAllByText: (text: string) => any[], label: string) {
+    const elements = getAllByText(label);
+    fireEvent.press(elements[0]);
+  }
+
+  it('shows only breakfast recipes when Breakfast chip is pressed', () => {
+    setupMealTypeMock();
+
+    const { getAllByText, queryByText } = render(<RecipesScreen />);
+    pressFilterChip(getAllByText, 'Breakfast');
+
+    expect(getAllByText('Scrambled Eggs').length).toBeGreaterThanOrEqual(1);
+    expect(getAllByText('Oatmeal').length).toBeGreaterThanOrEqual(1);
+    expect(queryByText('Caesar Salad')).toBeNull();
+    expect(queryByText('Beef Stew')).toBeNull();
+    expect(queryByText('Pasta Carbonara')).toBeNull();
+  });
+
+  it('matches breakfast tags case-insensitively (BUG-4 fix)', () => {
+    // Both 'breakfast' and 'Breakfast' tags should match when Breakfast chip is active
+    setupMealTypeMock();
+
+    const { getAllByText } = render(<RecipesScreen />);
+    pressFilterChip(getAllByText, 'Breakfast');
+
+    // Both lowercase 'breakfast' and uppercase 'Breakfast' tags must match
+    expect(getAllByText('Scrambled Eggs').length).toBeGreaterThanOrEqual(1); // tag: 'breakfast'
+    expect(getAllByText('Oatmeal').length).toBeGreaterThanOrEqual(1);        // tag: 'Breakfast'
+    expect(getAllByText('2 recipes').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('shows only lunch recipes when Lunch chip is pressed', () => {
+    setupMealTypeMock();
+
+    const { getAllByText, getByText, queryByText } = render(<RecipesScreen />);
+    pressFilterChip(getAllByText, 'Lunch');
+
+    expect(getByText('Caesar Salad')).toBeTruthy();
+    expect(queryByText('Scrambled Eggs')).toBeNull();
+    expect(queryByText('Beef Stew')).toBeNull();
+    expect(getByText('1 recipe')).toBeTruthy();
+  });
+
+  it('shows only dinner recipes when Dinner chip is pressed', () => {
+    setupMealTypeMock();
+
+    const { getAllByText, queryByText } = render(<RecipesScreen />);
+    pressFilterChip(getAllByText, 'Dinner');
+
+    expect(getAllByText('Beef Stew').length).toBeGreaterThanOrEqual(1);
+    expect(getAllByText('Pasta Carbonara').length).toBeGreaterThanOrEqual(1); // tag: 'Dinner' (uppercase)
+    expect(queryByText('Scrambled Eggs')).toBeNull();
+    expect(queryByText('Caesar Salad')).toBeNull();
+    expect(getAllByText('2 recipes').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('matches dinner tags case-insensitively (BUG-4 fix)', () => {
+    setupMealTypeMock();
+
+    const { getAllByText } = render(<RecipesScreen />);
+    pressFilterChip(getAllByText, 'Dinner');
+
+    // 'dinner' (lowercase) and 'Dinner' (uppercase) both match
+    expect(getAllByText('Beef Stew').length).toBeGreaterThanOrEqual(1);       // tag: 'dinner'
+    expect(getAllByText('Pasta Carbonara').length).toBeGreaterThanOrEqual(1); // tag: 'Dinner'
+  });
+
+  it('shows all recipes when All chip is pressed after a meal filter', () => {
+    setupMealTypeMock();
+
+    const { getAllByText, getByText } = render(<RecipesScreen />);
+    pressFilterChip(getAllByText, 'Breakfast');
+    expect(getAllByText('2 recipes').length).toBeGreaterThanOrEqual(1);
+
+    fireEvent.press(getByText('All'));
+    expect(getByText('5 recipes')).toBeTruthy();
+  });
+
+  it('shows empty state when no recipes match selected meal type', () => {
+    // Only breakfast recipes — Lunch chip should show empty state
+    setupMealTypeMock([
+      { _id: 'b1', title: 'Pancakes', servings: 2, tags: ['breakfast'], ingredients: [], steps: [] },
+    ]);
+
+    const { getAllByText, getByText } = render(<RecipesScreen />);
+    pressFilterChip(getAllByText, 'Lunch');
+
+    expect(getByText('No recipes found')).toBeTruthy();
+  });
+
+  it('shows correct count label in header after filtering by meal type', () => {
+    setupMealTypeMock();
+
+    const { getAllByText, getByText } = render(<RecipesScreen />);
+
+    pressFilterChip(getAllByText, 'Breakfast');
+    expect(getAllByText('2 recipes').length).toBeGreaterThanOrEqual(1);
+
+    pressFilterChip(getAllByText, 'Lunch');
+    expect(getByText('1 recipe')).toBeTruthy();
+
+    pressFilterChip(getAllByText, 'Dinner');
+    expect(getAllByText('2 recipes').length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+// ─── Favorite Toggle ─────────────────────────────────────────────────────────
+
+describe('RecipesScreen - Favorite Toggle', () => {
+  // Stable mock function references — call history is cleared by jest.clearAllMocks()
+  const mockToggleFavorite = jest.fn();
+  const mockToggleGlobalFavorite = jest.fn();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // RecipeListItem calls useMutation in this order:
+    //   1st call → toggleFavorite
+    //   2nd call → toggleGlobalRecipeFavorite
+    (useMutation as jest.Mock)
+      .mockReturnValueOnce(mockToggleFavorite)
+      .mockReturnValueOnce(mockToggleGlobalFavorite);
+  });
+
+  function setupWithRecipe(recipe: any) {
+    (useQuery as jest.Mock).mockImplementation((_queryFn: any, args: any) => {
+      if (args === 'skip') return undefined;
+      if (args === undefined) return []; // favoriteRecipes
+      return [recipe];                   // allRecipes / searchResults
+    });
+  }
+
+  it('renders heart-outline icon for an unfavorited recipe', () => {
+    setupWithRecipe({
+      _id: 'r1', title: 'Pasta', servings: 4,
+      isFavorite: false, tags: [], ingredients: [], steps: [],
+    });
+
+    const { getByTestId } = render(<RecipesScreen />);
+    expect(getByTestId('icon-heart-outline')).toBeTruthy();
+  });
+
+  it('renders filled heart icon for a favorited recipe', () => {
+    setupWithRecipe({
+      _id: 'r1', title: 'Pasta', servings: 4,
+      isFavorite: true, tags: [], ingredients: [], steps: [],
+    });
+
+    const { getByTestId } = render(<RecipesScreen />);
+    expect(getByTestId('icon-heart')).toBeTruthy();
+  });
+
+  it('calls toggleFavorite with recipeId when heart is pressed on a personal recipe', () => {
+    setupWithRecipe({
+      _id: 'r1', title: 'My Pasta', servings: 4,
+      isFavorite: false, isGlobal: false,
+      tags: [], ingredients: [], steps: [],
+    });
+
+    const { getByTestId } = render(<RecipesScreen />);
+    fireEvent.press(getByTestId('icon-heart-outline'));
+
+    expect(mockToggleFavorite).toHaveBeenCalledWith({ recipeId: 'r1' });
+    expect(mockToggleGlobalFavorite).not.toHaveBeenCalled();
+  });
+
+  it('calls toggleGlobalRecipeFavorite with recipeId when heart is pressed on a global recipe', () => {
+    setupWithRecipe({
+      _id: 'g1', title: 'Global Pasta', servings: 4,
+      isFavorite: false, isGlobal: true,
+      tags: [], ingredients: [], steps: [],
+    });
+
+    const { getByTestId } = render(<RecipesScreen />);
+    fireEvent.press(getByTestId('icon-heart-outline'));
+
+    expect(mockToggleGlobalFavorite).toHaveBeenCalledWith({ recipeId: 'g1' });
+    expect(mockToggleFavorite).not.toHaveBeenCalled();
+  });
+
+  it('does not navigate to recipe detail when heart button is pressed', () => {
+    setupWithRecipe({
+      _id: 'r1', title: 'Pasta', servings: 4,
+      isFavorite: false, tags: [], ingredients: [], steps: [],
+    });
+
+    const { getByTestId } = render(<RecipesScreen />);
+    fireEvent.press(getByTestId('icon-heart-outline'));
+
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it('calls toggleGlobalRecipeFavorite to unfavorite an already-favorited global recipe', () => {
+    setupWithRecipe({
+      _id: 'g1', title: 'Global Pasta', servings: 4,
+      isFavorite: true, isGlobal: true,
+      tags: [], ingredients: [], steps: [],
+    });
+
+    const { getByTestId } = render(<RecipesScreen />);
+    fireEvent.press(getByTestId('icon-heart'));
+
+    expect(mockToggleGlobalFavorite).toHaveBeenCalledWith({ recipeId: 'g1' });
+    expect(mockToggleFavorite).not.toHaveBeenCalled();
   });
 });

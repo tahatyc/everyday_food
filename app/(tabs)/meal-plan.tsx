@@ -653,6 +653,7 @@ const styles = StyleSheet.create({
   },
   daySelector: {
     paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xs,
     gap: spacing.sm,
   },
   dayItem: {

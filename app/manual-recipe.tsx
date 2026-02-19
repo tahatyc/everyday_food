@@ -1,28 +1,28 @@
+import { api } from "@/convex/_generated/api";
+import { Ionicons } from "@expo/vector-icons";
+import { useMutation } from "convex/react";
+import { router, Stack } from "expo-router";
 import React, { useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  Pressable,
-  ScrollView,
+  Alert,
   KeyboardAvoidingView,
   Platform,
-  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { router, Stack } from "expo-router";
 import Animated, { FadeInDown, FadeInRight } from "react-native-reanimated";
-import { useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
-  colors,
-  spacing,
-  borders,
   borderRadius,
+  borders,
+  colors,
   shadows,
+  spacing,
   typography,
 } from "../src/styles/neobrutalism";
 

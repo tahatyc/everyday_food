@@ -30,7 +30,9 @@
       "Bash(findstr:*)",
       "Bash(npx expo export:*)",
       "Bash(netstat:*)",
-      "Bash(taskkill:*)"
+      "Bash(taskkill:*)",
+      "Bash(node -e:*)",
+      "Bash(git stash:*)"
     ]
   }
 }

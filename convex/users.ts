@@ -61,15 +61,19 @@ export const getStats = query({
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
 
-    const totalMealsCooked = recipes.reduce((sum, r) => sum + (r.cookCount || 0), 0);
+    const personalCookCount = recipes.reduce((sum, r) => sum + (r.cookCount || 0), 0);
+
+    // Count cook completions for global/shared recipes (tracked in interactions)
+    const interactions = await ctx.db
+      .query("userRecipeInteractions")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+    const interactionCookCount = interactions.reduce((sum, i) => sum + (i.cookCount || 0), 0);
+
+    const totalMealsCooked = personalCookCount + interactionCookCount;
 
     // Count global recipe favorites from userRecipeInteractions
-    const globalFavorites = await ctx.db
-      .query("userRecipeInteractions")
-      .withIndex("by_user_and_favorite", (q) =>
-        q.eq("userId", userId).eq("isFavorite", true)
-      )
-      .collect();
+    const globalFavorites = interactions.filter((i) => i.isFavorite);
 
     const personalFavorites = recipes.filter((r) => r.isFavorite).length;
 
