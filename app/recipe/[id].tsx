@@ -122,6 +122,7 @@ export default function RecipeDetailScreen() {
   const toggleGlobalFavoriteMutation = useMutation(api.recipes.toggleGlobalRecipeFavorite);
   const addToListMutation = useMutation(api.shoppingLists.addRecipeIngredients);
   const recordViewMutation = useMutation(api.recipes.recordView);
+  const deleteRecipeMutation = useMutation(api.recipes.deleteRecipe);
 
   // Get favorite state from recipe
   const [isFavorite, setIsFavorite] = useState(false);
@@ -191,6 +192,32 @@ export default function RecipeDetailScreen() {
       console.error("Failed to toggle favorite:", error);
       Alert.alert("Error", "Failed to update favorite status");
     }
+  };
+
+  const handleEdit = () => {
+    router.push(`/manual-recipe?recipeId=${recipe._id}` as any);
+  };
+
+  const handleDelete = () => {
+    Alert.alert(
+      "Delete Recipe",
+      "Are you sure you want to delete this recipe? This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteRecipeMutation({ recipeId: recipe._id });
+              router.back();
+            } catch {
+              Alert.alert("Error", "Failed to delete recipe. Please try again.");
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleAddToList = async () => {
@@ -277,12 +304,20 @@ export default function RecipeDetailScreen() {
             />
           </Pressable>
           {recipe.isOwner ? (
-            <Pressable
-              style={styles.headerButton}
-              onPress={() => setShowShareModal(true)}
-            >
-              <Ionicons name="share-outline" size={24} color={colors.text} />
-            </Pressable>
+            <>
+              <Pressable style={styles.headerButton} onPress={handleEdit}>
+                <Ionicons name="pencil-outline" size={22} color={colors.text} />
+              </Pressable>
+              <Pressable
+                style={styles.headerButton}
+                onPress={() => setShowShareModal(true)}
+              >
+                <Ionicons name="share-outline" size={24} color={colors.text} />
+              </Pressable>
+              <Pressable style={styles.headerButton} onPress={handleDelete}>
+                <Ionicons name="trash-outline" size={22} color={colors.error} />
+              </Pressable>
+            </>
           ) : (
             <View style={[styles.headerButton, styles.sharedBadgeButton]}>
               <Ionicons name="people" size={20} color={colors.primary} />

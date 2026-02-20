@@ -5,39 +5,29 @@ This document tracks potential features and improvements for Everyday Food.
 ## Missing Features Worth Adding
 
 ### 1. Recipe Notes & Cook Logs
+
 **Status:** Not Implemented
 **Priority:** Medium
 
 While the app tracks `cookCount` and `lastCookedAt`, users can't journal their cooking experiences for specific cooking sessions.
 
 **What's Needed:**
+
 - Session-specific notes (different from general recipe notes)
 - Cook log history per recipe
 - Example entries: "Doubled the garlic, kids loved it!", "Took 10 mins longer than expected"
 
 ---
 
-### 2. Unit Conversion Toggle
-**Status:** Not Implemented
-**Priority:** High
-
-The app has `preferredUnits` in user settings (metric/imperial), but no real-time conversion when viewing recipes.
-
-**What's Needed:**
-- Toggle button on recipe view to switch between metric/imperial
-- Real-time conversion of all ingredient amounts
-- Smart rounding (e.g., 236ml → "1 cup" instead of "0.998 cups")
-- Useful for international recipes or travelers
-
----
-
 ### 3. Ingredient Substitutions
+
 **Status:** Not Implemented
 **Priority:** High
 
 No substitution suggestions when ingredients are unavailable.
 
 **What's Needed:**
+
 - Database of common substitutions
 - "Out of X? Use Y instead" suggestions
 - Ratio calculations (e.g., "1 cup buttermilk = 1 cup milk + 1 tbsp lemon juice")
@@ -47,12 +37,14 @@ No substitution suggestions when ingredients are unavailable.
 ---
 
 ### 4. Leftover/Pantry Tracking
+
 **Status:** Not Implemented
 **Priority:** High
 
 Shopping list exists, but no way to track pantry inventory or mark "I already have this."
 
 **What's Needed:**
+
 - Pantry inventory system
 - "Already have" checkbox on shopping items
 - Expiration date tracking
@@ -63,12 +55,14 @@ Shopping list exists, but no way to track pantry inventory or mark "I already ha
 ---
 
 ### 5. Recipe Scaling with Smart Rounding
+
 **Status:** Partial (servings tracked, but no intelligent scaling)
 **Priority:** High
 
 The app tracks `servings` but doesn't intelligently scale ingredients.
 
 **What's Needed:**
+
 - Servings slider/multiplier on recipe view
 - Smart rounding for awkward amounts:
   - "2.67 eggs" → suggest "3 eggs" or "2 eggs + 1 egg white"
@@ -79,12 +73,14 @@ The app tracks `servings` but doesn't intelligently scale ingredients.
 ---
 
 ### 6. Cook Mode Improvements
+
 **Status:** Partial (basic cook mode exists)
 **Priority:** Medium
 
 Current cooking session tracking exists but lacks modern conveniences.
 
 **What's Needed:**
+
 - **Voice Commands:**
   - "Next step", "Previous step"
   - "Start timer", "How much time left?"
@@ -101,12 +97,14 @@ Current cooking session tracking exists but lacks modern conveniences.
 ---
 
 ### 7. Meal Prep Assistant
+
 **Status:** Not Implemented
 **Priority:** Medium
 
 Meal plans exist, but no batch cooking optimizer.
 
 **What's Needed:**
+
 - **Batch Cooking Optimizer:**
   - Group recipes by shared ingredients
   - Group by prep techniques (all chopping together)
@@ -122,12 +120,14 @@ Meal plans exist, but no batch cooking optimizer.
 ---
 
 ### 8. Recipe Discovery Beyond Search
+
 **Status:** Partial (basic search exists)
 **Priority:** Medium
 
 Current search is limited to title search.
 
 **What's Needed:**
+
 - **"Use What I Have" Search:**
   - Search by ingredients in pantry
   - "What can I make with chicken, rice, and broccoli?"
@@ -146,12 +146,14 @@ Current search is limited to title search.
 ---
 
 ### 9. Smart Shopping List Features
+
 **Status:** Partial (basic shopping list exists)
 **Priority:** Medium
 
 Current shopping list is functional but lacks optimization features.
 
 **What's Needed:**
+
 - **Store Layout Customization:**
   - Custom aisle ordering per store
   - "My Kroger vs My Whole Foods"
@@ -171,12 +173,14 @@ Current shopping list is functional but lacks optimization features.
 ---
 
 ### 10. Social Features Enhancement
+
 **Status:** Partial (friends/sharing recently added)
 **Priority:** Low
 
 Basic friend system and recipe sharing exists, but could be more engaging.
 
 **What's Needed:**
+
 - **Recipe Comments:**
   - Friends who tried it can comment
   - "I added paprika and it was amazing!"
@@ -197,12 +201,14 @@ Basic friend system and recipe sharing exists, but could be more engaging.
 ---
 
 ### 11. Nutrition Tracking
+
 **Status:** Partial (nutrition data exists per recipe)
 **Priority:** Medium
 
 Nutrition data exists but no tracking over time.
 
 **What's Needed:**
+
 - **Daily/Weekly Macro Tracking:**
   - Log meals consumed
   - Track calories, protein, carbs, fat
@@ -218,12 +224,14 @@ Nutrition data exists but no tracking over time.
 ---
 
 ### 12. Kitchen Timer Hub
+
 **Status:** Partial (timers exist per recipe)
 **Priority:** Low
 
 Recipes have step timers, but no global timer management.
 
 **What's Needed:**
+
 - **Global Timer View:**
   - See all active timers across recipes
   - Useful when cooking multiple dishes
@@ -238,12 +246,14 @@ Recipes have step timers, but no global timer management.
 ---
 
 ### 13. Recipe Version History
+
 **Status:** Not Implemented
 **Priority:** Low
 
 When users modify imported recipes, no way to track changes.
 
 **What's Needed:**
+
 - **Change Tracking:**
   - Save original imported version
   - Track user modifications
@@ -259,12 +269,14 @@ When users modify imported recipes, no way to track changes.
 ---
 
 ### 14. Offline Mode
+
 **Status:** Not Implemented
 **Priority:** Critical
 
 No offline access - recipes unavailable without internet.
 
 **What's Needed:**
+
 - **Download Recipes:**
   - Pin recipes for offline access
   - Download entire cookbooks
@@ -281,12 +293,14 @@ No offline access - recipes unavailable without internet.
 ---
 
 ### 15. Recipe Print/Export
+
 **Status:** Not Implemented
 **Priority:** Medium
 
 No way to export recipes outside the app.
 
 **What's Needed:**
+
 - **PDF Export:**
   - Formatted recipe cards
   - Print-friendly layout
@@ -318,12 +332,14 @@ If implementing in order of impact:
 ## Implementation Notes
 
 ### Recently Added Features
+
 - ✅ Friends system (`friendships` table)
 - ✅ Recipe sharing with friends (`recipeShares` table)
 - ✅ Public share links (`shareLinks` table)
 - ✅ User recipe interactions for global recipes (`userRecipeInteractions` table)
 
 ### Current Strong Points
+
 - Comprehensive recipe management
 - Cookbooks and organization
 - Meal planning by date/meal type
@@ -334,6 +350,7 @@ If implementing in order of impact:
 - Tags and filtering system
 
 ### Areas for Improvement
+
 The sharing/social features are a great recent addition. Next focus should be on enhancing the **actual cooking experience** - features users need while actively cooking (hands-free mode, substitutions, pantry tracking, offline access).
 
 ---

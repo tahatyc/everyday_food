@@ -87,21 +87,6 @@ export const clearE2ETestUser = mutation({
         .collect();
       for (const share of recipeShares) await ctx.db.delete(share._id);
 
-      // Delete share links
-      const shareLinks = await ctx.db
-        .query("shareLinks")
-        .withIndex("by_recipe", (q) => q.eq("recipeId", recipe._id))
-        .collect();
-      for (const link of shareLinks) {
-        // Delete link accesses
-        const accesses = await ctx.db
-          .query("shareLinkAccesses")
-          .withIndex("by_link", (q) => q.eq("shareLinkId", link._id))
-          .collect();
-        for (const access of accesses) await ctx.db.delete(access._id);
-        await ctx.db.delete(link._id);
-      }
-
       // Delete user recipe interactions
       const interactions = await ctx.db
         .query("userRecipeInteractions")

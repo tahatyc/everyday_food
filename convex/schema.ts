@@ -331,29 +331,6 @@ export default defineSchema({
     .index("by_recipe_and_user", ["recipeId", "sharedWithId"])
     .index("by_owner", ["ownerId"]),
 
-  // ==================== SHARE LINKS ====================
-  shareLinks: defineTable({
-    recipeId: v.id("recipes"),
-    ownerId: v.id("users"),
-    shareCode: v.string(), // Unique 9-char code
-    createdAt: v.number(),
-    expiresAt: v.optional(v.number()),
-    accessCount: v.number(),
-    lastAccessedAt: v.optional(v.number()),
-    isActive: v.boolean(),
-  })
-    .index("by_recipe", ["recipeId"])
-    .index("by_code", ["shareCode"])
-    .index("by_owner", ["ownerId"]),
-
-  // ==================== SHARE LINK ACCESSES ====================
-  shareLinkAccesses: defineTable({
-    shareLinkId: v.id("shareLinks"),
-    userId: v.optional(v.id("users")),
-    accessedAt: v.number(),
-  })
-    .index("by_link", ["shareLinkId"]),
-
   // ==================== USER RECIPE INTERACTIONS ====================
   userRecipeInteractions: defineTable({
     userId: v.id("users"),

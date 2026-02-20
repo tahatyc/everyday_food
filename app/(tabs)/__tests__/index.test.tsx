@@ -25,15 +25,6 @@ describe('HomeScreen', () => {
     expect(getByText('HELLO, CHEF!')).toBeTruthy();
   });
 
-  it('renders search bar', () => {
-    (useQuery as jest.Mock)
-      .mockReturnValueOnce([])
-      .mockReturnValueOnce([]);
-
-    const { getByText } = render(<HomeScreen />);
-    expect(getByText('Search recipes or paste URL...')).toBeTruthy();
-  });
-
   it('renders import recipe button', () => {
     (useQuery as jest.Mock)
       .mockReturnValueOnce([])

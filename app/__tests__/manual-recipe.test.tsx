@@ -1,8 +1,8 @@
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { Alert } from 'react-native';
-import { useMutation } from 'convex/react';
-import { router } from 'expo-router';
+import { useMutation, useQuery } from 'convex/react';
+import { router, useLocalSearchParams } from 'expo-router';
 import ManualRecipeScreen from '../manual-recipe';
 
 // Add Stack to the global expo-router mock from jest.setup.js
@@ -19,7 +19,7 @@ jest.mock('expo-router', () => ({
     back: jest.fn(),
     canGoBack: jest.fn(() => true),
   }),
-  useLocalSearchParams: () => ({}),
+  useLocalSearchParams: jest.fn(() => ({})),
   useSegments: () => [],
   usePathname: () => '/',
   Link: 'Link',
@@ -32,11 +32,49 @@ jest.mock('expo-router', () => ({
 jest.spyOn(Alert, 'alert');
 
 const mockCreateRecipe = jest.fn();
+const mockUpdateRecipe = jest.fn();
 
 beforeEach(() => {
   jest.clearAllMocks();
-  (useMutation as jest.Mock).mockReturnValue(mockCreateRecipe);
+  (useLocalSearchParams as jest.Mock).mockReturnValue({});
+  (useQuery as jest.Mock).mockReturnValue(undefined);
+  // Cycle between createManual (odd calls) and updateManual (even calls)
+  // so re-renders always return the correct mock regardless of render count.
+  let mutationCallCount = 0;
+  (useMutation as jest.Mock).mockImplementation(() => {
+    mutationCallCount++;
+    return mutationCallCount % 2 === 1 ? mockCreateRecipe : mockUpdateRecipe;
+  });
 });
+
+const mockExistingRecipe = {
+  _id: 'recipe1',
+  title: 'Existing Recipe',
+  servings: 2,
+  prepTime: 10,
+  cookTime: 20,
+  difficulty: 'easy' as const,
+  description: 'A test description',
+  cuisine: 'Italian',
+  isOwner: true,
+  ownerName: 'User',
+  tags: [],
+  ingredients: [
+    { _id: 'ing1', name: 'Flour', amount: 200, unit: 'g', sortOrder: 0 },
+  ],
+  steps: [
+    { stepNumber: 1, instruction: 'Mix it all together', tips: 'Stir gently' },
+  ],
+  nutritionPerServing: {
+    calories: 350,
+    protein: 12,
+    carbs: 45,
+    fat: 8,
+    fiber: 3,
+    sugar: 5,
+    sodium: 200,
+  },
+};
 
 describe('ManualRecipeScreen', () => {
   it('renders form with all required fields on step 1', () => {
@@ -274,6 +312,430 @@ describe('ManualRecipeScreen', () => {
 
     await waitFor(() => {
       expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to save recipe. Please try again.');
+    });
+  });
+
+  describe('Step tips', () => {
+    const navigateToStepThree = (utils: ReturnType<typeof render>) => {
+      const { getByText, getByPlaceholderText } = utils;
+      fireEvent.changeText(getByPlaceholderText("e.g., Grandma's Apple Pie"), 'My Recipe');
+      fireEvent.press(getByText('NEXT'));
+      fireEvent.changeText(getByPlaceholderText('Ingredient name'), 'Flour');
+      fireEvent.press(getByText('NEXT'));
+    };
+
+    it('renders tip input for each step on step 3', () => {
+      const utils = render(<ManualRecipeScreen />);
+      navigateToStepThree(utils);
+
+      expect(utils.getByPlaceholderText('Add a tip (optional)...')).toBeTruthy();
+    });
+
+    it('can type a tip into a step', () => {
+      const utils = render(<ManualRecipeScreen />);
+      navigateToStepThree(utils);
+
+      const tipInput = utils.getByPlaceholderText('Add a tip (optional)...');
+      fireEvent.changeText(tipInput, 'Make sure not to overmix');
+      expect(tipInput.props.value).toBe('Make sure not to overmix');
+    });
+
+    it('each added step has its own tip input', () => {
+      const utils = render(<ManualRecipeScreen />);
+      navigateToStepThree(utils);
+
+      fireEvent.press(utils.getByText('ADD STEP'));
+
+      expect(utils.getAllByPlaceholderText('Add a tip (optional)...')).toHaveLength(2);
+    });
+
+    it('submits step tip when provided', async () => {
+      mockCreateRecipe.mockResolvedValue({ recipeId: 'recipe-456' });
+
+      const utils = render(<ManualRecipeScreen />);
+
+      // Step 1
+      fireEvent.changeText(utils.getByPlaceholderText("e.g., Grandma's Apple Pie"), 'Tip Recipe');
+      fireEvent.press(utils.getByText('NEXT'));
+
+      // Step 2
+      fireEvent.changeText(utils.getByPlaceholderText('Ingredient name'), 'Sugar');
+      fireEvent.press(utils.getByText('NEXT'));
+
+      // Step 3: fill instruction and tip
+      fireEvent.changeText(utils.getByPlaceholderText('Describe this step...'), 'Stir well');
+      fireEvent.changeText(utils.getByPlaceholderText('Add a tip (optional)...'), 'Use a wooden spoon');
+      fireEvent.press(utils.getByText('NEXT'));
+
+      // Step 4: save
+      fireEvent.press(utils.getByText('SAVE RECIPE'));
+
+      await waitFor(() => {
+        expect(mockCreateRecipe).toHaveBeenCalledWith(
+          expect.objectContaining({
+            steps: expect.arrayContaining([
+              expect.objectContaining({
+                instruction: 'Stir well',
+                tips: 'Use a wooden spoon',
+              }),
+            ]),
+          })
+        );
+      });
+    });
+
+    it('omits tips from payload when tip is empty', async () => {
+      mockCreateRecipe.mockResolvedValue({ recipeId: 'recipe-789' });
+
+      const utils = render(<ManualRecipeScreen />);
+
+      // Step 1
+      fireEvent.changeText(utils.getByPlaceholderText("e.g., Grandma's Apple Pie"), 'No Tip Recipe');
+      fireEvent.press(utils.getByText('NEXT'));
+
+      // Step 2
+      fireEvent.changeText(utils.getByPlaceholderText('Ingredient name'), 'Eggs');
+      fireEvent.press(utils.getByText('NEXT'));
+
+      // Step 3: fill instruction only, leave tip blank
+      fireEvent.changeText(utils.getByPlaceholderText('Describe this step...'), 'Beat the eggs');
+      fireEvent.press(utils.getByText('NEXT'));
+
+      // Step 4: save
+      fireEvent.press(utils.getByText('SAVE RECIPE'));
+
+      await waitFor(() => {
+        expect(mockCreateRecipe).toHaveBeenCalledWith(
+          expect.objectContaining({
+            steps: [expect.objectContaining({ instruction: 'Beat the eggs', tips: undefined })],
+          })
+        );
+      });
+    });
+
+    it('tip input is independent per step', () => {
+      const utils = render(<ManualRecipeScreen />);
+      navigateToStepThree(utils);
+
+      // Add a second step
+      fireEvent.press(utils.getByText('ADD STEP'));
+
+      const tipInputs = utils.getAllByPlaceholderText('Add a tip (optional)...');
+      expect(tipInputs).toHaveLength(2);
+
+      fireEvent.changeText(tipInputs[0], 'First step tip');
+      fireEvent.changeText(tipInputs[1], 'Second step tip');
+
+      expect(tipInputs[0].props.value).toBe('First step tip');
+      expect(tipInputs[1].props.value).toBe('Second step tip');
+    });
+  });
+
+  describe('Nutrition fields', () => {
+    const navigateToStepFour = (utils: ReturnType<typeof render>) => {
+      const { getByText, getByPlaceholderText } = utils;
+      fireEvent.changeText(getByPlaceholderText("e.g., Grandma's Apple Pie"), 'My Recipe');
+      fireEvent.press(getByText('NEXT'));
+      fireEvent.changeText(getByPlaceholderText('Ingredient name'), 'Flour');
+      fireEvent.press(getByText('NEXT'));
+      fireEvent.changeText(getByPlaceholderText('Describe this step...'), 'Mix well');
+      fireEvent.press(getByText('NEXT'));
+    };
+
+    it('renders nutrition section on step 4', () => {
+      const utils = render(<ManualRecipeScreen />);
+      navigateToStepFour(utils);
+
+      expect(utils.getByText('NUTRITION PER SERVING (OPTIONAL)')).toBeTruthy();
+      expect(utils.getByText('CALORIES (kcal)')).toBeTruthy();
+      expect(utils.getByText('PROTEIN (g)')).toBeTruthy();
+      expect(utils.getByText('CARBS (g)')).toBeTruthy();
+      expect(utils.getByText('FAT (g)')).toBeTruthy();
+      expect(utils.getByText('FIBER (g)')).toBeTruthy();
+      expect(utils.getByText('SUGAR (g)')).toBeTruthy();
+      expect(utils.getByText('SODIUM (mg)')).toBeTruthy();
+    });
+
+    it('can type into each nutrition field', () => {
+      const utils = render(<ManualRecipeScreen />);
+      navigateToStepFour(utils);
+
+      const caloriesInput = utils.getByPlaceholderText('e.g., 350');
+      const proteinInput = utils.getByPlaceholderText('e.g., 25');
+      const carbsInput = utils.getByPlaceholderText('e.g., 45');
+      const fatInput = utils.getByPlaceholderText('e.g., 10');
+      const fiberInput = utils.getByPlaceholderText('e.g., 5');
+      const sugarInput = utils.getByPlaceholderText('e.g., 8');
+      const sodiumInput = utils.getByPlaceholderText('e.g., 400');
+
+      fireEvent.changeText(caloriesInput, '300');
+      fireEvent.changeText(proteinInput, '20');
+      fireEvent.changeText(carbsInput, '40');
+      fireEvent.changeText(fatInput, '12');
+      fireEvent.changeText(fiberInput, '4');
+      fireEvent.changeText(sugarInput, '6');
+      fireEvent.changeText(sodiumInput, '500');
+
+      expect(caloriesInput.props.value).toBe('300');
+      expect(proteinInput.props.value).toBe('20');
+      expect(carbsInput.props.value).toBe('40');
+      expect(fatInput.props.value).toBe('12');
+      expect(fiberInput.props.value).toBe('4');
+      expect(sugarInput.props.value).toBe('6');
+      expect(sodiumInput.props.value).toBe('500');
+    });
+
+    it('submits nutritionPerServing when all required fields are filled', async () => {
+      mockCreateRecipe.mockResolvedValue({ recipeId: 'recipe-nutrition' });
+
+      const utils = render(<ManualRecipeScreen />);
+      navigateToStepFour(utils);
+
+      fireEvent.changeText(utils.getByPlaceholderText('e.g., 350'), '300');
+      fireEvent.changeText(utils.getByPlaceholderText('e.g., 25'), '20');
+      fireEvent.changeText(utils.getByPlaceholderText('e.g., 45'), '40');
+      fireEvent.changeText(utils.getByPlaceholderText('e.g., 10'), '12');
+
+      fireEvent.press(utils.getByText('SAVE RECIPE'));
+
+      await waitFor(() => {
+        expect(mockCreateRecipe).toHaveBeenCalledWith(
+          expect.objectContaining({
+            nutritionPerServing: expect.objectContaining({
+              calories: 300,
+              protein: 20,
+              carbs: 40,
+              fat: 12,
+            }),
+          })
+        );
+      });
+    });
+
+    it('includes optional fiber, sugar, sodium when provided', async () => {
+      mockCreateRecipe.mockResolvedValue({ recipeId: 'recipe-full-nutrition' });
+
+      const utils = render(<ManualRecipeScreen />);
+      navigateToStepFour(utils);
+
+      fireEvent.changeText(utils.getByPlaceholderText('e.g., 350'), '350');
+      fireEvent.changeText(utils.getByPlaceholderText('e.g., 25'), '12');
+      fireEvent.changeText(utils.getByPlaceholderText('e.g., 45'), '45');
+      fireEvent.changeText(utils.getByPlaceholderText('e.g., 10'), '8');
+      fireEvent.changeText(utils.getByPlaceholderText('e.g., 5'), '3');
+      fireEvent.changeText(utils.getByPlaceholderText('e.g., 8'), '5');
+      fireEvent.changeText(utils.getByPlaceholderText('e.g., 400'), '200');
+
+      fireEvent.press(utils.getByText('SAVE RECIPE'));
+
+      await waitFor(() => {
+        expect(mockCreateRecipe).toHaveBeenCalledWith(
+          expect.objectContaining({
+            nutritionPerServing: {
+              calories: 350,
+              protein: 12,
+              carbs: 45,
+              fat: 8,
+              fiber: 3,
+              sugar: 5,
+              sodium: 200,
+            },
+          })
+        );
+      });
+    });
+
+    it('omits nutritionPerServing when required fields are left blank', async () => {
+      mockCreateRecipe.mockResolvedValue({ recipeId: 'recipe-no-nutrition' });
+
+      const utils = render(<ManualRecipeScreen />);
+      navigateToStepFour(utils);
+
+      // Leave all nutrition fields empty
+      fireEvent.press(utils.getByText('SAVE RECIPE'));
+
+      await waitFor(() => {
+        expect(mockCreateRecipe).toHaveBeenCalledWith(
+          expect.objectContaining({
+            nutritionPerServing: undefined,
+          })
+        );
+      });
+    });
+
+    it('omits nutritionPerServing when only some required fields are filled', async () => {
+      mockCreateRecipe.mockResolvedValue({ recipeId: 'recipe-partial-nutrition' });
+
+      const utils = render(<ManualRecipeScreen />);
+      navigateToStepFour(utils);
+
+      // Fill only calories and protein, leave carbs and fat empty
+      fireEvent.changeText(utils.getByPlaceholderText('e.g., 350'), '300');
+      fireEvent.changeText(utils.getByPlaceholderText('e.g., 25'), '20');
+
+      fireEvent.press(utils.getByText('SAVE RECIPE'));
+
+      await waitFor(() => {
+        expect(mockCreateRecipe).toHaveBeenCalledWith(
+          expect.objectContaining({
+            nutritionPerServing: undefined,
+          })
+        );
+      });
+    });
+  });
+
+  describe('Edit mode', () => {
+    beforeEach(() => {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({ recipeId: 'recipe1' });
+      (useQuery as jest.Mock).mockReturnValue(mockExistingRecipe);
+    });
+
+    it('pre-fills title from existing recipe', async () => {
+      const { getByDisplayValue } = render(<ManualRecipeScreen />);
+
+      await waitFor(() => {
+        expect(getByDisplayValue('Existing Recipe')).toBeTruthy();
+      });
+    });
+
+    it('pre-fills servings from existing recipe', async () => {
+      const { getByDisplayValue } = render(<ManualRecipeScreen />);
+
+      await waitFor(() => {
+        expect(getByDisplayValue('2')).toBeTruthy();
+      });
+    });
+
+    it('pre-fills prep and cook times from existing recipe', async () => {
+      const { getByDisplayValue } = render(<ManualRecipeScreen />);
+
+      await waitFor(() => {
+        expect(getByDisplayValue('10')).toBeTruthy();
+        expect(getByDisplayValue('20')).toBeTruthy();
+      });
+    });
+
+    it('shows UPDATE RECIPE button on step 4 in edit mode', async () => {
+      const { getByText } = render(<ManualRecipeScreen />);
+
+      // Navigate through all steps (form is pre-filled so validation passes)
+      await waitFor(() => expect(getByText('NEXT')).toBeTruthy());
+      fireEvent.press(getByText('NEXT'));
+      fireEvent.press(getByText('NEXT'));
+      fireEvent.press(getByText('NEXT'));
+
+      expect(getByText('UPDATE RECIPE')).toBeTruthy();
+    });
+
+    it('calls updateManual instead of createManual in edit mode', async () => {
+      mockUpdateRecipe.mockResolvedValue({ recipeId: 'recipe1' });
+
+      const { getByText } = render(<ManualRecipeScreen />);
+
+      await waitFor(() => expect(getByText('NEXT')).toBeTruthy());
+      fireEvent.press(getByText('NEXT'));
+      fireEvent.press(getByText('NEXT'));
+      fireEvent.press(getByText('NEXT'));
+
+      fireEvent.press(getByText('UPDATE RECIPE'));
+
+      await waitFor(() => {
+        expect(mockUpdateRecipe).toHaveBeenCalledWith(
+          expect.objectContaining({
+            recipeId: 'recipe1',
+            title: 'Existing Recipe',
+            servings: 2,
+          })
+        );
+        expect(mockCreateRecipe).not.toHaveBeenCalled();
+      });
+    });
+
+    it('navigates back (not replace) after successful update', async () => {
+      mockUpdateRecipe.mockResolvedValue({ recipeId: 'recipe1' });
+
+      const { getByText } = render(<ManualRecipeScreen />);
+
+      await waitFor(() => expect(getByText('NEXT')).toBeTruthy());
+      fireEvent.press(getByText('NEXT'));
+      fireEvent.press(getByText('NEXT'));
+      fireEvent.press(getByText('NEXT'));
+
+      fireEvent.press(getByText('UPDATE RECIPE'));
+
+      await waitFor(() => {
+        expect(router.back).toHaveBeenCalled();
+        expect(router.replace).not.toHaveBeenCalled();
+      });
+    });
+
+    it('shows error alert when update fails', async () => {
+      mockUpdateRecipe.mockRejectedValue(new Error('Network error'));
+
+      const { getByText } = render(<ManualRecipeScreen />);
+
+      await waitFor(() => expect(getByText('NEXT')).toBeTruthy());
+      fireEvent.press(getByText('NEXT'));
+      fireEvent.press(getByText('NEXT'));
+      fireEvent.press(getByText('NEXT'));
+
+      fireEvent.press(getByText('UPDATE RECIPE'));
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to save recipe. Please try again.');
+      });
+    });
+
+    it('pre-fills ingredient data from existing recipe', async () => {
+      const { getByText, getByPlaceholderText } = render(<ManualRecipeScreen />);
+
+      // Navigate to ingredients step
+      await waitFor(() => expect(getByText('NEXT')).toBeTruthy());
+      fireEvent.press(getByText('NEXT'));
+
+      await waitFor(() => {
+        expect(getByText('INGREDIENTS')).toBeTruthy();
+      });
+
+      const ingredientInput = getByPlaceholderText('Ingredient name');
+      expect(ingredientInput.props.value).toBe('Flour');
+    });
+
+    it('pre-fills nutrition data from existing recipe on step 4', async () => {
+      const { getByText, getByDisplayValue } = render(<ManualRecipeScreen />);
+
+      // Navigate through all steps
+      await waitFor(() => expect(getByText('NEXT')).toBeTruthy());
+      fireEvent.press(getByText('NEXT'));
+      fireEvent.press(getByText('NEXT'));
+      fireEvent.press(getByText('NEXT'));
+
+      await waitFor(() => {
+        expect(getByDisplayValue('350')).toBeTruthy(); // calories
+        expect(getByDisplayValue('12')).toBeTruthy();  // protein
+        expect(getByDisplayValue('45')).toBeTruthy();  // carbs
+        expect(getByDisplayValue('8')).toBeTruthy();   // fat
+        expect(getByDisplayValue('3')).toBeTruthy();   // fiber
+        expect(getByDisplayValue('5')).toBeTruthy();   // sugar
+        expect(getByDisplayValue('200')).toBeTruthy(); // sodium
+      });
+    });
+
+    it('pre-fills step instructions from existing recipe', async () => {
+      const { getByText, getByPlaceholderText } = render(<ManualRecipeScreen />);
+
+      // Navigate to steps
+      await waitFor(() => expect(getByText('NEXT')).toBeTruthy());
+      fireEvent.press(getByText('NEXT'));
+      fireEvent.press(getByText('NEXT'));
+
+      await waitFor(() => {
+        expect(getByText('COOKING STEPS')).toBeTruthy();
+      });
+
+      const stepInput = getByPlaceholderText('Describe this step...');
+      expect(stepInput.props.value).toBe('Mix it all together');
     });
   });
 });

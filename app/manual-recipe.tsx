@@ -1,8 +1,9 @@
 import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 import { Ionicons } from "@expo/vector-icons";
-import { useMutation } from "convex/react";
-import { router, Stack } from "expo-router";
-import React, { useState } from "react";
+import { useMutation, useQuery } from "convex/react";
+import { router, Stack, useLocalSearchParams } from "expo-router";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -36,12 +37,16 @@ interface Ingredient {
 interface Step {
   id: string;
   instruction: string;
+  tip: string;
 }
 
 type Difficulty = "easy" | "medium" | "hard" | null;
 
 
 export default function ManualRecipeScreen() {
+  const { recipeId } = useLocalSearchParams<{ recipeId?: string }>();
+  const isEditMode = !!recipeId;
+
   const [currentStep, setCurrentStep] = useState(1);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -58,13 +63,74 @@ export default function ManualRecipeScreen() {
   ]);
 
   // Step 3: Steps
-  const [steps, setSteps] = useState<Step[]>([{ id: "1", instruction: "" }]);
+  const [steps, setSteps] = useState<Step[]>([{ id: "1", instruction: "", tip: "" }]);
 
   // Step 4: Extras
   const [description, setDescription] = useState("");
   const [cuisine, setCuisine] = useState("");
 
+  // Nutrition (per serving)
+  const [calories, setCalories] = useState("");
+  const [protein, setProtein] = useState("");
+  const [carbs, setCarbs] = useState("");
+  const [fat, setFat] = useState("");
+  const [fiber, setFiber] = useState("");
+  const [sugar, setSugar] = useState("");
+  const [sodium, setSodium] = useState("");
+
   const createRecipe = useMutation(api.recipes.createManual);
+  const updateRecipe = useMutation(api.recipes.updateManual);
+
+  // Fetch existing recipe data in edit mode
+  const existingRecipe = useQuery(
+    api.recipes.getById,
+    recipeId ? { id: recipeId as Id<"recipes"> } : "skip"
+  );
+
+  // Pre-fill form when editing an existing recipe
+  useEffect(() => {
+    if (!existingRecipe || !isEditMode) return;
+
+    setTitle(existingRecipe.title);
+    setServings(String(existingRecipe.servings));
+    setPrepTime(existingRecipe.prepTime ? String(existingRecipe.prepTime) : "");
+    setCookTime(existingRecipe.cookTime ? String(existingRecipe.cookTime) : "");
+    setDifficulty((existingRecipe.difficulty as Difficulty) || null);
+    setDescription(existingRecipe.description || "");
+    setCuisine(existingRecipe.cuisine || "");
+
+    const n = (existingRecipe as any).nutritionPerServing;
+    if (n) {
+      setCalories(String(n.calories));
+      setProtein(String(n.protein));
+      setCarbs(String(n.carbs));
+      setFat(String(n.fat));
+      setFiber(n.fiber != null ? String(n.fiber) : "");
+      setSugar(n.sugar != null ? String(n.sugar) : "");
+      setSodium(n.sodium != null ? String(n.sodium) : "");
+    }
+
+    if (existingRecipe.ingredients.length > 0) {
+      setIngredients(
+        existingRecipe.ingredients.map((ing, i) => ({
+          id: String(i),
+          name: ing.name,
+          amount: ing.amount ? String(ing.amount) : "",
+          unit: ing.unit || "g",
+        }))
+      );
+    }
+
+    if (existingRecipe.steps.length > 0) {
+      setSteps(
+        existingRecipe.steps.map((step, i) => ({
+          id: String(i),
+          instruction: step.instruction,
+          tip: (step as any).tips || "",
+        }))
+      );
+    }
+  }, [existingRecipe]);
 
   const validateStep = (step: number): boolean => {
     switch (step) {
@@ -128,24 +194,55 @@ export default function ManualRecipeScreen() {
         .filter((s) => s.instruction.trim())
         .map((s) => ({
           instruction: s.instruction.trim(),
+          tips: s.tip.trim() || undefined,
         }));
 
-      const result = await createRecipe({
-        title: title.trim(),
-        servings: parseInt(servings),
-        prepTime: prepTime ? parseInt(prepTime) : undefined,
-        cookTime: cookTime ? parseInt(cookTime) : undefined,
-        difficulty: difficulty || undefined,
-        description: description.trim() || undefined,
-        cuisine: cuisine.trim() || undefined,
-        isPublic: false,
-        ingredients: validIngredients,
-        steps: validSteps,
-      });
+      const nutritionPerServing =
+        calories && protein && carbs && fat
+          ? {
+              calories: parseFloat(calories),
+              protein: parseFloat(protein),
+              carbs: parseFloat(carbs),
+              fat: parseFloat(fat),
+              fiber: fiber ? parseFloat(fiber) : undefined,
+              sugar: sugar ? parseFloat(sugar) : undefined,
+              sodium: sodium ? parseFloat(sodium) : undefined,
+            }
+          : undefined;
 
-      router.replace(`/recipe/${result.recipeId}`);
+      if (isEditMode && recipeId) {
+        await updateRecipe({
+          recipeId: recipeId as Id<"recipes">,
+          title: title.trim(),
+          servings: parseInt(servings),
+          prepTime: prepTime ? parseInt(prepTime) : undefined,
+          cookTime: cookTime ? parseInt(cookTime) : undefined,
+          difficulty: difficulty || undefined,
+          description: description.trim() || undefined,
+          cuisine: cuisine.trim() || undefined,
+          nutritionPerServing,
+          ingredients: validIngredients,
+          steps: validSteps,
+        });
+        router.back();
+      } else {
+        const result = await createRecipe({
+          title: title.trim(),
+          servings: parseInt(servings),
+          prepTime: prepTime ? parseInt(prepTime) : undefined,
+          cookTime: cookTime ? parseInt(cookTime) : undefined,
+          difficulty: difficulty || undefined,
+          description: description.trim() || undefined,
+          cuisine: cuisine.trim() || undefined,
+          isPublic: false,
+          nutritionPerServing,
+          ingredients: validIngredients,
+          steps: validSteps,
+        });
+        router.replace(`/recipe/${result.recipeId}`);
+      }
     } catch (error) {
-      console.error("Failed to create recipe:", error);
+      console.error("Failed to save recipe:", error);
       Alert.alert("Error", "Failed to save recipe. Please try again.");
     } finally {
       setIsSaving(false);
@@ -172,7 +269,7 @@ export default function ManualRecipeScreen() {
   };
 
   const addStep = () => {
-    setSteps([...steps, { id: Date.now().toString(), instruction: "" }]);
+    setSteps([...steps, { id: Date.now().toString(), instruction: "", tip: "" }]);
   };
 
   const removeStep = (id: string) => {
@@ -181,8 +278,8 @@ export default function ManualRecipeScreen() {
     }
   };
 
-  const updateStep = (id: string, instruction: string) => {
-    setSteps(steps.map((s) => (s.id === id ? { ...s, instruction } : s)));
+  const updateStep = (id: string, field: keyof Pick<Step, "instruction" | "tip">, value: string) => {
+    setSteps(steps.map((s) => (s.id === id ? { ...s, [field]: value } : s)));
   };
 
   const renderStepIndicator = () => (
@@ -368,16 +465,28 @@ export default function ManualRecipeScreen() {
           <View style={styles.stepNumber}>
             <Text style={styles.stepNumberText}>{index + 1}</Text>
           </View>
-          <TextInput
-            style={[styles.input, styles.stepInstruction]}
-            placeholder="Describe this step..."
-            placeholderTextColor={colors.textMuted}
-            value={step.instruction}
-            onChangeText={(v) => updateStep(step.id, v)}
-            multiline
-            numberOfLines={3}
-            textAlignVertical="top"
-          />
+          <View style={styles.stepInputs}>
+            <TextInput
+              style={[styles.input, styles.stepInstruction]}
+              placeholder="Describe this step..."
+              placeholderTextColor={colors.textMuted}
+              value={step.instruction}
+              onChangeText={(v) => updateStep(step.id, "instruction", v)}
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+            />
+            <TextInput
+              style={[styles.input, styles.stepTip]}
+              placeholder="Add a tip (optional)..."
+              placeholderTextColor={colors.textMuted}
+              value={step.tip}
+              onChangeText={(v) => updateStep(step.id, "tip", v)}
+              multiline
+              numberOfLines={2}
+              textAlignVertical="top"
+            />
+          </View>
           <Pressable
             style={styles.removeButton}
             onPress={() => removeStep(step.id)}
@@ -427,6 +536,99 @@ export default function ManualRecipeScreen() {
           placeholderTextColor={colors.textMuted}
           value={cuisine}
           onChangeText={setCuisine}
+        />
+      </View>
+
+      <Text style={styles.nutritionHeader}>NUTRITION PER SERVING (OPTIONAL)</Text>
+      <Text style={styles.nutritionSubheader}>Fill in all 4 main fields or leave blank</Text>
+
+      <View style={styles.row}>
+        <View style={[styles.inputGroup, styles.flex1]}>
+          <Text style={styles.inputLabel}>CALORIES (kcal)</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g., 350"
+            placeholderTextColor={colors.textMuted}
+            value={calories}
+            onChangeText={setCalories}
+            keyboardType="decimal-pad"
+          />
+        </View>
+        <View style={styles.rowSpacer} />
+        <View style={[styles.inputGroup, styles.flex1]}>
+          <Text style={styles.inputLabel}>PROTEIN (g)</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g., 25"
+            placeholderTextColor={colors.textMuted}
+            value={protein}
+            onChangeText={setProtein}
+            keyboardType="decimal-pad"
+          />
+        </View>
+      </View>
+
+      <View style={styles.row}>
+        <View style={[styles.inputGroup, styles.flex1]}>
+          <Text style={styles.inputLabel}>CARBS (g)</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g., 45"
+            placeholderTextColor={colors.textMuted}
+            value={carbs}
+            onChangeText={setCarbs}
+            keyboardType="decimal-pad"
+          />
+        </View>
+        <View style={styles.rowSpacer} />
+        <View style={[styles.inputGroup, styles.flex1]}>
+          <Text style={styles.inputLabel}>FAT (g)</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g., 10"
+            placeholderTextColor={colors.textMuted}
+            value={fat}
+            onChangeText={setFat}
+            keyboardType="decimal-pad"
+          />
+        </View>
+      </View>
+
+      <View style={styles.row}>
+        <View style={[styles.inputGroup, styles.flex1]}>
+          <Text style={styles.inputLabel}>FIBER (g)</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g., 5"
+            placeholderTextColor={colors.textMuted}
+            value={fiber}
+            onChangeText={setFiber}
+            keyboardType="decimal-pad"
+          />
+        </View>
+        <View style={styles.rowSpacer} />
+        <View style={[styles.inputGroup, styles.flex1]}>
+          <Text style={styles.inputLabel}>SUGAR (g)</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g., 8"
+            placeholderTextColor={colors.textMuted}
+            value={sugar}
+            onChangeText={setSugar}
+            keyboardType="decimal-pad"
+          />
+        </View>
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.inputLabel}>SODIUM (mg)</Text>
+        <TextInput
+          style={[styles.input, styles.smallInput]}
+          placeholder="e.g., 400"
+          placeholderTextColor={colors.textMuted}
+          value={sodium}
+          onChangeText={setSodium}
+          keyboardType="decimal-pad"
         />
       </View>
 
@@ -501,7 +703,7 @@ export default function ManualRecipeScreen() {
               disabled={isSaving}
             >
               <Text style={styles.saveButtonText}>
-                {isSaving ? "SAVING..." : "SAVE RECIPE"}
+                {isSaving ? "SAVING..." : isEditMode ? "UPDATE RECIPE" : "SAVE RECIPE"}
               </Text>
               <Ionicons
                 name={isSaving ? "hourglass" : "checkmark"}
@@ -755,10 +957,18 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.bold,
     color: colors.text,
   },
-  stepInstruction: {
+  stepInputs: {
     flex: 1,
+  },
+  stepInstruction: {
     minHeight: 80,
     paddingTop: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  stepTip: {
+    minHeight: 60,
+    paddingTop: spacing.md,
+    backgroundColor: colors.surfaceAlt,
   },
   addButton: {
     flexDirection: "row",
@@ -836,5 +1046,18 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.bold,
     color: colors.text,
     letterSpacing: typography.letterSpacing.wide,
+  },
+  nutritionHeader: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.bold,
+    color: colors.textSecondary,
+    letterSpacing: typography.letterSpacing.wider,
+    marginBottom: spacing.xs,
+    marginTop: spacing.sm,
+  },
+  nutritionSubheader: {
+    fontSize: typography.sizes.xs,
+    color: colors.textMuted,
+    marginBottom: spacing.lg,
   },
 });

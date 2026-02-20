@@ -96,23 +96,22 @@ describe('ProfileScreen', () => {
     expect(getByText('EDIT PROFILE')).toBeTruthy();
   });
 
-  it('renders my recipes button', () => {
+  it('renders recipes stat item', () => {
     (useQuery as jest.Mock)
       .mockReturnValueOnce({ name: 'John' })
       .mockReturnValueOnce({ totalRecipes: 0, totalFavorites: 0, totalMealsCooked: 0 });
 
     const { getByText } = render(<ProfileScreen />);
-    expect(getByText('MY RECIPES')).toBeTruthy();
-    expect(getByText('View your personal recipes')).toBeTruthy();
+    expect(getByText('RECIPES')).toBeTruthy();
   });
 
-  it('navigates to recipes tab with filter when my recipes is pressed', () => {
+  it('navigates to recipes tab with filter when recipes stat is pressed', () => {
     (useQuery as jest.Mock)
       .mockReturnValueOnce({ name: 'John' })
       .mockReturnValueOnce({ totalRecipes: 0, totalFavorites: 0, totalMealsCooked: 0 });
 
     const { getByText } = render(<ProfileScreen />);
-    fireEvent.press(getByText('MY RECIPES'));
+    fireEvent.press(getByText('RECIPES'));
     expect(router.push).toHaveBeenCalledWith({
       pathname: '/(tabs)/recipes',
       params: { filter: 'my-recipes' },
@@ -137,15 +136,6 @@ describe('ProfileScreen', () => {
     const { getByText } = render(<ProfileScreen />);
     fireEvent.press(getByText('MY FRIENDS'));
     expect(router.push).toHaveBeenCalledWith('/friends');
-  });
-
-  it('renders settings section', () => {
-    (useQuery as jest.Mock)
-      .mockReturnValueOnce({ name: 'John' })
-      .mockReturnValueOnce({ totalRecipes: 0, totalFavorites: 0, totalMealsCooked: 0 });
-
-    const { getByText } = render(<ProfileScreen />);
-    expect(getByText('APP SETTINGS')).toBeTruthy();
   });
 
   it('renders sign out button', () => {

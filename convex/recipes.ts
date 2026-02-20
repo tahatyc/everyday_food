@@ -5,6 +5,7 @@ import {
   getCurrentUserIdOrNull,
   canReadRecipe,
   canModifyRecipe,
+  canDeleteRecipe,
 } from "./lib/accessControl";
 
 // Get all recipes for current user
@@ -404,6 +405,17 @@ export const createManual = mutation({
     description: v.optional(v.string()),
     cuisine: v.optional(v.string()),
     isPublic: v.optional(v.boolean()),
+    nutritionPerServing: v.optional(
+      v.object({
+        calories: v.number(),
+        protein: v.number(),
+        carbs: v.number(),
+        fat: v.number(),
+        fiber: v.optional(v.number()),
+        sugar: v.optional(v.number()),
+        sodium: v.optional(v.number()),
+      })
+    ),
     ingredients: v.array(
       v.object({
         name: v.string(),
@@ -417,6 +429,7 @@ export const createManual = mutation({
       v.object({
         instruction: v.string(),
         timerMinutes: v.optional(v.number()),
+        tips: v.optional(v.string()),
       })
     ),
   },
@@ -443,6 +456,7 @@ export const createManual = mutation({
       totalTime,
       difficulty: args.difficulty,
       cuisine: args.cuisine,
+      nutritionPerServing: args.nutritionPerServing,
       sourceType: "manual",
       isPublic: args.isPublic ?? false, // Private by default
       isFavorite: false,
@@ -473,10 +487,159 @@ export const createManual = mutation({
         stepNumber: i + 1,
         instruction: step.instruction,
         timerMinutes: step.timerMinutes,
+        tips: step.tips,
       });
     }
 
     return { recipeId };
+  },
+});
+
+// Update an existing recipe (owner only)
+export const updateManual = mutation({
+  args: {
+    recipeId: v.id("recipes"),
+    title: v.string(),
+    servings: v.number(),
+    prepTime: v.optional(v.number()),
+    cookTime: v.optional(v.number()),
+    difficulty: v.optional(
+      v.union(v.literal("easy"), v.literal("medium"), v.literal("hard"))
+    ),
+    description: v.optional(v.string()),
+    cuisine: v.optional(v.string()),
+    nutritionPerServing: v.optional(
+      v.object({
+        calories: v.number(),
+        protein: v.number(),
+        carbs: v.number(),
+        fat: v.number(),
+        fiber: v.optional(v.number()),
+        sugar: v.optional(v.number()),
+        sodium: v.optional(v.number()),
+      })
+    ),
+    ingredients: v.array(
+      v.object({
+        name: v.string(),
+        amount: v.optional(v.number()),
+        unit: v.optional(v.string()),
+        preparation: v.optional(v.string()),
+        isOptional: v.optional(v.boolean()),
+      })
+    ),
+    steps: v.array(
+      v.object({
+        instruction: v.string(),
+        timerMinutes: v.optional(v.number()),
+        tips: v.optional(v.string()),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getCurrentUserId(ctx);
+    const canModify = await canModifyRecipe(ctx, args.recipeId, userId);
+    if (!canModify) throw new Error("Not authorized to edit this recipe");
+
+    const now = Date.now();
+    const totalTime =
+      args.prepTime || args.cookTime
+        ? (args.prepTime || 0) + (args.cookTime || 0)
+        : undefined;
+
+    await ctx.db.patch(args.recipeId, {
+      title: args.title,
+      servings: args.servings,
+      prepTime: args.prepTime,
+      cookTime: args.cookTime,
+      totalTime,
+      difficulty: args.difficulty,
+      description: args.description,
+      cuisine: args.cuisine,
+      nutritionPerServing: args.nutritionPerServing,
+      updatedAt: now,
+    });
+
+    // Replace ingredients
+    const oldIngredients = await ctx.db
+      .query("ingredients")
+      .withIndex("by_recipe", (q) => q.eq("recipeId", args.recipeId))
+      .collect();
+    for (const ing of oldIngredients) await ctx.db.delete(ing._id);
+
+    for (let i = 0; i < args.ingredients.length; i++) {
+      const ing = args.ingredients[i];
+      await ctx.db.insert("ingredients", {
+        recipeId: args.recipeId,
+        name: ing.name,
+        amount: ing.amount,
+        unit: ing.unit,
+        preparation: ing.preparation,
+        isOptional: ing.isOptional || false,
+        sortOrder: i,
+      });
+    }
+
+    // Replace steps
+    const oldSteps = await ctx.db
+      .query("steps")
+      .withIndex("by_recipe", (q) => q.eq("recipeId", args.recipeId))
+      .collect();
+    for (const step of oldSteps) await ctx.db.delete(step._id);
+
+    for (let i = 0; i < args.steps.length; i++) {
+      const step = args.steps[i];
+      await ctx.db.insert("steps", {
+        recipeId: args.recipeId,
+        stepNumber: i + 1,
+        instruction: step.instruction,
+        timerMinutes: step.timerMinutes,
+        tips: step.tips,
+      });
+    }
+
+    return { recipeId: args.recipeId };
+  },
+});
+
+// Delete a recipe and all related data (owner only)
+export const deleteRecipe = mutation({
+  args: { recipeId: v.id("recipes") },
+  handler: async (ctx, args) => {
+    const userId = await getCurrentUserId(ctx);
+    const canDelete = await canDeleteRecipe(ctx, args.recipeId, userId);
+    if (!canDelete) throw new Error("Not authorized to delete this recipe");
+
+    // Delete ingredients
+    const ingredients = await ctx.db
+      .query("ingredients")
+      .withIndex("by_recipe", (q) => q.eq("recipeId", args.recipeId))
+      .collect();
+    for (const ing of ingredients) await ctx.db.delete(ing._id);
+
+    // Delete steps
+    const steps = await ctx.db
+      .query("steps")
+      .withIndex("by_recipe", (q) => q.eq("recipeId", args.recipeId))
+      .collect();
+    for (const step of steps) await ctx.db.delete(step._id);
+
+    // Delete recipe tags
+    const recipeTags = await ctx.db
+      .query("recipeTags")
+      .withIndex("by_recipe", (q) => q.eq("recipeId", args.recipeId))
+      .collect();
+    for (const rt of recipeTags) await ctx.db.delete(rt._id);
+
+    // Delete recipe shares
+    const shares = await ctx.db
+      .query("recipeShares")
+      .withIndex("by_recipe", (q) => q.eq("recipeId", args.recipeId))
+      .collect();
+    for (const share of shares) await ctx.db.delete(share._id);
+
+    await ctx.db.delete(args.recipeId);
+    return { success: true };
   },
 });
 

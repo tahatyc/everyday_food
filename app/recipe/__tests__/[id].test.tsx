@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 import { useQuery, useMutation } from 'convex/react';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -11,6 +11,7 @@ const mockToggleFavorite = jest.fn();
 const mockToggleGlobalFavorite = jest.fn();
 const mockAddToList = jest.fn();
 const mockRecordView = jest.fn().mockResolvedValue(undefined);
+const mockDeleteRecipe = jest.fn();
 
 jest.mock('expo-router', () => ({
   ...jest.requireActual('expo-router'),
@@ -30,20 +31,22 @@ beforeEach(() => {
   mockToggleGlobalFavorite.mockReset();
   mockAddToList.mockReset();
   mockRecordView.mockReset().mockResolvedValue(undefined);
+  mockDeleteRecipe.mockReset();
   (useLocalSearchParams as jest.Mock).mockReturnValue({ id: 'recipe1' });
-  // Default return [] for ShareRecipeModal's useQuery calls (friends, sharedWith, shareLinks)
+  // Default return [] for ShareRecipeModal's useQuery calls (friends, sharedWith)
   (useQuery as jest.Mock).mockReturnValue([]);
-  // Use mockImplementation for useMutation to persist across re-renders
-  // RecipeDetailScreen: toggleFavorite (1), toggleGlobalFavorite (2), addToList (3), recordView (4)
-  // ShareRecipeModal: shareWithFriend (5), unshare (6), createLink (7), revokeLink (8)
+  // RecipeDetailScreen mutations: toggleFavorite(1), toggleGlobalFavorite(2), addToList(3),
+  //   recordView(4), deleteRecipe(5)
+  // ShareRecipeModal mutations: shareWithFriend(6), unshare(7)
   let mutationCallCount = 0;
   (useMutation as jest.Mock).mockImplementation(() => {
     mutationCallCount++;
-    const idx = ((mutationCallCount - 1) % 8) + 1;
+    const idx = ((mutationCallCount - 1) % 7) + 1;
     if (idx === 1) return mockToggleFavorite;
     if (idx === 2) return mockToggleGlobalFavorite;
     if (idx === 3) return mockAddToList;
     if (idx === 4) return mockRecordView;
+    if (idx === 5) return mockDeleteRecipe;
     return noopFn;
   });
 });
@@ -83,9 +86,9 @@ function mockRecipeQuery(recipe: any) {
   let callCount = 0;
   (useQuery as jest.Mock).mockImplementation(() => {
     callCount++;
-    // Every 4th call starting from 1 is api.recipes.getById
-    // Calls 2,3,4 are ShareRecipeModal queries (friends, sharedWith, shareLinks)
-    if (callCount % 4 === 1) return recipe;
+    // Every 3rd call starting from 1 is api.recipes.getById
+    // Calls 2,3 are ShareRecipeModal queries (friends, sharedWith)
+    if (callCount % 3 === 1) return recipe;
     return [];
   });
 }
@@ -210,6 +213,92 @@ describe('RecipeDetailScreen', () => {
 
     const { getByTestId } = render(<RecipeDetailScreen />);
     expect(getByTestId('icon-share-outline')).toBeTruthy();
+  });
+
+  it('shows edit button when user is owner', () => {
+    mockRecipeQuery(mockRecipe);
+
+    const { getByTestId } = render(<RecipeDetailScreen />);
+    expect(getByTestId('icon-pencil-outline')).toBeTruthy();
+  });
+
+  it('shows delete button when user is owner', () => {
+    mockRecipeQuery(mockRecipe);
+
+    const { getByTestId } = render(<RecipeDetailScreen />);
+    expect(getByTestId('icon-trash-outline')).toBeTruthy();
+  });
+
+  it('navigates to edit screen when edit button is pressed', () => {
+    mockRecipeQuery(mockRecipe);
+
+    const { getByTestId } = render(<RecipeDetailScreen />);
+    fireEvent.press(getByTestId('icon-pencil-outline'));
+    expect(router.push).toHaveBeenCalledWith('/manual-recipe?recipeId=recipe1');
+  });
+
+  it('shows delete confirmation alert when delete button is pressed', () => {
+    mockRecipeQuery(mockRecipe);
+
+    const { getByTestId } = render(<RecipeDetailScreen />);
+    fireEvent.press(getByTestId('icon-trash-outline'));
+
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Delete Recipe',
+      'Are you sure you want to delete this recipe? This action cannot be undone.',
+      expect.arrayContaining([
+        expect.objectContaining({ text: 'Cancel' }),
+        expect.objectContaining({ text: 'Delete', style: 'destructive' }),
+      ])
+    );
+  });
+
+  it('calls deleteRecipe and navigates back when delete is confirmed', async () => {
+    mockDeleteRecipe.mockResolvedValue({ success: true });
+    mockRecipeQuery(mockRecipe);
+
+    const { getByTestId } = render(<RecipeDetailScreen />);
+    fireEvent.press(getByTestId('icon-trash-outline'));
+
+    const alertButtons = (Alert.alert as jest.Mock).mock.calls[0][2];
+    const deleteButton = alertButtons.find((b: any) => b.text === 'Delete');
+
+    await act(async () => {
+      await deleteButton.onPress();
+    });
+
+    expect(mockDeleteRecipe).toHaveBeenCalledWith({ recipeId: 'recipe1' });
+    expect(router.back).toHaveBeenCalled();
+  });
+
+  it('shows error alert when delete fails', async () => {
+    mockDeleteRecipe.mockRejectedValue(new Error('Network error'));
+    mockRecipeQuery(mockRecipe);
+
+    const { getByTestId } = render(<RecipeDetailScreen />);
+    fireEvent.press(getByTestId('icon-trash-outline'));
+
+    const alertButtons = (Alert.alert as jest.Mock).mock.calls[0][2];
+    const deleteButton = alertButtons.find((b: any) => b.text === 'Delete');
+
+    await act(async () => {
+      await deleteButton.onPress();
+    });
+
+    await waitFor(() => {
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Error',
+        'Failed to delete recipe. Please try again.'
+      );
+    });
+  });
+
+  it('does not show edit/delete buttons for non-owners', () => {
+    mockRecipeQuery({ ...mockRecipe, isOwner: false, ownerName: 'Alice' });
+
+    const { queryByTestId } = render(<RecipeDetailScreen />);
+    expect(queryByTestId('icon-pencil-outline')).toBeNull();
+    expect(queryByTestId('icon-trash-outline')).toBeNull();
   });
 
   it('shows shared badge when user is not owner', () => {

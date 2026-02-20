@@ -43,7 +43,6 @@ describe('EditProfileScreen', () => {
 
     expect(getByTestId('name-input').props.value).toBe('Test Chef');
     expect(getByTestId('bio-input').props.value).toBe('I love cooking');
-    expect(getByTestId('servings-value')).toHaveTextContent('4');
   });
 
   it('navigates back when cancel button is pressed', () => {
@@ -87,30 +86,6 @@ describe('EditProfileScreen', () => {
 
     fireEvent.changeText(getByTestId('bio-input'), 'New bio');
     expect(getByTestId('bio-input').props.value).toBe('New bio');
-  });
-
-  it('increments servings with max of 12', () => {
-    (useQuery as jest.Mock).mockReturnValue({ ...mockUser, defaultServings: 11 });
-    const { getByTestId } = render(<EditProfileScreen />);
-
-    fireEvent.press(getByTestId('servings-increase'));
-    expect(getByTestId('servings-value')).toHaveTextContent('12');
-
-    // Should not go above 12
-    fireEvent.press(getByTestId('servings-increase'));
-    expect(getByTestId('servings-value')).toHaveTextContent('12');
-  });
-
-  it('decrements servings with min of 1', () => {
-    (useQuery as jest.Mock).mockReturnValue({ ...mockUser, defaultServings: 2 });
-    const { getByTestId } = render(<EditProfileScreen />);
-
-    fireEvent.press(getByTestId('servings-decrease'));
-    expect(getByTestId('servings-value')).toHaveTextContent('1');
-
-    // Should not go below 1
-    fireEvent.press(getByTestId('servings-decrease'));
-    expect(getByTestId('servings-value')).toHaveTextContent('1');
   });
 
   it('toggles preferred units', () => {

@@ -71,16 +71,6 @@ describe('ProfileScreen', () => {
     expect(router.push).toHaveBeenCalledWith('/edit-profile');
   });
 
-  it('navigates to settings when APP SETTINGS card is pressed', () => {
-    (useQuery as jest.Mock)
-      .mockReturnValueOnce(mockUser)
-      .mockReturnValueOnce(mockStats);
-    const { getByText } = render(<ProfileScreen />);
-
-    fireEvent.press(getByText('APP SETTINGS'));
-    expect(router.push).toHaveBeenCalledWith('/settings');
-  });
-
   it('navigates to settings when header gear icon is pressed', () => {
     (useQuery as jest.Mock)
       .mockReturnValueOnce(mockUser)
@@ -103,13 +93,13 @@ describe('ProfileScreen', () => {
     expect(router.push).toHaveBeenCalledWith('/friends');
   });
 
-  it('navigates to recipes when MY RECIPES card is pressed', () => {
+  it('navigates to recipes when RECIPES stat item is pressed', () => {
     (useQuery as jest.Mock)
       .mockReturnValueOnce(mockUser)
       .mockReturnValueOnce(mockStats);
     const { getByText } = render(<ProfileScreen />);
 
-    fireEvent.press(getByText('MY RECIPES'));
+    fireEvent.press(getByText('RECIPES'));
     expect(router.push).toHaveBeenCalledWith(
       expect.objectContaining({ pathname: '/(tabs)/recipes' })
     );

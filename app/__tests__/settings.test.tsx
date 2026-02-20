@@ -58,8 +58,6 @@ describe('SettingsScreen', () => {
     expect(getByText('Sunday')).toBeTruthy();
     expect(getByText('Measurement units')).toBeTruthy();
     expect(getByText('Imperial')).toBeTruthy();
-    expect(getByText('Default servings')).toBeTruthy();
-    expect(getByText('4')).toBeTruthy();
   });
 
   it('toggles week start day', async () => {
