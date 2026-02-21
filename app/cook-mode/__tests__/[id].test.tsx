@@ -128,7 +128,7 @@ describe('CookModeScreen', () => {
     expect(getByText('Finish')).toBeTruthy();
   });
 
-  it('navigates back when Finish is pressed on last step', async () => {
+  it('shows celebration overlay when Finish is pressed on last step', async () => {
     (useQuery as jest.Mock).mockReturnValue(mockRecipe);
 
     const { getByText } = render(<CookModeScreen />);
@@ -139,8 +139,24 @@ describe('CookModeScreen', () => {
     fireEvent.press(getByText('Finish'));
 
     await waitFor(() => {
-      expect(router.back).toHaveBeenCalled();
+      expect(getByText('RECIPE COMPLETE!')).toBeTruthy();
     });
+  });
+
+  it('navigates back when Done is pressed on celebration overlay', async () => {
+    (useQuery as jest.Mock).mockReturnValue(mockRecipe);
+
+    const { getByText } = render(<CookModeScreen />);
+    fireEvent.press(getByText('Next Step')); // Step 2
+    fireEvent.press(getByText('Next Step')); // Step 3
+    fireEvent.press(getByText('Next Step')); // Step 4
+    fireEvent.press(getByText('Finish'));
+
+    await waitFor(() => {
+      expect(getByText('DONE')).toBeTruthy();
+    });
+    fireEvent.press(getByText('DONE'));
+    expect(router.back).toHaveBeenCalled();
   });
 
   it('calls recordCookCompletion with recipe id when Finish is pressed', async () => {

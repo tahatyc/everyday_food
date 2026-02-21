@@ -2,6 +2,10 @@
 
 Recipe management and meal planning app for iOS, Android, and Web.
 
+## Mandatory Testing Rule
+
+After every bug fix or feature implementation, ALWAYS run `npm test` before considering the task complete. If tests fail, fix them before finishing.
+
 ## Quick Start
 
 ```bash

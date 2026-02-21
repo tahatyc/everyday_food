@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useMutation } from "convex/react";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -12,8 +12,13 @@ import {
   View,
 } from "react-native";
 import Animated, {
+  Easing,
   FadeIn,
-  FadeInDown
+  FadeInDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withTiming,
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../../convex/_generated/api";
@@ -29,12 +34,97 @@ import {
   typography,
 } from "../../src/styles/neobrutalism";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+
+const CONFETTI_COLORS = [
+  colors.primary,
+  colors.secondary,
+  colors.accent,
+  "#FF6BCD",
+  "#4ECDC4",
+  "#45B7D1",
+  "#A855F7",
+];
+const PARTICLE_COUNT = 50;
+
+interface ParticleData {
+  x: number;
+  size: number;
+  color: string;
+  delay: number;
+  duration: number;
+  endRotation: number;
+  isCircle: boolean;
+}
+
+function ConfettiParticle({ data }: { data: ParticleData }) {
+  const translateY = useSharedValue(-30);
+  const rotate = useSharedValue(0);
+  const opacity = useSharedValue(1);
+
+  useEffect(() => {
+    translateY.value = withDelay(
+      data.delay,
+      withTiming(SCREEN_HEIGHT + 60, {
+        duration: data.duration,
+        easing: Easing.linear,
+      })
+    );
+    rotate.value = withDelay(
+      data.delay,
+      withTiming(data.endRotation, { duration: data.duration })
+    );
+    opacity.value = withDelay(
+      data.delay + data.duration - 400,
+      withTiming(0, { duration: 400 })
+    );
+  }, []);
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: translateY.value },
+      { rotate: `${rotate.value}deg` },
+    ],
+    opacity: opacity.value,
+  }));
+
+  return (
+    <Animated.View
+      style={[
+        {
+          position: "absolute",
+          left: data.x,
+          top: 0,
+          width: data.size,
+          height: data.size,
+          backgroundColor: data.color,
+          borderRadius: data.isCircle ? data.size / 2 : 2,
+        },
+        animStyle,
+      ]}
+    />
+  );
+}
 
 export default function CookModeScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [currentStep, setCurrentStep] = useState(0);
   const [screenAlwaysOn, setScreenAlwaysOn] = useState(true);
+  const [showCelebration, setShowCelebration] = useState(false);
+
+  const particleData = useMemo<ParticleData[]>(
+    () =>
+      Array.from({ length: PARTICLE_COUNT }, () => ({
+        x: Math.random() * SCREEN_WIDTH,
+        size: Math.random() * 10 + 6,
+        color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
+        delay: Math.random() * 700,
+        duration: Math.random() * 1200 + 1600,
+        endRotation: Math.random() * 1440 + 360,
+        isCircle: Math.random() > 0.5,
+      })),
+    []
+  );
 
   const recordCookCompletion = useMutation(api.recipes.recordCookCompletion);
 
@@ -86,9 +176,9 @@ export default function CookModeScreen() {
     if (currentStep < totalSteps - 1) {
       setCurrentStep(currentStep + 1);
     } else {
-      // Finished cooking — record completion then navigate back
+      // Finished cooking — record completion then show celebration
       await recordCookCompletion({ recipeId: id as Id<"recipes"> });
-      router.back();
+      setShowCelebration(true);
     }
   };
 
@@ -304,6 +394,31 @@ export default function CookModeScreen() {
           <Ionicons name="arrow-forward" size={20} color={colors.text} />
         </Pressable>
       </Animated.View>
+
+      {/* Celebration Overlay */}
+      {showCelebration && (
+        <View style={styles.celebrationOverlay}>
+          {particleData.map((data, i) => (
+            <ConfettiParticle key={i} data={data} />
+          ))}
+          <View style={styles.celebrationCard}>
+            <Text style={styles.celebrationEmoji}>🎉</Text>
+            <Text style={styles.celebrationTitle}>RECIPE COMPLETE!</Text>
+            <Text style={styles.celebrationSubtitle} numberOfLines={2}>
+              {recipe.title}
+            </Text>
+            <Pressable
+              style={({ pressed }) => [
+                styles.doneButton,
+                pressed && styles.buttonPressed,
+              ]}
+              onPress={() => router.back()}
+            >
+              <Text style={styles.doneButtonText}>DONE</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -583,5 +698,59 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: typography.sizes.md,
     color: colors.textMuted,
+  },
+  celebrationOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.55)",
+  },
+  celebrationCard: {
+    backgroundColor: colors.surface,
+    borderWidth: borders.thick,
+    borderColor: borders.color,
+    borderRadius: borderRadius.xl,
+    padding: spacing.xxl,
+    alignItems: "center",
+    width: SCREEN_WIDTH - spacing.xxl * 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 6, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 8,
+  },
+  celebrationEmoji: {
+    fontSize: 72,
+    marginBottom: spacing.lg,
+  },
+  celebrationTitle: {
+    fontSize: typography.sizes.xxl,
+    fontWeight: typography.weights.black,
+    color: colors.text,
+    letterSpacing: typography.letterSpacing.wider,
+    textAlign: "center",
+    marginBottom: spacing.md,
+  },
+  celebrationSubtitle: {
+    fontSize: typography.sizes.md,
+    fontWeight: typography.weights.medium,
+    color: colors.textSecondary,
+    textAlign: "center",
+    marginBottom: spacing.xxl,
+  },
+  doneButton: {
+    backgroundColor: colors.primary,
+    borderWidth: borders.regular,
+    borderColor: borders.color,
+    borderRadius: borderRadius.lg,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.xxl * 1.5,
+    ...shadows.md,
+  },
+  doneButtonText: {
+    fontSize: typography.sizes.lg,
+    fontWeight: typography.weights.black,
+    color: colors.text,
+    letterSpacing: typography.letterSpacing.wide,
   },
 });
