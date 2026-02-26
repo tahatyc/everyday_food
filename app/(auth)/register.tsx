@@ -6,7 +6,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
 } from "react-native";
 import { Link } from "expo-router";
 import { useAuthActions } from "@convex-dev/auth/react";
@@ -20,6 +19,8 @@ import {
   borders,
   borderRadius,
 } from "../../src/styles/neobrutalism";
+import { useToast } from "../../src/hooks/useToast";
+import { parseAuthError } from "../../src/lib/errors";
 
 export default function RegisterScreen() {
   const [name, setName] = useState("");
@@ -28,31 +29,33 @@ export default function RegisterScreen() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [nameError, setNameError] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [confirmPasswordError, setConfirmPasswordError] = useState("");
 
   const { signIn } = useAuthActions();
+  const { showError } = useToast();
 
   const handleRegister = async () => {
-    if (!name || !email || !password || !confirmPassword) {
-      Alert.alert("Error", "Please fill in all fields");
-      return;
-    }
+    setNameError("");
+    setEmailError("");
+    setPasswordError("");
+    setConfirmPasswordError("");
 
-    if (password !== confirmPassword) {
-      Alert.alert("Error", "Passwords do not match");
-      return;
-    }
-
-    if (password.length < 8) {
-      Alert.alert("Error", "Password must be at least 8 characters");
-      return;
-    }
+    if (!name) { setNameError("Name is required"); return; }
+    if (!email) { setEmailError("Email is required"); return; }
+    if (!password) { setPasswordError("Password is required"); return; }
+    if (password.length < 8) { setPasswordError("Password must be at least 8 characters"); return; }
+    if (!confirmPassword) { setConfirmPasswordError("Please confirm your password"); return; }
+    if (password !== confirmPassword) { setConfirmPasswordError("Passwords do not match"); return; }
 
     setLoading(true);
     try {
       await signIn("password", { email, password, name, flow: "signUp" });
       // Navigation is handled automatically by _layout.tsx when isAuthenticated changes
-    } catch (error: any) {
-      Alert.alert("Error", error.message || "Failed to create account");
+    } catch (error) {
+      showError(parseAuthError(error));
       setLoading(false);
     }
   };
@@ -83,41 +86,45 @@ export default function RegisterScreen() {
             label="Name"
             placeholder="Your name"
             value={name}
-            onChangeText={setName}
+            onChangeText={(v) => { setName(v); setNameError(""); }}
             autoCapitalize="words"
             leftIcon="person-outline"
+            error={nameError}
           />
 
           <Input
             label="Email"
             placeholder="you@example.com"
             value={email}
-            onChangeText={setEmail}
+            onChangeText={(v) => { setEmail(v); setEmailError(""); }}
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
             leftIcon="mail-outline"
+            error={emailError}
           />
 
           <Input
             label="Password"
             placeholder="Create a password"
             value={password}
-            onChangeText={setPassword}
+            onChangeText={(v) => { setPassword(v); setPasswordError(""); }}
             secureTextEntry={!showPassword}
             leftIcon="lock-closed-outline"
             rightIcon={showPassword ? "eye-off-outline" : "eye-outline"}
             onRightIconPress={() => setShowPassword(!showPassword)}
-            helperText="At least 8 characters"
+            helperText={!passwordError ? "At least 8 characters" : undefined}
+            error={passwordError}
           />
 
           <Input
             label="Confirm Password"
             placeholder="Confirm your password"
             value={confirmPassword}
-            onChangeText={setConfirmPassword}
+            onChangeText={(v) => { setConfirmPassword(v); setConfirmPasswordError(""); }}
             secureTextEntry={!showPassword}
             leftIcon="lock-closed-outline"
+            error={confirmPasswordError}
           />
 
           <Button

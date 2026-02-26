@@ -1,9 +1,18 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import { Alert } from 'react-native';
 import RegisterScreen from '../register';
 
-jest.spyOn(Alert, 'alert');
+// Mock useToast
+const mockShowError = jest.fn();
+jest.mock('../../../src/hooks/useToast', () => ({
+  useToast: () => ({
+    showError: mockShowError,
+    showSuccess: jest.fn(),
+    showWarning: jest.fn(),
+    showInfo: jest.fn(),
+    showToast: jest.fn(),
+  }),
+}));
 
 const mockSignIn = jest.fn();
 jest.mock('@convex-dev/auth/react', () => ({
@@ -17,6 +26,7 @@ describe('RegisterScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockSignIn.mockReset();
+    mockShowError.mockReset();
   });
 
   it('renders the registration form correctly', () => {
@@ -50,19 +60,19 @@ describe('RegisterScreen', () => {
     expect(emailInput.props.value).toBe('john@test.com');
   });
 
-  it('shows error when fields are empty', async () => {
-    const { getAllByText } = render(<RegisterScreen />);
+  it('shows inline error when fields are empty', async () => {
+    const { getAllByText, getByText } = render(<RegisterScreen />);
     // There are two "Create Account" texts - the title and the button
     const buttons = getAllByText('Create Account');
     fireEvent.press(buttons[buttons.length - 1]);
 
     await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith('Error', 'Please fill in all fields');
+      expect(getByText('Name is required')).toBeTruthy();
     });
   });
 
-  it('shows error when passwords do not match', async () => {
-    const { getByPlaceholderText, getAllByText } = render(<RegisterScreen />);
+  it('shows inline error when passwords do not match', async () => {
+    const { getByPlaceholderText, getAllByText, getByText } = render(<RegisterScreen />);
 
     fireEvent.changeText(getByPlaceholderText('Your name'), 'John');
     fireEvent.changeText(getByPlaceholderText('you@example.com'), 'john@test.com');
@@ -73,12 +83,12 @@ describe('RegisterScreen', () => {
     fireEvent.press(buttons[buttons.length - 1]);
 
     await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith('Error', 'Passwords do not match');
+      expect(getByText('Passwords do not match')).toBeTruthy();
     });
   });
 
-  it('shows error when password is too short', async () => {
-    const { getByPlaceholderText, getAllByText } = render(<RegisterScreen />);
+  it('shows inline error when password is too short', async () => {
+    const { getByPlaceholderText, getAllByText, getByText } = render(<RegisterScreen />);
 
     fireEvent.changeText(getByPlaceholderText('Your name'), 'John');
     fireEvent.changeText(getByPlaceholderText('you@example.com'), 'john@test.com');
@@ -89,10 +99,7 @@ describe('RegisterScreen', () => {
     fireEvent.press(buttons[buttons.length - 1]);
 
     await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith(
-        'Error',
-        'Password must be at least 8 characters'
-      );
+      expect(getByText('Password must be at least 8 characters')).toBeTruthy();
     });
   });
 
@@ -119,7 +126,7 @@ describe('RegisterScreen', () => {
     });
   });
 
-  it('shows error alert when registration fails', async () => {
+  it('shows error toast when registration fails', async () => {
     mockSignIn.mockRejectedValue(new Error('Email already in use'));
 
     const { getByPlaceholderText, getAllByText } = render(<RegisterScreen />);
@@ -133,11 +140,11 @@ describe('RegisterScreen', () => {
     fireEvent.press(buttons[buttons.length - 1]);
 
     await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith('Error', 'Email already in use');
+      expect(mockShowError).toHaveBeenCalledWith('Email already in use');
     });
   });
 
-  it('shows generic error when error has no message', async () => {
+  it('shows generic error toast when error has no message', async () => {
     mockSignIn.mockRejectedValue({});
 
     const { getByPlaceholderText, getAllByText } = render(<RegisterScreen />);
@@ -151,7 +158,7 @@ describe('RegisterScreen', () => {
     fireEvent.press(buttons[buttons.length - 1]);
 
     await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to create account');
+      expect(mockShowError).toHaveBeenCalledWith('Something went wrong. Please try again.');
     });
   });
 

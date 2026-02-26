@@ -23,6 +23,7 @@ import {
   spacing,
   typography,
 } from "@/src/styles/neobrutalism";
+import { useToast } from "@/src/hooks/useToast";
 
 export default function EditProfileScreen() {
   const user = useQuery(api.users.current);
@@ -36,6 +37,7 @@ export default function EditProfileScreen() {
     "imperial"
   );
   const [isSaving, setIsSaving] = useState(false);
+  const { showSuccess, showError } = useToast();
 
   // Pre-fill form when user data loads
   useEffect(() => {
@@ -66,9 +68,10 @@ export default function EditProfileScreen() {
         defaultServings,
         preferredUnits,
       });
+      showSuccess("Profile saved!");
       router.back();
     } catch {
-      // Stay on screen if save fails
+      showError("Failed to save changes. Please try again.");
     } finally {
       setIsSaving(false);
     }

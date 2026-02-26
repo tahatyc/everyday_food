@@ -9,6 +9,7 @@ import { StatusBar } from "expo-status-bar";
 import { View, StyleSheet } from "react-native";
 
 import { ConvexProvider } from "../src/providers/ConvexProvider";
+import { ToastContainer } from "../src/providers/ToastProvider";
 import { colors } from "../src/styles/neobrutalism";
 
 export {
@@ -157,6 +158,7 @@ function RootLayoutNav() {
           }}
         />
       </Stack>
+      <ToastContainer />
     </View>
   );
 }

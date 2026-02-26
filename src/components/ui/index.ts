@@ -4,3 +4,5 @@ export { Input } from "./Input";
 export { Badge } from "./Badge";
 export { Checkbox } from "./Checkbox";
 export { IconButton } from "./IconButton";
+export { Toast } from "./Toast";
+export { ToastContainer } from "../../providers/ToastProvider";

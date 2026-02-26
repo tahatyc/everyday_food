@@ -7,8 +7,23 @@ import MealPlanScreen from '../(tabs)/meal-plan';
 const mockAddMeal = jest.fn();
 const mockRemoveMeal = jest.fn();
 
+// Mock useToast
+const mockShowError = jest.fn();
+const mockShowSuccess = jest.fn();
+jest.mock('../../src/hooks/useToast', () => ({
+  useToast: () => ({
+    showError: mockShowError,
+    showSuccess: mockShowSuccess,
+    showWarning: jest.fn(),
+    showInfo: jest.fn(),
+    showToast: jest.fn(),
+  }),
+}));
+
 beforeEach(() => {
   jest.clearAllMocks();
+  mockShowError.mockReset();
+  mockShowSuccess.mockReset();
   (useMutation as jest.Mock)
     .mockReturnValueOnce(mockAddMeal)
     .mockReturnValueOnce(mockRemoveMeal);
@@ -367,7 +382,6 @@ describe('MealPlanScreen', () => {
   });
 
   it('handles remove meal error gracefully', async () => {
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
     mockRemoveMeal.mockRejectedValue(new Error('Remove failed'));
     setupCyclingMocks({
       mealPlans: [makeMealPlan('breakfast', 'Pancakes', 'mp-breakfast')],
@@ -377,13 +391,11 @@ describe('MealPlanScreen', () => {
     fireEvent.press(getByTestId('icon-trash-outline'), mockPressEvent);
 
     await waitFor(() => {
-      expect(consoleSpy).toHaveBeenCalledWith('Failed to remove meal:', expect.any(Error));
+      expect(mockShowError).toHaveBeenCalledWith('Failed to remove meal. Please try again.');
     });
-    consoleSpy.mockRestore();
   });
 
   it('handles generate random plan error gracefully', async () => {
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
     mockAddMeal.mockRejectedValue(new Error('Failed'));
     const recipes = [makeRecipe('r1', 'Oatmeal', ['breakfast'])];
     setupCyclingMocks({ allRecipes: recipes });
@@ -392,8 +404,7 @@ describe('MealPlanScreen', () => {
     fireEvent.press(getByText('GENERATE RANDOM PLAN'));
 
     await waitFor(() => {
-      expect(consoleSpy).toHaveBeenCalledWith('Failed to generate random plan:', expect.any(Error));
+      expect(mockShowError).toHaveBeenCalledWith('Failed to generate meal plan.');
     });
-    consoleSpy.mockRestore();
   });
 });

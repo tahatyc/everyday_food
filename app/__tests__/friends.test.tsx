@@ -5,7 +5,21 @@ import { useQuery, useMutation } from 'convex/react';
 import { router } from 'expo-router';
 import FriendsScreen from '../friends';
 
+// Alert spy kept for destructive confirmation dialog (still uses Alert.alert)
 jest.spyOn(Alert, 'alert');
+
+// Mock useToast
+const mockShowError = jest.fn();
+const mockShowSuccess = jest.fn();
+jest.mock('../../src/hooks/useToast', () => ({
+  useToast: () => ({
+    showError: mockShowError,
+    showSuccess: mockShowSuccess,
+    showWarning: jest.fn(),
+    showInfo: jest.fn(),
+    showToast: jest.fn(),
+  }),
+}));
 
 const mockSendRequest = jest.fn();
 const mockAcceptRequest = jest.fn();
@@ -15,6 +29,8 @@ const mockRemoveFriend = jest.fn();
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockShowError.mockReset();
+  mockShowSuccess.mockReset();
   (useMutation as jest.Mock)
     .mockReturnValueOnce(mockSendRequest)
     .mockReturnValueOnce(mockAcceptRequest)
@@ -233,7 +249,7 @@ describe('FriendsScreen', () => {
     });
   });
 
-  it('shows success alert after sending friend request', async () => {
+  it('shows success toast after sending friend request', async () => {
     mockSendRequest.mockResolvedValue({ success: true });
     let qCount = 0;
     const queryValues = [[], { incoming: [], outgoing: [] }, [{ userId: 'u5', name: 'Eve', email: 'eve@test.com' }], { friends: 0, pendingIncoming: 0, pendingOutgoing: 0 }];
@@ -255,11 +271,11 @@ describe('FriendsScreen', () => {
     fireEvent.press(getByTestId('icon-person-add'));
 
     await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith('Success', 'Friend request sent!');
+      expect(mockShowSuccess).toHaveBeenCalledWith('Friend request sent!');
     });
   });
 
-  it('shows error alert when sending friend request fails', async () => {
+  it('shows error toast when sending friend request fails', async () => {
     mockSendRequest.mockRejectedValue(new Error('Already friends'));
     let qCount = 0;
     const queryValues = [[], { incoming: [], outgoing: [] }, [{ userId: 'u5', name: 'Eve', email: 'eve@test.com' }], { friends: 0, pendingIncoming: 0, pendingOutgoing: 0 }];
@@ -281,7 +297,7 @@ describe('FriendsScreen', () => {
     fireEvent.press(getByTestId('icon-person-add'));
 
     await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith('Error', 'Already friends');
+      expect(mockShowError).toHaveBeenCalledWith('Already friends');
     });
   });
 
@@ -338,7 +354,7 @@ describe('FriendsScreen', () => {
     expect(mockRemoveFriend).toHaveBeenCalledWith({ friendId: 'u1' });
   });
 
-  it('shows error alert when accept request fails', async () => {
+  it('shows error toast when accept request fails', async () => {
     mockAcceptRequest.mockRejectedValue(new Error('Network error'));
     (useQuery as jest.Mock)
       .mockReturnValueOnce([])
@@ -355,11 +371,11 @@ describe('FriendsScreen', () => {
     fireEvent.press(getByTestId('icon-checkmark'));
 
     await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith('Error', 'Network error');
+      expect(mockShowError).toHaveBeenCalledWith('Network error');
     });
   });
 
-  it('shows error alert when reject request fails', async () => {
+  it('shows error toast when reject request fails', async () => {
     mockRejectRequest.mockRejectedValue(new Error('Failed'));
     (useQuery as jest.Mock)
       .mockReturnValueOnce([])
@@ -376,11 +392,11 @@ describe('FriendsScreen', () => {
     fireEvent.press(getByTestId('icon-close'));
 
     await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed');
+      expect(mockShowError).toHaveBeenCalledWith('Failed to reject request');
     });
   });
 
-  it('shows error alert when cancel request fails', async () => {
+  it('shows error toast when cancel request fails', async () => {
     mockCancelRequest.mockRejectedValue(new Error('Cannot cancel'));
     (useQuery as jest.Mock)
       .mockReturnValueOnce([])
@@ -397,7 +413,7 @@ describe('FriendsScreen', () => {
     fireEvent.press(getByText('CANCEL'));
 
     await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith('Error', 'Cannot cancel');
+      expect(mockShowError).toHaveBeenCalledWith('Cannot cancel');
     });
   });
 
@@ -458,7 +474,7 @@ describe('FriendsScreen', () => {
     expect(getByText('alice@example.com')).toBeTruthy();
   });
 
-  it('shows error alert when remove friend fails', async () => {
+  it('shows error toast when remove friend fails', async () => {
     mockRemoveFriend.mockRejectedValue(new Error('Remove failed'));
     (useQuery as jest.Mock)
       .mockReturnValueOnce([
@@ -477,7 +493,7 @@ describe('FriendsScreen', () => {
     await removeButton.onPress();
 
     await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith('Error', 'Remove failed');
+      expect(mockShowError).toHaveBeenCalledWith('Remove failed');
     });
   });
 });

@@ -28,6 +28,7 @@ import {
   spacing,
   typography,
 } from "../../src/styles/neobrutalism";
+import { useToast } from "../../src/hooks/useToast";
 
 // Recipe type from Convex
 type ConvexRecipe = {
@@ -318,13 +319,15 @@ export default function MealPlanScreen() {
 
   const mealPlan = getMealPlan();
 
+  const { showSuccess, showError } = useToast();
+
   // Handler for removing a meal from the plan
   const handleRemoveMeal = async (mealPlanId: Id<"mealPlans"> | null) => {
     if (!mealPlanId) return;
     try {
       await removeMealMutation({ mealPlanId });
     } catch (error) {
-      console.error("Failed to remove meal:", error);
+      showError("Failed to remove meal. Please try again.");
     }
   };
 
@@ -363,7 +366,7 @@ export default function MealPlanScreen() {
         recipeId: randomRecipe._id,
       });
     } catch (error) {
-      console.error(`Failed to change ${mealType}:`, error);
+      showError("Failed to update meal.");
     }
   };
 
@@ -415,8 +418,9 @@ export default function MealPlanScreen() {
           recipeId: randomDinner._id,
         });
       }
+      showSuccess("Meal plan generated!");
     } catch (error) {
-      console.error("Failed to generate random plan:", error);
+      showError("Failed to generate meal plan.");
     }
   };
 

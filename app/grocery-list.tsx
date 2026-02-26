@@ -29,6 +29,7 @@ import {
   spacing,
   typography,
 } from "../src/styles/neobrutalism";
+import { useToast } from "../src/hooks/useToast";
 
 type GroceryItem = {
   _id: Id<"shoppingItems">;
@@ -227,6 +228,7 @@ export default function GroceryListScreen() {
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [newItemName, setNewItemName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+  const { showError } = useToast();
 
   // 4.1 Route Params
   const { weekStartDate, weekEndDate } = useLocalSearchParams<{
@@ -277,7 +279,7 @@ export default function GroceryListScreen() {
       hasTriggeredCreate.current = true;
       setIsCreating(true);
       createForWeek({ weekStartDate: weekStartDate!, weekEndDate: weekEndDate! })
-        .catch((err) => console.error("Failed to create week list:", err))
+        .catch(() => showError("Failed to create grocery list."))
         .finally(() => setIsCreating(false));
     }
   }, [weekList, isWeekScoped, weekStartDate, weekEndDate]);
@@ -299,8 +301,8 @@ export default function GroceryListScreen() {
   const toggleItem = async (id: Id<"shoppingItems">) => {
     try {
       await toggleItemMutation({ itemId: id });
-    } catch (error) {
-      console.error("Failed to toggle item:", error);
+    } catch {
+      showError("Failed to update item.");
     }
   };
 
@@ -310,8 +312,8 @@ export default function GroceryListScreen() {
     try {
       await syncWithMealPlan({ listId: shoppingList._id });
       setBannerDismissed(true);
-    } catch (error) {
-      console.error("Failed to sync with meal plan:", error);
+    } catch {
+      showError("Failed to sync with meal plan.");
     }
   };
 
@@ -322,8 +324,8 @@ export default function GroceryListScreen() {
     try {
       await addItemMutation({ name: trimmed, listId: shoppingList._id });
       setNewItemName("");
-    } catch (error) {
-      console.error("Failed to add item:", error);
+    } catch {
+      showError("Failed to add item.");
     }
   };
 
@@ -332,8 +334,8 @@ export default function GroceryListScreen() {
     if (!shoppingList?._id) return;
     try {
       await clearCheckedMutation({ listId: shoppingList._id });
-    } catch (error) {
-      console.error("Failed to clear checked items:", error);
+    } catch {
+      showError("Failed to clear checked items.");
     }
   };
 

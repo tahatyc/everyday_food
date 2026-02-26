@@ -5,6 +5,19 @@ import { useMutation, useQuery } from 'convex/react';
 import { router, useLocalSearchParams } from 'expo-router';
 import ManualRecipeScreen from '../manual-recipe';
 
+// Mock useToast (Alert spy kept for step validation which still uses Alert.alert)
+const mockShowError = jest.fn();
+const mockShowSuccess = jest.fn();
+jest.mock('../../src/hooks/useToast', () => ({
+  useToast: () => ({
+    showError: mockShowError,
+    showSuccess: mockShowSuccess,
+    showWarning: jest.fn(),
+    showInfo: jest.fn(),
+    showToast: jest.fn(),
+  }),
+}));
+
 // Add Stack to the global expo-router mock from jest.setup.js
 jest.mock('expo-router', () => ({
   router: {
@@ -36,6 +49,8 @@ const mockUpdateRecipe = jest.fn();
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockShowError.mockReset();
+  mockShowSuccess.mockReset();
   (useLocalSearchParams as jest.Mock).mockReturnValue({});
   (useQuery as jest.Mock).mockReturnValue(undefined);
   // Cycle between createManual (odd calls) and updateManual (even calls)
@@ -295,8 +310,8 @@ describe('ManualRecipeScreen', () => {
     expect(getByText('BASIC INFO')).toBeTruthy();
   });
 
-  it('shows error alert when save fails', async () => {
-    mockCreateRecipe.mockRejectedValue(new Error('Network error'));
+  it('shows error toast when save fails', async () => {
+    mockCreateRecipe.mockRejectedValue(new Error('SaveFailed'));
 
     const { getByText, getByPlaceholderText } = render(<ManualRecipeScreen />);
 
@@ -311,7 +326,7 @@ describe('ManualRecipeScreen', () => {
     fireEvent.press(getByText('SAVE RECIPE'));
 
     await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to save recipe. Please try again.');
+      expect(mockShowError).toHaveBeenCalledWith('Failed to save recipe. Please try again.');
     });
   });
 
@@ -670,8 +685,8 @@ describe('ManualRecipeScreen', () => {
       });
     });
 
-    it('shows error alert when update fails', async () => {
-      mockUpdateRecipe.mockRejectedValue(new Error('Network error'));
+    it('shows error toast when update fails', async () => {
+      mockUpdateRecipe.mockRejectedValue(new Error('SaveFailed'));
 
       const { getByText } = render(<ManualRecipeScreen />);
 
@@ -683,7 +698,7 @@ describe('ManualRecipeScreen', () => {
       fireEvent.press(getByText('UPDATE RECIPE'));
 
       await waitFor(() => {
-        expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to save recipe. Please try again.');
+        expect(mockShowError).toHaveBeenCalledWith('Failed to save recipe. Please try again.');
       });
     });
 

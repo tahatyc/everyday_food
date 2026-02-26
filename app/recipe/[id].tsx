@@ -16,6 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import ShareRecipeModal from "../../src/components/ShareRecipeModal";
+import { useToast } from "../../src/hooks/useToast";
 
 import {
   borderRadius,
@@ -126,6 +127,7 @@ export default function RecipeDetailScreen() {
 
   // Get favorite state from recipe
   const [isFavorite, setIsFavorite] = useState(false);
+  const { showSuccess, showError } = useToast();
 
   // Update favorite state and record view when recipe loads
   useEffect(() => {
@@ -188,9 +190,8 @@ export default function RecipeDetailScreen() {
         : toggleFavoriteMutation;
       const result = await mutation({ recipeId: recipe._id });
       setIsFavorite(result.isFavorite);
-    } catch (error) {
-      console.error("Failed to toggle favorite:", error);
-      Alert.alert("Error", "Failed to update favorite status");
+    } catch {
+      showError("Failed to update favorite status.");
     }
   };
 
@@ -212,7 +213,7 @@ export default function RecipeDetailScreen() {
               await deleteRecipeMutation({ recipeId: recipe._id });
               router.back();
             } catch {
-              Alert.alert("Error", "Failed to delete recipe. Please try again.");
+              showError("Failed to delete recipe. Please try again.");
             }
           },
         },
@@ -223,14 +224,9 @@ export default function RecipeDetailScreen() {
   const handleAddToList = async () => {
     try {
       const result = await addToListMutation({ recipeId: recipe._id });
-      Alert.alert(
-        "Added to List",
-        `${result.itemsAdded} ingredients added to your shopping list`,
-        [{ text: "OK" }],
-      );
-    } catch (error) {
-      console.error("Failed to add to list:", error);
-      Alert.alert("Error", "Failed to add ingredients to list");
+      showSuccess(`${result.itemsAdded} ingredients added to your shopping list`);
+    } catch {
+      showError("Failed to add ingredients to list.");
     }
   };
 

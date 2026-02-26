@@ -1,10 +1,18 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import { Alert } from 'react-native';
 import LoginScreen from '../login';
 
-// Mock Alert
-jest.spyOn(Alert, 'alert');
+// Mock useToast
+const mockShowError = jest.fn();
+jest.mock('../../../src/hooks/useToast', () => ({
+  useToast: () => ({
+    showError: mockShowError,
+    showSuccess: jest.fn(),
+    showWarning: jest.fn(),
+    showInfo: jest.fn(),
+    showToast: jest.fn(),
+  }),
+}));
 
 // Mock the auth actions
 const mockSignIn = jest.fn();
@@ -19,6 +27,7 @@ describe('LoginScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockSignIn.mockReset();
+    mockShowError.mockReset();
   });
 
   it('renders the login form correctly', () => {
@@ -58,20 +67,17 @@ describe('LoginScreen', () => {
     expect(passwordInput.props.value).toBe('mypassword123');
   });
 
-  it('shows error alert when submitting empty form', async () => {
+  it('shows inline error when submitting empty form', async () => {
     const { getByText } = render(<LoginScreen />);
 
     fireEvent.press(getByText('Sign In'));
 
     await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith(
-        'Error',
-        'Please fill in all fields'
-      );
+      expect(getByText('Email is required')).toBeTruthy();
     });
   });
 
-  it('shows error alert when email is empty', async () => {
+  it('shows inline error when email is empty', async () => {
     const { getByText, getByPlaceholderText } = render(<LoginScreen />);
 
     fireEvent.changeText(
@@ -81,14 +87,11 @@ describe('LoginScreen', () => {
     fireEvent.press(getByText('Sign In'));
 
     await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith(
-        'Error',
-        'Please fill in all fields'
-      );
+      expect(getByText('Email is required')).toBeTruthy();
     });
   });
 
-  it('shows error alert when password is empty', async () => {
+  it('shows inline error when password is empty', async () => {
     const { getByText, getByPlaceholderText } = render(<LoginScreen />);
 
     fireEvent.changeText(
@@ -98,10 +101,7 @@ describe('LoginScreen', () => {
     fireEvent.press(getByText('Sign In'));
 
     await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith(
-        'Error',
-        'Please fill in all fields'
-      );
+      expect(getByText('Password is required')).toBeTruthy();
     });
   });
 
@@ -129,7 +129,7 @@ describe('LoginScreen', () => {
     });
   });
 
-  it('shows error alert when signIn fails', async () => {
+  it('shows error toast when signIn fails', async () => {
     mockSignIn.mockRejectedValue(new Error('Invalid credentials'));
 
     const { getByText, getByPlaceholderText } = render(<LoginScreen />);
@@ -145,11 +145,11 @@ describe('LoginScreen', () => {
     fireEvent.press(getByText('Sign In'));
 
     await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith('Error', 'Invalid credentials');
+      expect(mockShowError).toHaveBeenCalledWith('Invalid credentials');
     });
   });
 
-  it('shows generic error message when error has no message', async () => {
+  it('shows generic error toast when error has no message', async () => {
     mockSignIn.mockRejectedValue({});
 
     const { getByText, getByPlaceholderText } = render(<LoginScreen />);
@@ -165,7 +165,7 @@ describe('LoginScreen', () => {
     fireEvent.press(getByText('Sign In'));
 
     await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to sign in');
+      expect(mockShowError).toHaveBeenCalledWith('Something went wrong. Please try again.');
     });
   });
 

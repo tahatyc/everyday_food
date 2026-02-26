@@ -14,6 +14,8 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { useToast } from "@/src/hooks/useToast";
+import { parseMutationError } from "@/src/lib/errors";
 import Animated, { FadeInDown, FadeInRight } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -207,13 +209,15 @@ export default function FriendsScreen() {
   const cancelRequest = useMutation(api.friends.cancelRequest);
   const removeFriend = useMutation(api.friends.removeFriend);
 
+  const { showSuccess, showError } = useToast();
+
   const handleSendRequest = async (friendId: Id<"users">) => {
     try {
       await sendRequest({ friendId });
       setSearchQuery("");
-      Alert.alert("Success", "Friend request sent!");
+      showSuccess("Friend request sent!");
     } catch (error) {
-      Alert.alert("Error", error.message || "Failed to send request");
+      showError(parseMutationError(error, "Failed to send request"));
     }
   };
 
@@ -221,7 +225,7 @@ export default function FriendsScreen() {
     try {
       await acceptRequest({ friendshipId });
     } catch (error) {
-      Alert.alert("Error", error.message || "Failed to accept request");
+      showError(parseMutationError(error, "Failed to accept request"));
     }
   };
 
@@ -229,7 +233,7 @@ export default function FriendsScreen() {
     try {
       await rejectRequest({ friendshipId });
     } catch (error) {
-      Alert.alert("Error", error.message || "Failed to reject request");
+      showError(parseMutationError(error, "Failed to reject request"));
     }
   };
 
@@ -237,7 +241,7 @@ export default function FriendsScreen() {
     try {
       await cancelRequest({ friendshipId });
     } catch (error) {
-      Alert.alert("Error", error.message || "Failed to cancel request");
+      showError(parseMutationError(error, "Failed to cancel request"));
     }
   };
 
@@ -245,7 +249,7 @@ export default function FriendsScreen() {
     try {
       await removeFriend({ friendId });
     } catch (error) {
-      Alert.alert("Error", error.message || "Failed to remove friend");
+      showError(parseMutationError(error, "Failed to remove friend"));
     }
   };
 

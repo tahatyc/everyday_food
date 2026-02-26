@@ -7,6 +7,19 @@ import RecipeDetailScreen from '../[id]';
 
 jest.spyOn(Alert, 'alert');
 
+// Mock useToast
+const mockShowError = jest.fn();
+const mockShowSuccess = jest.fn();
+jest.mock('../../../src/hooks/useToast', () => ({
+  useToast: () => ({
+    showError: mockShowError,
+    showSuccess: mockShowSuccess,
+    showWarning: jest.fn(),
+    showInfo: jest.fn(),
+    showToast: jest.fn(),
+  }),
+}));
+
 const mockToggleFavorite = jest.fn();
 const mockToggleGlobalFavorite = jest.fn();
 const mockAddToList = jest.fn();
@@ -27,6 +40,8 @@ const noopFn = jest.fn();
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockShowError.mockReset();
+  mockShowSuccess.mockReset();
   mockToggleFavorite.mockReset();
   mockToggleGlobalFavorite.mockReset();
   mockAddToList.mockReset();
@@ -271,8 +286,8 @@ describe('RecipeDetailScreen', () => {
     expect(router.back).toHaveBeenCalled();
   });
 
-  it('shows error alert when delete fails', async () => {
-    mockDeleteRecipe.mockRejectedValue(new Error('Network error'));
+  it('shows error toast when delete fails', async () => {
+    mockDeleteRecipe.mockRejectedValue(new Error('DeleteFailed'));
     mockRecipeQuery(mockRecipe);
 
     const { getByTestId } = render(<RecipeDetailScreen />);
@@ -286,10 +301,7 @@ describe('RecipeDetailScreen', () => {
     });
 
     await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith(
-        'Error',
-        'Failed to delete recipe. Please try again.'
-      );
+      expect(mockShowError).toHaveBeenCalledWith('Failed to delete recipe. Please try again.');
     });
   });
 

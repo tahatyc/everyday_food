@@ -17,6 +17,8 @@ import {
 } from "react-native";
 import Animated, { FadeInDown, FadeInRight } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useToast } from "@/src/hooks/useToast";
+import { parseMutationError } from "@/src/lib/errors";
 
 import {
   borderRadius,
@@ -80,6 +82,7 @@ export default function ManualRecipeScreen() {
 
   const createRecipe = useMutation(api.recipes.createManual);
   const updateRecipe = useMutation(api.recipes.updateManual);
+  const { showSuccess, showError } = useToast();
 
   // Fetch existing recipe data in edit mode
   const existingRecipe = useQuery(
@@ -224,6 +227,7 @@ export default function ManualRecipeScreen() {
           ingredients: validIngredients,
           steps: validSteps,
         });
+        showSuccess("Recipe updated!");
         router.back();
       } else {
         const result = await createRecipe({
@@ -239,11 +243,11 @@ export default function ManualRecipeScreen() {
           ingredients: validIngredients,
           steps: validSteps,
         });
+        showSuccess("Recipe created!");
         router.replace(`/recipe/${result.recipeId}`);
       }
     } catch (error) {
-      console.error("Failed to save recipe:", error);
-      Alert.alert("Error", "Failed to save recipe. Please try again.");
+      showError(parseMutationError(error, "Failed to save recipe. Please try again."));
     } finally {
       setIsSaving(false);
     }

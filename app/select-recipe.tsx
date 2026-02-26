@@ -16,6 +16,7 @@ import { api } from "../convex/_generated/api";
 import { Id } from "../convex/_generated/dataModel";
 
 import { Badge, Input } from "../src/components/ui";
+import { useToast } from "../src/hooks/useToast";
 import {
   borderRadius,
   borders,
@@ -175,6 +176,7 @@ export default function SelectRecipeScreen() {
   );
 
   const addMealMutation = useMutation(api.mealPlans.addMeal);
+  const { showError } = useToast();
 
   const filters = [
     { id: "all", label: "All" },
@@ -215,8 +217,8 @@ export default function SelectRecipeScreen() {
         recipeId,
       });
       router.back();
-    } catch (error) {
-      console.error("Failed to add meal:", error);
+    } catch {
+      showError("Failed to add meal. Please try again.");
     }
   };
 
