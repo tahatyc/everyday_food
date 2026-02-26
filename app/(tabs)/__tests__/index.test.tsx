@@ -18,7 +18,7 @@ describe('HomeScreen', () => {
 
   it('renders header with greeting', () => {
     (useQuery as jest.Mock)
-      .mockReturnValueOnce([]) // allRecipes
+      .mockReturnValueOnce([]) // recentlyViewed
       .mockReturnValueOnce([]); // todaysMealPlans
 
     const { getByText } = render(<HomeScreen />);
@@ -44,7 +44,7 @@ describe('HomeScreen', () => {
     expect(router.push).toHaveBeenCalledWith('/import');
   });
 
-  it('renders today\'s meals section', () => {
+  it("renders today's meals section", () => {
     (useQuery as jest.Mock)
       .mockReturnValueOnce([])
       .mockReturnValueOnce([]);
@@ -118,13 +118,11 @@ describe('HomeScreen', () => {
       .mockReturnValueOnce([]);
 
     const { getByText } = render(<HomeScreen />);
-    // textTransform: "uppercase" is CSS-only, doesn't change text content in tests
     expect(getByText('Pancakes')).toBeTruthy();
     expect(getByText('25 MINS')).toBeTruthy();
   });
 
   it('renders meal plan data when meals are planned', () => {
-    const mockRecipes = [];
     const mockMealPlans = [
       {
         mealType: 'breakfast',
@@ -140,7 +138,7 @@ describe('HomeScreen', () => {
       },
     ];
     (useQuery as jest.Mock)
-      .mockReturnValueOnce(mockRecipes)
+      .mockReturnValueOnce([])
       .mockReturnValueOnce(mockMealPlans);
 
     const { getByText } = render(<HomeScreen />);
@@ -157,5 +155,101 @@ describe('HomeScreen', () => {
     const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
     const dateStr = `${months[now.getMonth()]} ${now.getDate()}`;
     expect(getByText(dateStr)).toBeTruthy();
+  });
+
+  // --- Issue 1: Empty meal slot navigation ---
+
+  it('navigates to meal plan tab when an empty meal card is pressed', () => {
+    (useQuery as jest.Mock)
+      .mockReturnValueOnce([])
+      .mockReturnValueOnce([]);
+
+    const { getAllByText } = render(<HomeScreen />);
+    // Press the first empty placeholder
+    fireEvent.press(getAllByText('Tap to add a meal')[0]);
+    expect(router.push).toHaveBeenCalledWith('/(tabs)/meal-plan');
+  });
+
+  it('navigates to recipe detail when a single-recipe meal card is pressed', () => {
+    const mockMealPlans = [
+      {
+        mealType: 'breakfast',
+        recipe: { _id: 'r1', title: 'Oats', prepTime: 5, cookTime: 0, tags: [] },
+      },
+    ];
+    (useQuery as jest.Mock)
+      .mockReturnValueOnce([])
+      .mockReturnValueOnce(mockMealPlans);
+
+    const { getByText } = render(<HomeScreen />);
+    fireEvent.press(getByText('Oats'));
+    expect(router.push).toHaveBeenCalledWith('/recipe/r1');
+  });
+
+  // --- Issue 2: Multiple meals per type ---
+
+  it('shows +N badge when a meal type has more than one recipe', () => {
+    const mockMealPlans = [
+      {
+        mealType: 'breakfast',
+        recipe: { _id: 'r1', title: 'Oats', prepTime: 5, cookTime: 0, tags: [] },
+      },
+      {
+        mealType: 'breakfast',
+        recipe: { _id: 'r2', title: 'Banana Pancakes', prepTime: 10, cookTime: 5, tags: [] },
+      },
+    ];
+    (useQuery as jest.Mock)
+      .mockReturnValueOnce([])
+      .mockReturnValueOnce(mockMealPlans);
+
+    const { getByText } = render(<HomeScreen />);
+    expect(getByText('+1')).toBeTruthy();
+  });
+
+  it('navigates to meal plan tab when a multi-recipe meal card is pressed', () => {
+    const mockMealPlans = [
+      {
+        mealType: 'lunch',
+        recipe: { _id: 'r1', title: 'Salad', prepTime: 5, cookTime: 0, tags: [] },
+      },
+      {
+        mealType: 'lunch',
+        recipe: { _id: 'r2', title: 'Soup', prepTime: 10, cookTime: 15, tags: [] },
+      },
+    ];
+    (useQuery as jest.Mock)
+      .mockReturnValueOnce([])
+      .mockReturnValueOnce(mockMealPlans);
+
+    const { getByText } = render(<HomeScreen />);
+    fireEvent.press(getByText('Salad'));
+    expect(router.push).toHaveBeenCalledWith('/(tabs)/meal-plan');
+  });
+
+  it('shows the primary recipe title when multiple meals share the same type', () => {
+    const mockMealPlans = [
+      {
+        mealType: 'dinner',
+        recipe: { _id: 'r1', title: 'Pasta', prepTime: 10, cookTime: 20, tags: [] },
+      },
+      {
+        mealType: 'dinner',
+        recipe: { _id: 'r2', title: 'Steak', prepTime: 5, cookTime: 15, tags: [] },
+      },
+      {
+        mealType: 'dinner',
+        recipe: { _id: 'r3', title: 'Salad', prepTime: 5, cookTime: 0, tags: [] },
+      },
+    ];
+    (useQuery as jest.Mock)
+      .mockReturnValueOnce([])
+      .mockReturnValueOnce(mockMealPlans);
+
+    const { getByText } = render(<HomeScreen />);
+    // First recipe shown as primary
+    expect(getByText('Pasta')).toBeTruthy();
+    // Badge shows the remaining two
+    expect(getByText('+2')).toBeTruthy();
   });
 });

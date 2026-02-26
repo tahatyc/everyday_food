@@ -19,6 +19,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 
+import { useToast } from "../../src/hooks/useToast";
 import {
   borderRadius,
   borders,
@@ -28,7 +29,6 @@ import {
   spacing,
   typography,
 } from "../../src/styles/neobrutalism";
-import { useToast } from "../../src/hooks/useToast";
 
 // Recipe type from Convex
 type ConvexRecipe = {
@@ -43,6 +43,19 @@ type ConvexRecipe = {
     fat: number;
   };
   tags: string[];
+};
+
+// A single entry within a meal slot
+type MealEntry = {
+  recipe: ConvexRecipe;
+  mealPlanId: Id<"mealPlans">;
+};
+
+// The full day plan — one array per slot
+type DayMealPlan = {
+  breakfast: MealEntry[];
+  lunch: MealEntry[];
+  dinner: MealEntry[];
 };
 
 // Generate week days with date strings, offset by weeks
@@ -114,12 +127,89 @@ function DayItem({
   );
 }
 
+// Individual meal card within a slot
+function MealCard({
+  entry,
+  mealType,
+  onChangeMeal,
+  onRemoveMeal,
+}: {
+  entry: MealEntry;
+  mealType: "breakfast" | "lunch" | "dinner";
+  onChangeMeal: () => void;
+  onRemoveMeal: () => void;
+}) {
+  const recipeMealType =
+    entry.recipe.tags?.find((t: string) =>
+      ["breakfast", "lunch", "dinner", "snack"].includes(t.toLowerCase())
+    )?.toLowerCase() || mealType;
+  const bgColor = getMealTypeColor(recipeMealType);
+
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.mealCard, pressed && styles.cardPressed]}
+      onPress={() => router.push(`/recipe/${entry.recipe._id}` as any)}
+    >
+      <View style={styles.mealImageContainer}>
+        <View style={[styles.mealImage, { backgroundColor: bgColor }]}>
+          <Text style={styles.mealEmoji}>
+            {recipeMealType === "breakfast"
+              ? "🍳"
+              : recipeMealType === "lunch"
+              ? "🥗"
+              : recipeMealType === "snack"
+              ? "🍪"
+              : "🍝"}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.mealInfo}>
+        <Text style={styles.mealTitle} numberOfLines={1}>
+          {entry.recipe.title.toUpperCase()}
+        </Text>
+        <View style={styles.mealBadge}>
+          <Text style={styles.mealBadgeText}>
+            {entry.recipe.nutritionPerServing?.calories || 0} KCAL
+          </Text>
+        </View>
+        <View style={styles.mealActions}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.changeButton,
+              pressed && styles.changeButtonPressed,
+            ]}
+            onPress={(e) => {
+              e.stopPropagation();
+              onChangeMeal();
+            }}
+          >
+            <Ionicons name="swap-horizontal" size={14} color={colors.textLight} />
+            <Text style={styles.changeButtonText}>CHANGE</Text>
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [
+              styles.removeButton,
+              pressed && styles.removeButtonPressed,
+            ]}
+            onPress={(e) => {
+              e.stopPropagation();
+              onRemoveMeal();
+            }}
+          >
+            <Ionicons name="trash-outline" size={14} color={colors.surface} />
+          </Pressable>
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
 // Meal Section Component
 function MealSection({
   type,
   label,
-  recipe,
-  mealPlanId,
+  meals,
   index,
   onChangeMeal,
   onAddMeal,
@@ -127,92 +217,35 @@ function MealSection({
 }: {
   type: "breakfast" | "lunch" | "dinner";
   label: string;
-  recipe: ConvexRecipe | null;
-  mealPlanId: Id<"mealPlans"> | null;
+  meals: MealEntry[];
   index: number;
-  onChangeMeal: () => void;
+  onChangeMeal: (mealPlanId: Id<"mealPlans">) => void;
   onAddMeal: () => void;
-  onRemoveMeal: () => void;
+  onRemoveMeal: (mealPlanId: Id<"mealPlans">) => void;
 }) {
-  const recipeMealType = recipe?.tags?.find((t: string) =>
-    ["breakfast", "lunch", "dinner", "snack"].includes(t.toLowerCase())
-  )?.toLowerCase() || type;
-  const bgColor = getMealTypeColor(recipeMealType);
+  const totalCalories = meals.reduce(
+    (sum, entry) => sum + (entry.recipe.nutritionPerServing?.calories ?? 0),
+    0
+  );
+  const hasCalorieData = meals.some((e) => e.recipe.nutritionPerServing?.calories);
+  const headerLabel = hasCalorieData ? `${label} — ${totalCalories} KCAL` : label;
+  const bgColor = getMealTypeColor(type);
 
   return (
     <Animated.View
       entering={FadeInDown.delay(200 + index * 100).duration(400)}
       style={styles.mealSection}
     >
-      {/* Meal Label */}
+      {/* Section Label */}
       <View style={styles.mealLabelContainer}>
         <View style={[styles.mealLabel, { backgroundColor: bgColor }]}>
-          <Text style={styles.mealLabelText}>{label}</Text>
+          <Text style={styles.mealLabelText}>{headerLabel}</Text>
         </View>
         <View style={styles.mealLabelLine} />
       </View>
 
-      {/* Meal Card */}
-      {recipe ? (
-        <Pressable
-          style={({ pressed }) => [
-            styles.mealCard,
-            pressed && styles.cardPressed,
-          ]}
-          onPress={() => router.push(`/recipe/${recipe._id}` as any)}
-        >
-          <View style={styles.mealImageContainer}>
-            <View
-              style={[
-                styles.mealImage,
-                { backgroundColor: bgColor },
-              ]}
-            >
-              <Text style={styles.mealEmoji}>
-                {recipeMealType === "breakfast" ? "🍳" : recipeMealType === "lunch" ? "🥗" : recipeMealType === "snack" ? "🍪" : "🍝"}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.mealInfo}>
-            <Text style={styles.mealTitle} numberOfLines={1}>
-              {recipe.title.toUpperCase()}
-            </Text>
-            <View style={styles.mealBadge}>
-              <Text style={styles.mealBadgeText}>
-                {recipe.nutritionPerServing?.calories || 0} KCAL
-              </Text>
-            </View>
-            <View style={styles.mealActions}>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.changeButton,
-                  pressed && styles.changeButtonPressed,
-                ]}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  onChangeMeal();
-                }}
-              >
-                <Ionicons name="swap-horizontal" size={14} color={colors.textLight} />
-                <Text style={styles.changeButtonText}>CHANGE</Text>
-              </Pressable>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.removeButton,
-                  pressed && styles.removeButtonPressed,
-                ]}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  onRemoveMeal();
-                }}
-              >
-                <Ionicons name="trash-outline" size={14} color={colors.surface} />
-              </Pressable>
-            </View>
-          </View>
-        </Pressable>
-      ) : (
+      {/* Empty state */}
+      {meals.length === 0 && (
         <Pressable
           style={({ pressed }) => [
             styles.mealCard,
@@ -225,6 +258,32 @@ function MealSection({
             <Ionicons name="add" size={24} color={colors.textMuted} />
             <Text style={styles.emptyMealText}>Add a meal</Text>
           </View>
+        </Pressable>
+      )}
+
+      {/* Meal cards list */}
+      {meals.map((entry) => (
+        <MealCard
+          key={entry.mealPlanId}
+          entry={entry}
+          mealType={type}
+          onChangeMeal={() => onChangeMeal(entry.mealPlanId)}
+          onRemoveMeal={() => onRemoveMeal(entry.mealPlanId)}
+        />
+      ))}
+
+      {/* Add another button (visible at 1–2 meals, hidden at 3) */}
+      {meals.length > 0 && meals.length < 3 && (
+        <Pressable
+          style={({ pressed }) => [
+            styles.addAnotherButton,
+            pressed && styles.buttonPressed,
+          ]}
+          onPress={onAddMeal}
+        >          
+          <Text style={styles.addAnotherButtonText}>
+            + ADD ANOTHER {label}
+          </Text>
         </Pressable>
       )}
     </Animated.View>
@@ -289,29 +348,27 @@ export default function MealPlanScreen() {
   const allRecipes = useQuery(api.recipes.list, { includeGlobal: true });
   const addMealMutation = useMutation(api.mealPlans.addMeal);
   const removeMealMutation = useMutation(api.mealPlans.removeMeal);
+  const changeMealMutation = useMutation(api.mealPlans.changeMeal);
 
   // Build meal plan object from Convex data
-  const getMealPlan = () => {
-    const plan: {
-      breakfast: { recipe: ConvexRecipe | null; mealPlanId: Id<"mealPlans"> | null };
-      lunch: { recipe: ConvexRecipe | null; mealPlanId: Id<"mealPlans"> | null };
-      dinner: { recipe: ConvexRecipe | null; mealPlanId: Id<"mealPlans"> | null };
-    } = {
-      breakfast: { recipe: null, mealPlanId: null },
-      lunch: { recipe: null, mealPlanId: null },
-      dinner: { recipe: null, mealPlanId: null },
+  const getMealPlan = (): DayMealPlan => {
+    const plan: DayMealPlan = {
+      breakfast: [],
+      lunch: [],
+      dinner: [],
     };
 
-    if (mealPlansData) {
-      for (const meal of mealPlansData) {
-        if (meal.mealType === "breakfast" && meal.recipe) {
-          plan.breakfast = { recipe: meal.recipe as ConvexRecipe, mealPlanId: meal._id };
-        } else if (meal.mealType === "lunch" && meal.recipe) {
-          plan.lunch = { recipe: meal.recipe as ConvexRecipe, mealPlanId: meal._id };
-        } else if (meal.mealType === "dinner" && meal.recipe) {
-          plan.dinner = { recipe: meal.recipe as ConvexRecipe, mealPlanId: meal._id };
-        }
-      }
+    if (!mealPlansData) return plan;
+
+    for (const meal of mealPlansData) {
+      if (!meal.recipe) continue;
+      const entry: MealEntry = {
+        recipe: meal.recipe as ConvexRecipe,
+        mealPlanId: meal._id,
+      };
+      if (meal.mealType === "breakfast") plan.breakfast.push(entry);
+      else if (meal.mealType === "lunch") plan.lunch.push(entry);
+      else if (meal.mealType === "dinner") plan.dinner.push(entry);
     }
 
     return plan;
@@ -339,30 +396,33 @@ export default function MealPlanScreen() {
     } as any);
   };
 
-  // Handler for changing a specific meal to a random recipe of the same type
-  const handleChangeMeal = async (mealType: "breakfast" | "lunch" | "dinner") => {
+  // Handler for changing a specific meal entry to a random recipe of the same type
+  const handleChangeMeal = async (
+    mealType: "breakfast" | "lunch" | "dinner",
+    mealPlanId: Id<"mealPlans">
+  ) => {
     if (!allRecipes || allRecipes.length === 0) return;
 
-    // Get current recipe ID to avoid selecting the same one
-    const currentRecipeId = mealPlan[mealType]?.recipe?._id;
+    // Exclude all recipes already in this slot to maximise variety
+    const currentIds = new Set(mealPlan[mealType].map((e) => e.recipe._id));
 
-    // Filter recipes by meal type tags
     const matchingRecipes = allRecipes.filter(
       (r: any) =>
         r.tags?.some((t: string) => t.toLowerCase() === mealType) &&
-        r._id !== currentRecipeId
+        !currentIds.has(r._id)
     );
 
-    if (matchingRecipes.length === 0) return;
+    if (matchingRecipes.length === 0) {
+      showError(`No other ${mealType} recipes available to swap.`);
+      return;
+    }
 
-    // Get random recipe
     const randomRecipe =
       matchingRecipes[Math.floor(Math.random() * matchingRecipes.length)];
 
     try {
-      await addMealMutation({
-        date: selectedDate,
-        mealType,
+      await changeMealMutation({
+        mealPlanId,
         recipeId: randomRecipe._id,
       });
     } catch (error) {
@@ -395,33 +455,28 @@ export default function MealPlanScreen() {
     const randomLunch = getRandomRecipe(lunchRecipes);
     const randomDinner = getRandomRecipe(dinnerRecipes);
 
-    // Add meals to Convex
-    try {
-      if (randomBreakfast) {
-        await addMealMutation({
-          date: selectedDate,
-          mealType: "breakfast",
-          recipeId: randomBreakfast._id,
-        });
-      }
-      if (randomLunch) {
-        await addMealMutation({
-          date: selectedDate,
-          mealType: "lunch",
-          recipeId: randomLunch._id,
-        });
-      }
-      if (randomDinner) {
-        await addMealMutation({
-          date: selectedDate,
-          mealType: "dinner",
-          recipeId: randomDinner._id,
-        });
-      }
-      showSuccess("Meal plan generated!");
-    } catch (error) {
-      showError("Failed to generate meal plan.");
+    let added = false;
+
+    if (randomBreakfast) {
+      try {
+        await addMealMutation({ date: selectedDate, mealType: "breakfast", recipeId: randomBreakfast._id });
+        added = true;
+      } catch { /* cap reached for breakfast — skip silently */ }
     }
+    if (randomLunch) {
+      try {
+        await addMealMutation({ date: selectedDate, mealType: "lunch", recipeId: randomLunch._id });
+        added = true;
+      } catch { /* cap reached for lunch — skip silently */ }
+    }
+    if (randomDinner) {
+      try {
+        await addMealMutation({ date: selectedDate, mealType: "dinner", recipeId: randomDinner._id });
+        added = true;
+      } catch { /* cap reached for dinner — skip silently */ }
+    }
+
+    if (added) showSuccess("Meal plan generated!");
   };
 
   // Handler for grocery list - navigate with week params
@@ -534,32 +589,29 @@ export default function MealPlanScreen() {
         <MealSection
           type="breakfast"
           label="BREAKFAST"
-          recipe={mealPlan.breakfast.recipe}
-          mealPlanId={mealPlan.breakfast.mealPlanId}
+          meals={mealPlan.breakfast}
           index={0}
-          onChangeMeal={() => handleChangeMeal("breakfast")}
+          onChangeMeal={(id) => handleChangeMeal("breakfast", id)}
           onAddMeal={() => handleAddMeal("breakfast")}
-          onRemoveMeal={() => handleRemoveMeal(mealPlan.breakfast.mealPlanId)}
+          onRemoveMeal={(id) => handleRemoveMeal(id)}
         />
         <MealSection
           type="lunch"
           label="LUNCH"
-          recipe={mealPlan.lunch.recipe}
-          mealPlanId={mealPlan.lunch.mealPlanId}
+          meals={mealPlan.lunch}
           index={1}
-          onChangeMeal={() => handleChangeMeal("lunch")}
+          onChangeMeal={(id) => handleChangeMeal("lunch", id)}
           onAddMeal={() => handleAddMeal("lunch")}
-          onRemoveMeal={() => handleRemoveMeal(mealPlan.lunch.mealPlanId)}
+          onRemoveMeal={(id) => handleRemoveMeal(id)}
         />
         <MealSection
           type="dinner"
           label="DINNER"
-          recipe={mealPlan.dinner.recipe}
-          mealPlanId={mealPlan.dinner.mealPlanId}
+          meals={mealPlan.dinner}
           index={2}
-          onChangeMeal={() => handleChangeMeal("dinner")}
+          onChangeMeal={(id) => handleChangeMeal("dinner", id)}
           onAddMeal={() => handleAddMeal("dinner")}
-          onRemoveMeal={() => handleRemoveMeal(mealPlan.dinner.mealPlanId)}
+          onRemoveMeal={(id) => handleRemoveMeal(id)}
         />
 
         {/* Generate Random Plan Button */}
@@ -750,6 +802,26 @@ const styles = StyleSheet.create({
   emptyMealContent: {
     alignItems: "center",
     gap: spacing.sm,
+  },
+  addAnotherButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surface,
+    borderWidth: borders.regular,
+    borderColor: borders.color,
+    borderStyle: "dashed",
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.md,
+    marginTop: spacing.sm,
+    gap: spacing.xs,
+    ...shadows.xs,
+  },
+  addAnotherButtonText: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.bold,
+    color: colors.text,
+    letterSpacing: typography.letterSpacing.wide,
   },
   emptyMealText: {
     fontSize: typography.sizes.sm,

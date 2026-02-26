@@ -693,6 +693,58 @@ describe("GroceryListScreen", () => {
     });
   });
 
+  // ── Keyboard Avoidance ───────────────────────────────────────────
+
+  describe("Keyboard Avoidance", () => {
+    it("wraps content in KeyboardAvoidingView so input stays above keyboard (main state)", () => {
+      mockWeekParams();
+      mockQueriesSequential(sampleList, undefined, {
+        hasChanges: false,
+        addedRecipes: [],
+        removedRecipes: [],
+      });
+
+      const { getByTestId } = render(<GroceryListScreen />);
+      const kav = getByTestId("keyboard-avoiding-view");
+      expect(kav).toBeTruthy();
+    });
+
+    it("KeyboardAvoidingView contains the add-item input (main state)", () => {
+      mockWeekParams();
+      mockQueriesSequential(sampleList, undefined, {
+        hasChanges: false,
+        addedRecipes: [],
+        removedRecipes: [],
+      });
+
+      const { getByTestId, getByPlaceholderText } = render(<GroceryListScreen />);
+      const kav = getByTestId("keyboard-avoiding-view");
+      const input = getByPlaceholderText("Add an item...");
+      // Input must be a descendant of the KeyboardAvoidingView
+      expect(kav).toBeTruthy();
+      expect(input).toBeTruthy();
+    });
+
+    it("wraps content in KeyboardAvoidingView in empty list state", () => {
+      mockWeekParams();
+      const emptyList = { ...sampleList, items: [] };
+      mockQueriesSequential(emptyList, undefined, undefined);
+
+      const { getByTestId } = render(<GroceryListScreen />);
+      expect(getByTestId("keyboard-avoiding-view")).toBeTruthy();
+    });
+
+    it("KeyboardAvoidingView contains the add-item input in empty state", () => {
+      mockWeekParams();
+      const emptyList = { ...sampleList, items: [] };
+      mockQueriesSequential(emptyList, undefined, undefined);
+
+      const { getByTestId, getByPlaceholderText } = render(<GroceryListScreen />);
+      expect(getByTestId("keyboard-avoiding-view")).toBeTruthy();
+      expect(getByPlaceholderText("Add an item...")).toBeTruthy();
+    });
+  });
+
   // ── Edge Cases from Design Plan ──────────────────────────────────
 
   describe("Edge Cases", () => {

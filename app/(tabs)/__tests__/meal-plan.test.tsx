@@ -6,14 +6,14 @@ import MealPlanScreen from '../meal-plan';
 
 const mockAddMeal = jest.fn();
 const mockRemoveMeal = jest.fn();
-const mockAddRecipeIngredients = jest.fn();
+const mockChangeMeal = jest.fn();
 
 beforeEach(() => {
   jest.clearAllMocks();
   (useMutation as jest.Mock)
     .mockReturnValueOnce(mockAddMeal)
     .mockReturnValueOnce(mockRemoveMeal)
-    .mockReturnValueOnce(mockAddRecipeIngredients);
+    .mockReturnValueOnce(mockChangeMeal);
 });
 
 // Helper: mock all 3 useQuery calls (mealPlansData, weekMealPlans, allRecipes)
@@ -124,7 +124,9 @@ describe('MealPlanScreen', () => {
 
     const { getByText } = render(<MealPlanScreen />);
     expect(getByText('SCRAMBLED EGGS')).toBeTruthy();
+    // Card badge shows individual calories; section header shows total
     expect(getByText('250 KCAL')).toBeTruthy();
+    expect(getByText('BREAKFAST — 250 KCAL')).toBeTruthy();
   });
 
   it('shows change and remove buttons for planned meals', () => {

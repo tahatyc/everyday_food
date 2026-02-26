@@ -5,6 +5,8 @@ import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -398,137 +400,149 @@ export default function GroceryListScreen() {
   if (!shoppingList || totalItems === 0) {
     return (
       <SafeAreaView style={styles.container} edges={["top"]}>
-        <Animated.View style={styles.header} entering={FadeInDown.duration(300)}>
-          <Pressable style={styles.headerButton} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={24} color={colors.text} />
-          </Pressable>
-          <Text style={styles.headerTitle}>{headerTitle}</Text>
-          <View style={styles.headerButton}>
-            <Ionicons name="ellipsis-horizontal" size={24} color={colors.text} />
-          </View>
-        </Animated.View>
-        {showChangeBanner && (
-          <ChangeBanner
-            onSync={handleSync}
-            onDismiss={() => setBannerDismissed(true)}
-          />
-        )}
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyEmoji}>🛒</Text>
-          <Text style={styles.emptyTitle}>Your list is empty</Text>
-          <Text style={styles.emptySubtitle}>
-            {isWeekScoped
-              ? showChangeBanner
-                ? "Your meal plan has recipes. Tap \"UPDATE LIST\" to populate your grocery list."
-                : "Add meals to your plan, then come back to generate your list"
-              : "Add ingredients from recipes to get started"}
-          </Text>
-        </View>
-
-        {/* Add Manual Item even on empty state */}
-        {shoppingList && (
-          <View style={styles.addItemContainer}>
-            <View style={styles.addItemRow}>
-              <TextInput
-                style={styles.addItemInput}
-                placeholder="Add an item..."
-                placeholderTextColor={colors.textMuted}
-                value={newItemName}
-                onChangeText={setNewItemName}
-                onSubmitEditing={handleAddManualItem}
-                returnKeyType="done"
-              />
-              <Pressable
-                style={({ pressed }) => [
-                  styles.addItemButton,
-                  pressed && { opacity: 0.7 },
-                ]}
-                onPress={handleAddManualItem}
-              >
-                <Ionicons name="add-circle" size={32} color={colors.cyan} />
-              </Pressable>
+        <KeyboardAvoidingView
+          testID="keyboard-avoiding-view"
+          style={styles.keyboardAvoidingView}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          <Animated.View style={styles.header} entering={FadeInDown.duration(300)}>
+            <Pressable style={styles.headerButton} onPress={() => router.back()}>
+              <Ionicons name="arrow-back" size={24} color={colors.text} />
+            </Pressable>
+            <Text style={styles.headerTitle}>{headerTitle}</Text>
+            <View style={styles.headerButton}>
+              <Ionicons name="ellipsis-horizontal" size={24} color={colors.text} />
             </View>
+          </Animated.View>
+          {showChangeBanner && (
+            <ChangeBanner
+              onSync={handleSync}
+              onDismiss={() => setBannerDismissed(true)}
+            />
+          )}
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyEmoji}>🛒</Text>
+            <Text style={styles.emptyTitle}>Your list is empty</Text>
+            <Text style={styles.emptySubtitle}>
+              {isWeekScoped
+                ? showChangeBanner
+                  ? "Your meal plan has recipes. Tap \"UPDATE LIST\" to populate your grocery list."
+                  : "Add meals to your plan, then come back to generate your list"
+                : "Add ingredients from recipes to get started"}
+            </Text>
           </View>
-        )}
+
+          {/* Add Manual Item even on empty state */}
+          {shoppingList && (
+            <View style={styles.addItemContainer}>
+              <View style={styles.addItemRow}>
+                <TextInput
+                  style={styles.addItemInput}
+                  placeholder="Add an item..."
+                  placeholderTextColor={colors.textMuted}
+                  value={newItemName}
+                  onChangeText={setNewItemName}
+                  onSubmitEditing={handleAddManualItem}
+                  returnKeyType="done"
+                />
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.addItemButton,
+                    pressed && { opacity: 0.7 },
+                  ]}
+                  onPress={handleAddManualItem}
+                >
+                  <Ionicons name="add-circle" size={32} color={colors.cyan} />
+                </Pressable>
+              </View>
+            </View>
+          )}
+        </KeyboardAvoidingView>
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      {/* Header */}
-      <Animated.View
-        style={styles.header}
-        entering={FadeInDown.duration(300)}
+      <KeyboardAvoidingView
+        testID="keyboard-avoiding-view"
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <Pressable style={styles.headerButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
-        </Pressable>
-        <Text style={styles.headerTitle} numberOfLines={1}>{headerTitle}</Text>
-        <Pressable style={styles.headerButton} onPress={handleClearChecked}>
-          <Ionicons name="trash-outline" size={22} color={checkedItems > 0 ? colors.accent : colors.textMuted} />
-        </Pressable>
-      </Animated.View>
-
-      {/* Change Detection Banner */}
-      {showChangeBanner && (
-        <ChangeBanner
-          onSync={handleSync}
-          onDismiss={() => setBannerDismissed(true)}
-        />
-      )}
-
-      {/* View Toggle */}
-      <Animated.View
-        entering={FadeInDown.delay(100).duration(300)}
-        style={styles.toggleContainer}
-      >
-        <ViewToggle activeView={activeView} onChangeView={setActiveView} />
-      </Animated.View>
-
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Categories / Recipe Groups */}
-        {Object.entries(displayedGroups).map(([category, categoryItems], index) => (
-          <CategorySection
-            key={category}
-            title={category.toUpperCase()}
-            items={categoryItems}
-            onToggleItem={toggleItem}
-            index={index}
-          />
-        ))}
-
-        {/* Bottom Spacing */}
-        <View style={styles.bottomSpacer} />
-      </ScrollView>
-
-      {/* Add Manual Item Input */}
-      <View style={styles.addItemContainer}>
-        <View style={styles.addItemRow}>
-          <TextInput
-            style={styles.addItemInput}
-            placeholder="Add an item..."
-            placeholderTextColor={colors.textMuted}
-            value={newItemName}
-            onChangeText={setNewItemName}
-            onSubmitEditing={handleAddManualItem}
-            returnKeyType="done"
-          />
-          <Pressable
-            style={({ pressed }) => [
-              styles.addItemButton,
-              pressed && { opacity: 0.7 },
-            ]}
-            onPress={handleAddManualItem}
-          >
-            <Ionicons name="add-circle" size={32} color={colors.cyan} />
+        {/* Header */}
+        <Animated.View
+          style={styles.header}
+          entering={FadeInDown.duration(300)}
+        >
+          <Pressable style={styles.headerButton} onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
           </Pressable>
+          <Text style={styles.headerTitle} numberOfLines={1}>{headerTitle}</Text>
+          <Pressable style={styles.headerButton} onPress={handleClearChecked}>
+            <Ionicons name="trash-outline" size={22} color={checkedItems > 0 ? colors.accent : colors.textMuted} />
+          </Pressable>
+        </Animated.View>
+
+        {/* Change Detection Banner */}
+        {showChangeBanner && (
+          <ChangeBanner
+            onSync={handleSync}
+            onDismiss={() => setBannerDismissed(true)}
+          />
+        )}
+
+        {/* View Toggle */}
+        <Animated.View
+          entering={FadeInDown.delay(100).duration(300)}
+          style={styles.toggleContainer}
+        >
+          <ViewToggle activeView={activeView} onChangeView={setActiveView} />
+        </Animated.View>
+
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Categories / Recipe Groups */}
+          {Object.entries(displayedGroups).map(([category, categoryItems], index) => (
+            <CategorySection
+              key={category}
+              title={category.toUpperCase()}
+              items={categoryItems}
+              onToggleItem={toggleItem}
+              index={index}
+            />
+          ))}
+
+          {/* Bottom Spacing */}
+          <View style={styles.bottomSpacer} />
+        </ScrollView>
+
+        {/* Add Manual Item Input */}
+        <View style={styles.addItemContainer}>
+          <View style={styles.addItemRow}>
+            <TextInput
+              style={styles.addItemInput}
+              placeholder="Add an item..."
+              placeholderTextColor={colors.textMuted}
+              value={newItemName}
+              onChangeText={setNewItemName}
+              onSubmitEditing={handleAddManualItem}
+              returnKeyType="done"
+            />
+            <Pressable
+              style={({ pressed }) => [
+                styles.addItemButton,
+                pressed && { opacity: 0.7 },
+              ]}
+              onPress={handleAddManualItem}
+            >
+              <Ionicons name="add-circle" size={32} color={colors.cyan} />
+            </Pressable>
+          </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -537,6 +551,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  keyboardAvoidingView: {
+    flex: 1,
   },
   header: {
     flexDirection: "row",

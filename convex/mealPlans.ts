@@ -128,21 +128,18 @@ export const addMeal = mutation({
   handler: async (ctx, args) => {
     const userId = await getCurrentUserId(ctx);
 
-    // Check if meal already exists for this date/type
+    // Check cap: max 3 meals per slot
     const existing = await ctx.db
       .query("mealPlans")
       .withIndex("by_user_date_meal", (q) =>
         q.eq("userId", userId).eq("date", args.date).eq("mealType", args.mealType)
       )
-      .first();
+      .collect();
 
-    if (existing) {
-      // Update existing meal plan
-      await ctx.db.patch(existing._id, {
-        recipeId: args.recipeId,
-        servings: args.servings,
-      });
-      return existing._id;
+    if (existing.length >= 3) {
+      throw new Error(
+        `You can only add up to 3 ${args.mealType} meals per day.`
+      );
     }
 
     // Create new meal plan
@@ -156,6 +153,30 @@ export const addMeal = mutation({
     });
 
     return mealPlanId;
+  },
+});
+
+// Update a specific meal plan entry (change its recipe)
+export const changeMeal = mutation({
+  args: {
+    mealPlanId: v.id("mealPlans"),
+    recipeId: v.id("recipes"),
+    servings: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getCurrentUserId(ctx);
+
+    const hasAccess = await canAccessMealPlan(ctx, args.mealPlanId, userId);
+    if (!hasAccess) {
+      throw new Error("Not authorized to modify this meal plan entry.");
+    }
+
+    await ctx.db.patch(args.mealPlanId, {
+      recipeId: args.recipeId,
+      servings: args.servings,
+    });
+
+    return args.mealPlanId;
   },
 });
 

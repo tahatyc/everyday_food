@@ -48,7 +48,7 @@ type TodayMeal = {
   type: string;
   label: string;
   time: string;
-  recipe: ConvexRecipe | null;
+  recipes: ConvexRecipe[];
 };
 
 // Get current date info
@@ -78,7 +78,19 @@ const getCurrentDateInfo = () => {
 // Meal Card Component
 function MealCard({ meal, index }: { meal: TodayMeal; index: number }) {
   const bgColor = getMealTypeColor(meal.type);
-  const recipe = meal.recipe;
+  const primaryRecipe = meal.recipes[0] ?? null;
+  const extraCount = meal.recipes.length - 1;
+
+  const handlePress = () => {
+    if (primaryRecipe && extraCount === 0) {
+      router.push(`/recipe/${primaryRecipe._id}` as any);
+    } else {
+      router.push("/(tabs)/meal-plan");
+    }
+  };
+
+  const mealEmoji =
+    meal.type === "breakfast" ? "🍳" : meal.type === "lunch" ? "🥗" : "🍝";
 
   return (
     <Animated.View entering={FadeInDown.delay(200 + index * 100).duration(400)}>
@@ -88,19 +100,18 @@ function MealCard({ meal, index }: { meal: TodayMeal; index: number }) {
           { backgroundColor: bgColor },
           pressed && styles.cardPressed,
         ]}
-        onPress={() => recipe && router.push(`/recipe/${recipe._id}` as any)}
+        onPress={handlePress}
       >
         {/* Recipe Image */}
         <View style={styles.mealImageContainer}>
-          {recipe ? (
+          {primaryRecipe ? (
             <View style={styles.mealImagePlaceholder}>
-              <Text style={styles.mealEmoji}>
-                {meal.type === "breakfast"
-                  ? "🍳"
-                  : meal.type === "lunch"
-                  ? "🥗"
-                  : "🍝"}
-              </Text>
+              <Text style={styles.mealEmoji}>{mealEmoji}</Text>
+              {extraCount > 0 && (
+                <View style={styles.extraBadge}>
+                  <Text style={styles.extraBadgeText}>+{extraCount}</Text>
+                </View>
+              )}
             </View>
           ) : (
             <View style={[styles.mealImagePlaceholder, styles.emptyMealImage]}>
@@ -118,14 +129,14 @@ function MealCard({ meal, index }: { meal: TodayMeal; index: number }) {
             <Text style={styles.mealTime}>{meal.time}</Text>
           </View>
 
-          {recipe ? (
+          {primaryRecipe ? (
             <>
               <Text style={styles.mealTitle} numberOfLines={1}>
-                {recipe.title}
+                {primaryRecipe.title}
               </Text>
               <Text style={styles.mealMeta}>
-                {(recipe.prepTime || 0) + (recipe.cookTime || 0)} mins •{" "}
-                {recipe.nutritionPerServing?.calories || 0} kcal
+                {(primaryRecipe.prepTime || 0) + (primaryRecipe.cookTime || 0)}{" "}
+                mins • {primaryRecipe.nutritionPerServing?.calories || 0} kcal
               </Text>
             </>
           ) : (
@@ -250,15 +261,15 @@ export default function HomeScreen() {
     ];
 
     return mealTypes.map((meal, index) => {
-      const plannedMeal = todaysMealPlans?.find(
+      const plannedMeals = todaysMealPlans?.filter(
         (m: any) => m.mealType === meal.type,
-      );
+      ) ?? [];
       return {
         id: `${index}`,
         type: meal.type,
         label: meal.label,
         time: meal.time,
-        recipe: plannedMeal?.recipe || null,
+        recipes: plannedMeals.map((m: any) => m.recipe).filter(Boolean),
       };
     });
   };
@@ -521,6 +532,25 @@ const styles = StyleSheet.create({
   },
   mealEmoji: {
     fontSize: 28,
+  },
+  extraBadge: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    backgroundColor: colors.accent,
+    borderWidth: borders.thin,
+    borderColor: borders.color,
+    borderRadius: borderRadius.full,
+    minWidth: 20,
+    height: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.xs,
+  },
+  extraBadgeText: {
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.bold,
+    color: colors.textLight,
   },
   mealInfo: {
     flex: 1,
