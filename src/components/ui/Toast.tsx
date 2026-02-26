@@ -1,8 +1,8 @@
 import React, { useEffect } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Animated, {
+  FadeInDown,
   FadeOut,
-  SlideInUp,
 } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import {
@@ -77,7 +77,7 @@ export function Toast({ id, type, message, onDismiss, duration = 3500 }: ToastPr
 
   return (
     <Animated.View
-      entering={SlideInUp.duration(300).springify().damping(15)}
+      entering={FadeInDown.duration(300).springify().damping(25).stiffness(300)}
       exiting={FadeOut.duration(200)}
       style={[styles.container, { backgroundColor: visuals.background }]}
     >

@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useMutation } from "convex/react";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -15,6 +15,7 @@ import Animated, {
   Easing,
   FadeIn,
   FadeInDown,
+  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
@@ -106,6 +107,13 @@ function ConfettiParticle({ data }: { data: ParticleData }) {
   );
 }
 
+// Fix 1: Module-level constants — created once per app lifetime, not on every render
+const HEADER_ENTERING = FadeInDown.duration(300);
+const PROGRESS_ENTERING = FadeInDown.delay(100).duration(300);
+const STEP_IMAGE_ENTERING = FadeIn.duration(400);
+const STEP_CARD_ENTERING = FadeInDown.delay(200).duration(400);
+const NAV_ENTERING = FadeInDown.delay(300).duration(400);
+
 export default function CookModeScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [currentStep, setCurrentStep] = useState(0);
@@ -133,6 +141,59 @@ export default function CookModeScreen() {
     api.recipes.getById,
     id ? { id: id as Id<"recipes"> } : "skip",
   );
+
+  // Fix 2: Navigation guard — blocks rapid taps while transition animation runs
+  const isNavigating = useRef(false);
+
+  // Fix 3: Shared opacity value drives step content transitions (no remounting)
+  const contentOpacity = useSharedValue(1);
+  const contentAnimStyle = useAnimatedStyle(() => ({
+    opacity: contentOpacity.value,
+  }));
+
+  // Derived before early returns so useCallback hooks below can reference it
+  const totalSteps = recipe?.steps?.length ?? 0;
+
+  const resetNavigating = useCallback(() => {
+    isNavigating.current = false;
+  }, []);
+
+  // Fix 3: Fade-out → update step → fade-in, all on the UI thread via shared value
+  const navigateToStep = useCallback(
+    (newStep: number) => {
+      if (isNavigating.current) return;
+      isNavigating.current = true;
+      contentOpacity.value = withTiming(0, { duration: 150 }, (finished) => {
+        if (finished) {
+          runOnJS(setCurrentStep)(newStep);
+          contentOpacity.value = withTiming(1, { duration: 250 }, () => {
+            runOnJS(resetNavigating)();
+          });
+        } else {
+          runOnJS(resetNavigating)();
+        }
+      });
+    },
+    [contentOpacity, resetNavigating],
+  );
+
+  // Fix 4: Memoized handlers — stable references across renders
+  const goToPrevStep = useCallback(() => {
+    if (currentStep > 0) navigateToStep(currentStep - 1);
+  }, [currentStep, navigateToStep]);
+
+  const handleFinish = useCallback(async () => {
+    await recordCookCompletion({ recipeId: id as Id<"recipes"> });
+    setShowCelebration(true);
+  }, [recordCookCompletion, id]);
+
+  const goToNextStep = useCallback(() => {
+    if (currentStep < totalSteps - 1) {
+      navigateToStep(currentStep + 1);
+    } else {
+      handleFinish();
+    }
+  }, [currentStep, totalSteps, navigateToStep, handleFinish]);
 
   // Loading state
   if (recipe === undefined) {
@@ -162,25 +223,8 @@ export default function CookModeScreen() {
     );
   }
 
-  const totalSteps = recipe.steps.length;
   const progress = ((currentStep + 1) / totalSteps) * 100;
   const step = recipe.steps[currentStep];
-
-  const goToPrevStep = () => {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
-    }
-  };
-
-  const goToNextStep = async () => {
-    if (currentStep < totalSteps - 1) {
-      setCurrentStep(currentStep + 1);
-    } else {
-      // Finished cooking — record completion then show celebration
-      await recordCookCompletion({ recipeId: id as Id<"recipes"> });
-      setShowCelebration(true);
-    }
-  };
 
   // Determine step category based on keywords
   const getStepCategory = (instruction: string) => {
@@ -225,7 +269,7 @@ export default function CookModeScreen() {
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       {/* Header */}
-      <Animated.View style={styles.header} entering={FadeInDown.duration(300)}>
+      <Animated.View style={styles.header} entering={HEADER_ENTERING}>
         <Pressable style={styles.closeButton} onPress={() => router.back()}>
           <Ionicons name="close" size={24} color={colors.text} />
         </Pressable>
@@ -242,7 +286,7 @@ export default function CookModeScreen() {
       {/* Step Indicator & Progress */}
       <Animated.View
         style={styles.progressSection}
-        entering={FadeInDown.delay(100).duration(300)}
+        entering={PROGRESS_ENTERING}
       >
         <View style={styles.stepIndicatorRow}>
           <View style={styles.stepBadge}>
@@ -279,9 +323,8 @@ export default function CookModeScreen() {
       >
         {/* Step Image */}
         <Animated.View
-          key={`image-${currentStep}`}
-          style={styles.stepImageContainer}
-          entering={FadeIn.duration(400)}
+          style={[styles.stepImageContainer, contentAnimStyle]}
+          entering={STEP_IMAGE_ENTERING}
         >
           <View
             style={[
@@ -315,9 +358,8 @@ export default function CookModeScreen() {
 
         {/* Step Card */}
         <Animated.View
-          key={`card-${currentStep}`}
-          style={styles.stepCard}
-          entering={FadeInDown.delay(200).duration(400)}
+          style={[styles.stepCard, contentAnimStyle]}
+          entering={STEP_CARD_ENTERING}
         >
           {/* Category Badge */}
           <View style={styles.categoryBadge}>
@@ -353,7 +395,7 @@ export default function CookModeScreen() {
       {/* Navigation Buttons */}
       <Animated.View
         style={styles.navigationButtons}
-        entering={FadeInDown.delay(300).duration(400)}
+        entering={NAV_ENTERING}
       >
         <Pressable
           style={({ pressed }) => [
