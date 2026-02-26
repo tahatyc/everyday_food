@@ -1,5 +1,7 @@
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
+import { useToast } from "@/src/hooks/useToast";
+import { parseMutationError } from "@/src/lib/errors";
 import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQuery } from "convex/react";
 import { router, Stack, useLocalSearchParams } from "expo-router";
@@ -7,6 +9,7 @@ import React, { useEffect, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -17,8 +20,6 @@ import {
 } from "react-native";
 import Animated, { FadeInDown, FadeInRight } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useToast } from "@/src/hooks/useToast";
-import { parseMutationError } from "@/src/lib/errors";
 
 import {
   borderRadius,
@@ -44,6 +45,20 @@ interface Step {
 
 type Difficulty = "easy" | "medium" | "hard" | null;
 
+const UNIT_GROUPS = [
+  {
+    label: "COUNT",
+    units: ["pcs", "pinch", "dash", "clove", "slice", "can", "pkg", "bunch", "to taste"],
+  },
+  {
+    label: "METRIC",
+    units: ["g", "kg", "ml", "l", "tsp", "tbsp", "cup"],
+  },
+  {
+    label: "IMPERIAL",
+    units: ["oz", "lb", "fl oz", "pt", "qt"],
+  },
+];
 
 export default function ManualRecipeScreen() {
   const { recipeId } = useLocalSearchParams<{ recipeId?: string }>();
@@ -64,6 +79,17 @@ export default function ManualRecipeScreen() {
     { id: "1", name: "", amount: "", unit: "g" },
   ]);
 
+  // Sync unit of untouched ingredient rows when user preference loads
+  useEffect(() => {
+    if (isEditMode || !preferredUnits) return;
+    const unit = preferredUnits === "imperial" ? "oz" : "g";
+    setIngredients((prev) =>
+      prev.map((ing) => (ing.name === "" ? { ...ing, unit } : ing))
+    );
+  }, [preferredUnits, isEditMode]);
+  const [unitPickerVisible, setUnitPickerVisible] = useState(false);
+  const [activeUnitIngredientId, setActiveUnitIngredientId] = useState<string | null>(null);
+
   // Step 3: Steps
   const [steps, setSteps] = useState<Step[]>([{ id: "1", instruction: "", tip: "" }]);
 
@@ -79,6 +105,16 @@ export default function ManualRecipeScreen() {
   const [fiber, setFiber] = useState("");
   const [sugar, setSugar] = useState("");
   const [sodium, setSodium] = useState("");
+
+  const currentUser = useQuery(api.users.current);
+  const preferredUnits = currentUser?.preferredUnits ?? null;
+  const defaultUnit = preferredUnits === "imperial" ? "oz" : "g";
+  const filteredUnitGroups = UNIT_GROUPS.filter((group) => {
+    if (group.label === "COUNT") return true;
+    if (group.label === "METRIC") return preferredUnits !== "imperial";
+    if (group.label === "IMPERIAL") return preferredUnits !== "metric";
+    return true;
+  });
 
   const createRecipe = useMutation(api.recipes.createManual);
   const updateRecipe = useMutation(api.recipes.updateManual);
@@ -256,7 +292,7 @@ export default function ManualRecipeScreen() {
   const addIngredient = () => {
     setIngredients([
       ...ingredients,
-      { id: Date.now().toString(), name: "", amount: "", unit: "g" },
+      { id: Date.now().toString(), name: "", amount: "", unit: defaultUnit },
     ]);
   };
 
@@ -270,6 +306,19 @@ export default function ManualRecipeScreen() {
     setIngredients(
       ingredients.map((i) => (i.id === id ? { ...i, [field]: value } : i))
     );
+  };
+
+  const openUnitPicker = (ingredientId: string) => {
+    setActiveUnitIngredientId(ingredientId);
+    setUnitPickerVisible(true);
+  };
+
+  const selectUnit = (unit: string) => {
+    if (activeUnitIngredientId) {
+      updateIngredient(activeUnitIngredientId, "unit", unit);
+    }
+    setUnitPickerVisible(false);
+    setActiveUnitIngredientId(null);
   };
 
   const addStep = () => {
@@ -428,9 +477,19 @@ export default function ManualRecipeScreen() {
                 onChangeText={(v) => updateIngredient(ingredient.id, "amount", v)}
                 keyboardType="decimal-pad"
               />
-              <View style={styles.ingredientUnitLabel}>
-                <Text style={styles.ingredientUnitText}>g</Text>
-              </View>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.ingredientUnitButton,
+                  pressed && styles.ingredientUnitButtonPressed,
+                ]}
+                onPress={() => openUnitPicker(ingredient.id)}
+                testID={`unit-button-${ingredient.id}`}
+              >
+                <Text style={styles.ingredientUnitText} testID={`unit-text-${ingredient.id}`}>
+                  {ingredient.unit || "g"}
+                </Text>
+                <Ionicons name="chevron-down" size={12} color={colors.textSecondary} />
+              </Pressable>
             </View>
           </View>
           <Pressable
@@ -718,6 +777,49 @@ export default function ManualRecipeScreen() {
           )}
         </View>
       </KeyboardAvoidingView>
+
+      {/* Unit picker modal */}
+      <Modal
+        visible={unitPickerVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setUnitPickerVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>SELECT UNIT</Text>
+              <Pressable
+                style={styles.modalCloseButton}
+                onPress={() => setUnitPickerVisible(false)}
+              >
+                <Text style={styles.modalCloseText}>CLOSE</Text>
+              </Pressable>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false} style={styles.modalScroll}>
+              {filteredUnitGroups.map((group) => (
+                <View key={group.label} style={styles.unitGroup}>
+                  <Text style={styles.unitGroupLabel}>{group.label}</Text>
+                  <View style={styles.unitChips}>
+                    {group.units.map((unit) => (
+                      <Pressable
+                        key={unit}
+                        style={({ pressed }) => [
+                          styles.unitChip,
+                          pressed && styles.unitChipPressed,
+                        ]}
+                        onPress={() => selectUnit(unit)}
+                      >
+                        <Text style={styles.unitChipText}>{unit}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -917,20 +1019,105 @@ const styles = StyleSheet.create({
   ingredientAmount: {
     flex: 1,
   },
-  ingredientUnitLabel: {
-    justifyContent: "center",
+  ingredientUnitButton: {
+    flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: spacing.lg,
+    justifyContent: "center",
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
     backgroundColor: colors.surfaceAlt,
     borderWidth: borders.regular,
     borderColor: borders.color,
     borderRadius: borderRadius.md,
   },
+  ingredientUnitButtonPressed: {
+    backgroundColor: colors.primaryLight,
+  },
   ingredientUnitText: {
     fontSize: typography.sizes.md,
     fontWeight: typography.weights.bold,
     color: colors.textSecondary,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  modalSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
+    borderWidth: borders.regular,
+    borderColor: borders.color,
+    maxHeight: "70%",
+    paddingBottom: spacing.xxl,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    borderBottomWidth: borders.thin,
+    borderBottomColor: borders.color,
+  },
+  modalTitle: {
+    fontSize: typography.sizes.md,
+    fontWeight: typography.weights.black,
+    fontStyle: "italic",
+    color: colors.text,
+  },
+  modalCloseButton: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.primary,
+    borderWidth: borders.regular,
+    borderColor: borders.color,
+    borderRadius: borderRadius.sm,
+  },
+  modalCloseText: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.bold,
+    color: colors.text,
+    letterSpacing: typography.letterSpacing.wide,
+  },
+  modalScroll: {
+    padding: spacing.lg,
+  },
+  unitGroup: {
+    marginBottom: spacing.lg,
+  },
+  unitGroupLabel: {
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.bold,
+    color: colors.textSecondary,
+    letterSpacing: typography.letterSpacing.wider,
+    marginBottom: spacing.sm,
+  },
+  unitChips: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
+  unitChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.surface,
+    borderWidth: borders.regular,
+    borderColor: borders.color,
+    borderRadius: borderRadius.sm,
+    ...shadows.sm,
+  },
+  unitChipPressed: {
+    backgroundColor: colors.primary,
+    transform: [{ translateX: 1 }, { translateY: 1 }],
+    ...shadows.pressed,
+  },
+  unitChipText: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.bold,
+    color: colors.text,
   },
   removeButton: {
     width: 36,

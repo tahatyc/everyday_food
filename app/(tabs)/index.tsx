@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "convex/react";
 import { router } from "expo-router";
-import React from "react";
+import React, { useMemo } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -252,8 +252,8 @@ export default function HomeScreen() {
     date: dateInfo.dateStr,
   });
 
-  // Build today's meals from meal plans
-  const buildTodaysMeals = (): TodayMeal[] => {
+  // Build today's meals from meal plans (memoized to avoid recomputation on every render)
+  const todaysMeals = useMemo((): TodayMeal[] => {
     const mealTypes = [
       { type: "breakfast", label: "BREAKFAST", time: "08:30 AM" },
       { type: "lunch", label: "LUNCH", time: "01:00 PM" },
@@ -272,9 +272,7 @@ export default function HomeScreen() {
         recipes: plannedMeals.map((m: any) => m.recipe).filter(Boolean),
       };
     });
-  };
-
-  const todaysMeals = buildTodaysMeals();
+  }, [todaysMealPlans]);
   const recentRecipes = (recentlyViewed || []) as ConvexRecipe[];
   const user = useQuery(api.users.current);
   const displayName = user?.name || "CHEF";

@@ -1,8 +1,8 @@
-import React from 'react';
-import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
-import { Alert } from 'react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { useMutation, useQuery } from 'convex/react';
 import { router, useLocalSearchParams } from 'expo-router';
+import React from 'react';
+import { Alert } from 'react-native';
 import ManualRecipeScreen from '../manual-recipe';
 
 // Mock useToast (Alert spy kept for step validation which still uses Alert.alert)
@@ -52,7 +52,11 @@ beforeEach(() => {
   mockShowError.mockReset();
   mockShowSuccess.mockReset();
   (useLocalSearchParams as jest.Mock).mockReturnValue({});
-  (useQuery as jest.Mock).mockReturnValue(undefined);
+  // Distinguish api.users.current (no args) from api.recipes.getById (has args)
+  (useQuery as jest.Mock).mockImplementation((_queryFn: unknown, args?: unknown) => {
+    if (args === undefined) return undefined; // users.current — no preference
+    return undefined; // recipes.getById — not in edit mode
+  });
   // Cycle between createManual (odd calls) and updateManual (even calls)
   // so re-renders always return the correct mock regardless of render count.
   let mutationCallCount = 0;
@@ -600,10 +604,263 @@ describe('ManualRecipeScreen', () => {
     });
   });
 
+  describe('Ingredient unit selection', () => {
+    const navigateToIngredients = (utils: ReturnType<typeof render>) => {
+      fireEvent.changeText(utils.getByPlaceholderText("e.g., Grandma's Apple Pie"), 'My Recipe');
+      fireEvent.press(utils.getByText('NEXT'));
+    };
+
+    it('shows "g" as default unit for new ingredients', () => {
+      const utils = render(<ManualRecipeScreen />);
+      navigateToIngredients(utils);
+      expect(utils.getByTestId('unit-text-1').props.children).toBe('g');
+    });
+
+    it('unit picker contains metric, imperial, and count groups', () => {
+      const utils = render(<ManualRecipeScreen />);
+      navigateToIngredients(utils);
+      fireEvent.press(utils.getByTestId('unit-button-1'));
+      expect(utils.getByText('SELECT UNIT')).toBeTruthy();
+      expect(utils.getByText('METRIC')).toBeTruthy();
+      expect(utils.getByText('IMPERIAL')).toBeTruthy();
+      expect(utils.getByText('COUNT')).toBeTruthy();
+    });
+
+    it('can select a metric unit (ml)', () => {
+      const utils = render(<ManualRecipeScreen />);
+      navigateToIngredients(utils);
+      fireEvent.press(utils.getByTestId('unit-button-1'));
+      fireEvent.press(utils.getAllByText('ml')[0]);
+      expect(utils.getByTestId('unit-text-1').props.children).toBe('ml');
+    });
+
+    it('can select an imperial unit (oz)', () => {
+      const utils = render(<ManualRecipeScreen />);
+      navigateToIngredients(utils);
+      fireEvent.press(utils.getByTestId('unit-button-1'));
+      fireEvent.press(utils.getAllByText('oz')[0]);
+      expect(utils.getByTestId('unit-text-1').props.children).toBe('oz');
+    });
+
+    it('can select a count unit (pcs)', () => {
+      const utils = render(<ManualRecipeScreen />);
+      navigateToIngredients(utils);
+      fireEvent.press(utils.getByTestId('unit-button-1'));
+      fireEvent.press(utils.getAllByText('pcs')[0]);
+      expect(utils.getByTestId('unit-text-1').props.children).toBe('pcs');
+    });
+
+    it('can select "to taste" unit', () => {
+      const utils = render(<ManualRecipeScreen />);
+      navigateToIngredients(utils);
+      fireEvent.press(utils.getByTestId('unit-button-1'));
+      fireEvent.press(utils.getAllByText('to taste')[0]);
+      expect(utils.getByTestId('unit-text-1').props.children).toBe('to taste');
+    });
+
+    it('submits selected unit in the payload', async () => {
+      mockCreateRecipe.mockResolvedValue({ recipeId: 'recipe-unit' });
+      const utils = render(<ManualRecipeScreen />);
+
+      // Step 1
+      fireEvent.changeText(utils.getByPlaceholderText("e.g., Grandma's Apple Pie"), 'Unit Test Recipe');
+      fireEvent.press(utils.getByText('NEXT'));
+
+      // Step 2: fill ingredient and change unit to ml
+      fireEvent.changeText(utils.getByPlaceholderText('Ingredient name'), 'Water');
+      fireEvent.changeText(utils.getByPlaceholderText('Qty'), '250');
+      fireEvent.press(utils.getByTestId('unit-button-1'));
+      fireEvent.press(utils.getAllByText('ml')[0]);
+      fireEvent.press(utils.getByText('NEXT'));
+
+      // Step 3
+      fireEvent.changeText(utils.getByPlaceholderText('Describe this step...'), 'Add water');
+      fireEvent.press(utils.getByText('NEXT'));
+
+      // Step 4: save
+      fireEvent.press(utils.getByText('SAVE RECIPE'));
+
+      await waitFor(() => {
+        expect(mockCreateRecipe).toHaveBeenCalledWith(
+          expect.objectContaining({
+            ingredients: expect.arrayContaining([
+              expect.objectContaining({ name: 'Water', amount: 250, unit: 'ml' }),
+            ]),
+          })
+        );
+      });
+    });
+
+    it('defaults to "g" unit in submitted payload when not changed', async () => {
+      mockCreateRecipe.mockResolvedValue({ recipeId: 'recipe-default-unit' });
+      const utils = render(<ManualRecipeScreen />);
+
+      fireEvent.changeText(utils.getByPlaceholderText("e.g., Grandma's Apple Pie"), 'Default Unit Recipe');
+      fireEvent.press(utils.getByText('NEXT'));
+      fireEvent.changeText(utils.getByPlaceholderText('Ingredient name'), 'Flour');
+      fireEvent.changeText(utils.getByPlaceholderText('Qty'), '100');
+      fireEvent.press(utils.getByText('NEXT'));
+      fireEvent.changeText(utils.getByPlaceholderText('Describe this step...'), 'Mix');
+      fireEvent.press(utils.getByText('NEXT'));
+      fireEvent.press(utils.getByText('SAVE RECIPE'));
+
+      await waitFor(() => {
+        expect(mockCreateRecipe).toHaveBeenCalledWith(
+          expect.objectContaining({
+            ingredients: expect.arrayContaining([
+              expect.objectContaining({ name: 'Flour', unit: 'g' }),
+            ]),
+          })
+        );
+      });
+    });
+
+    it('can close the unit picker with the CLOSE button', () => {
+      const utils = render(<ManualRecipeScreen />);
+      navigateToIngredients(utils);
+      fireEvent.press(utils.getByTestId('unit-button-1'));
+      // Unit should not have changed
+      expect(utils.getByTestId('unit-text-1').props.children).toBe('g');
+      fireEvent.press(utils.getByText('CLOSE'));
+      // Unit should still be 'g' after closing without selecting
+      expect(utils.getByTestId('unit-text-1').props.children).toBe('g');
+    });
+
+    it('unit picker shows all groups when no preference is set', () => {
+      // Default mock returns undefined for users.current (no preference)
+      const utils = render(<ManualRecipeScreen />);
+      navigateToIngredients(utils);
+      fireEvent.press(utils.getByTestId('unit-button-1'));
+      expect(utils.getByText('METRIC')).toBeTruthy();
+      expect(utils.getByText('IMPERIAL')).toBeTruthy();
+      expect(utils.getByText('COUNT')).toBeTruthy();
+    });
+  });
+
+  describe('Unit preference filtering', () => {
+    const navigateToIngredients = (utils: ReturnType<typeof render>) => {
+      fireEvent.changeText(utils.getByPlaceholderText("e.g., Grandma's Apple Pie"), 'My Recipe');
+      fireEvent.press(utils.getByText('NEXT'));
+    };
+
+    const setupPreference = (preference: 'metric' | 'imperial') => {
+      (useQuery as jest.Mock).mockImplementation((_queryFn: unknown, args?: unknown) => {
+        if (args === undefined) return { preferredUnits: preference };
+        return undefined;
+      });
+    };
+
+    it('hides IMPERIAL group and shows METRIC group for metric users', () => {
+      setupPreference('metric');
+      const utils = render(<ManualRecipeScreen />);
+      navigateToIngredients(utils);
+      fireEvent.press(utils.getByTestId('unit-button-1'));
+      expect(utils.getByText('METRIC')).toBeTruthy();
+      expect(utils.queryByText('IMPERIAL')).toBeNull();
+    });
+
+    it('hides METRIC group and shows IMPERIAL group for imperial users', () => {
+      setupPreference('imperial');
+      const utils = render(<ManualRecipeScreen />);
+      navigateToIngredients(utils);
+      fireEvent.press(utils.getByTestId('unit-button-1'));
+      expect(utils.getByText('IMPERIAL')).toBeTruthy();
+      expect(utils.queryByText('METRIC')).toBeNull();
+    });
+
+    it('always shows COUNT group for metric users', () => {
+      setupPreference('metric');
+      const utils = render(<ManualRecipeScreen />);
+      navigateToIngredients(utils);
+      fireEvent.press(utils.getByTestId('unit-button-1'));
+      expect(utils.getByText('COUNT')).toBeTruthy();
+    });
+
+    it('always shows COUNT group for imperial users', () => {
+      setupPreference('imperial');
+      const utils = render(<ManualRecipeScreen />);
+      navigateToIngredients(utils);
+      fireEvent.press(utils.getByTestId('unit-button-1'));
+      expect(utils.getByText('COUNT')).toBeTruthy();
+    });
+
+    it('metric units (g, kg, ml) are available for metric users', () => {
+      setupPreference('metric');
+      const utils = render(<ManualRecipeScreen />);
+      navigateToIngredients(utils);
+      fireEvent.press(utils.getByTestId('unit-button-1'));
+      expect(utils.getAllByText('g')[0]).toBeTruthy();
+      expect(utils.getAllByText('ml')[0]).toBeTruthy();
+      expect(utils.getAllByText('kg')[0]).toBeTruthy();
+    });
+
+    it('imperial units (oz, lb) are NOT available in the picker for metric users', () => {
+      setupPreference('metric');
+      const utils = render(<ManualRecipeScreen />);
+      navigateToIngredients(utils);
+      fireEvent.press(utils.getByTestId('unit-button-1'));
+      expect(utils.queryByText('oz')).toBeNull();
+      expect(utils.queryByText('lb')).toBeNull();
+    });
+
+    it('imperial units (oz, lb) are available for imperial users', () => {
+      setupPreference('imperial');
+      const utils = render(<ManualRecipeScreen />);
+      navigateToIngredients(utils);
+      fireEvent.press(utils.getByTestId('unit-button-1'));
+      expect(utils.getAllByText('oz')[0]).toBeTruthy();
+      expect(utils.getAllByText('lb')[0]).toBeTruthy();
+    });
+
+    it('metric units (g, kg, ml) are NOT available in the picker for imperial users', () => {
+      setupPreference('imperial');
+      const utils = render(<ManualRecipeScreen />);
+      navigateToIngredients(utils);
+      fireEvent.press(utils.getByTestId('unit-button-1'));
+      expect(utils.queryByText('g')).toBeNull();
+      expect(utils.queryByText('ml')).toBeNull();
+      expect(utils.queryByText('kg')).toBeNull();
+    });
+
+    it('new ingredients added by imperial users default to "oz"', async () => {
+      setupPreference('imperial');
+      const utils = render(<ManualRecipeScreen />);
+      navigateToIngredients(utils);
+      fireEvent.press(utils.getByText('ADD INGREDIENT'));
+      // The second ingredient's id is Date.now().toString() — find by querying all unit texts
+      await waitFor(() => {
+        const unitTexts = utils.getAllByText('oz');
+        expect(unitTexts.length).toBeGreaterThanOrEqual(1);
+      });
+    });
+
+    it('initial ingredient syncs to "oz" for imperial users', async () => {
+      setupPreference('imperial');
+      const utils = render(<ManualRecipeScreen />);
+      navigateToIngredients(utils);
+      await waitFor(() => {
+        expect(utils.getByTestId('unit-text-1').props.children).toBe('oz');
+      });
+    });
+
+    it('initial ingredient stays "g" for metric users', async () => {
+      setupPreference('metric');
+      const utils = render(<ManualRecipeScreen />);
+      navigateToIngredients(utils);
+      await waitFor(() => {
+        expect(utils.getByTestId('unit-text-1').props.children).toBe('g');
+      });
+    });
+  });
+
   describe('Edit mode', () => {
     beforeEach(() => {
       (useLocalSearchParams as jest.Mock).mockReturnValue({ recipeId: 'recipe1' });
-      (useQuery as jest.Mock).mockReturnValue(mockExistingRecipe);
+      // users.current has no args; recipes.getById has args
+      (useQuery as jest.Mock).mockImplementation((_queryFn: unknown, args?: unknown) => {
+        if (args === undefined) return undefined; // users.current — no preference in edit mode
+        return mockExistingRecipe; // recipes.getById
+      });
     });
 
     it('pre-fills title from existing recipe', async () => {

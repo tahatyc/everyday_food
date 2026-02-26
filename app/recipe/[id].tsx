@@ -125,23 +125,17 @@ export default function RecipeDetailScreen() {
   const recordViewMutation = useMutation(api.recipes.recordView);
   const deleteRecipeMutation = useMutation(api.recipes.deleteRecipe);
 
-  // Get favorite state from recipe
-  const [isFavorite, setIsFavorite] = useState(false);
   const { showSuccess, showError } = useToast();
 
-  // Update favorite state and record view when recipe loads
-  useEffect(() => {
-    if (recipe) {
-      setIsFavorite(recipe.isFavorite || false);
-    }
-  }, [recipe]);
+  // Derive favorite state directly from the live Convex query
+  const isFavorite = recipe?.isFavorite || false;
 
   // Record view when recipe is first loaded
   useEffect(() => {
     if (id) {
       recordViewMutation({ recipeId: id as Id<"recipes"> }).catch(() => {});
     }
-  }, [id]);
+  }, [id, recordViewMutation]);
 
   // Loading state
   if (recipe === undefined) {
@@ -188,8 +182,7 @@ export default function RecipeDetailScreen() {
       const mutation = recipe.isGlobal
         ? toggleGlobalFavoriteMutation
         : toggleFavoriteMutation;
-      const result = await mutation({ recipeId: recipe._id });
-      setIsFavorite(result.isFavorite);
+      await mutation({ recipeId: recipe._id });
     } catch {
       showError("Failed to update favorite status.");
     }

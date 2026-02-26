@@ -105,23 +105,12 @@ export const list = query({
 
     const typedRecipes = recipes as any[];
 
-    // If limit specified, slice the results
+    // Apply limit BEFORE expansion to avoid unnecessary DB queries
     const limitedRecipes = args.limit ? typedRecipes.slice(0, args.limit) : typedRecipes;
 
-    // Fetch ingredients and steps for each recipe
-    const recipesWithDetails = await Promise.all(
+    // Only fetch tags for each recipe (ingredients & steps are only needed in getById)
+    const recipesWithTags = await Promise.all(
       limitedRecipes.map(async (recipe) => {
-        const ingredients = await ctx.db
-          .query("ingredients")
-          .withIndex("by_recipe", (q) => q.eq("recipeId", recipe._id))
-          .collect();
-
-        const steps = await ctx.db
-          .query("steps")
-          .withIndex("by_recipe", (q) => q.eq("recipeId", recipe._id))
-          .collect();
-
-        // Get recipe tags
         const recipeTags = await ctx.db
           .query("recipeTags")
           .withIndex("by_recipe", (q) => q.eq("recipeId", recipe._id))
@@ -136,14 +125,12 @@ export const list = query({
 
         return {
           ...recipe,
-          ingredients: ingredients.sort((a, b) => a.sortOrder - b.sortOrder),
-          steps: steps.sort((a, b) => a.stepNumber - b.stepNumber),
           tags: tags.filter(Boolean),
         };
       })
     );
 
-    return recipesWithDetails;
+    return recipesWithTags;
   },
 });
 
@@ -272,20 +259,9 @@ export const getFavorites = query({
       ...globalFavorites.filter((r) => !seenIds.has(r._id)),
     ];
 
-    // Fetch ingredients, steps, and tags for each recipe
-    const recipesWithDetails = await Promise.all(
+    // Only fetch tags for each recipe (ingredients & steps are only needed in getById)
+    const recipesWithTags = await Promise.all(
       recipes.map(async (recipe) => {
-        const ingredients = await ctx.db
-          .query("ingredients")
-          .withIndex("by_recipe", (q) => q.eq("recipeId", recipe._id))
-          .collect();
-
-        const steps = await ctx.db
-          .query("steps")
-          .withIndex("by_recipe", (q) => q.eq("recipeId", recipe._id))
-          .collect();
-
-        // Get recipe tags
         const recipeTags = await ctx.db
           .query("recipeTags")
           .withIndex("by_recipe", (q) => q.eq("recipeId", recipe._id))
@@ -301,14 +277,12 @@ export const getFavorites = query({
         return {
           ...recipe,
           isFavorite: true as const,
-          ingredients: ingredients.sort((a, b) => a.sortOrder - b.sortOrder),
-          steps: steps.sort((a, b) => a.stepNumber - b.stepNumber),
           tags: tags.filter(Boolean),
         };
       })
     );
 
-    return recipesWithDetails;
+    return recipesWithTags;
   },
 });
 

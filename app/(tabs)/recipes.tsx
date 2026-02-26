@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQuery } from "convex/react";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -68,18 +68,8 @@ const DEFAULT_FILTERS: RecipeFilters = {
 };
 
 // Recipe list item component
-function RecipeListItem({ recipe }: { recipe: ConvexRecipe }) {
+function RecipeListItem({ recipe, onToggleFavorite }: { recipe: ConvexRecipe; onToggleFavorite: (recipe: ConvexRecipe) => void }) {
   const totalTime = (recipe.prepTime || 0) + (recipe.cookTime || 0);
-  const toggleFavorite = useMutation(api.recipes.toggleFavorite);
-  const toggleGlobalFavorite = useMutation(api.recipes.toggleGlobalRecipeFavorite);
-
-  const handleToggleFavorite = () => {
-    if (recipe.isGlobal) {
-      toggleGlobalFavorite({ recipeId: recipe._id });
-    } else {
-      toggleFavorite({ recipeId: recipe._id });
-    }
-  };
 
   const getMealType = () => {
     const mealTypes = ["breakfast", "lunch", "dinner", "snack"];
@@ -155,7 +145,7 @@ function RecipeListItem({ recipe }: { recipe: ConvexRecipe }) {
           styles.favoriteButton,
           pressed && styles.favoriteButtonPressed,
         ]}
-        onPress={handleToggleFavorite}
+        onPress={() => onToggleFavorite(recipe)}
         hitSlop={8}
       >
         <Ionicons
@@ -216,6 +206,17 @@ export default function RecipesScreen() {
   const { filter } = useLocalSearchParams<{ filter?: string }>();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState(filter || "all");
+
+  // Mutations lifted from RecipeListItem to avoid per-item hook registrations
+  const toggleFavorite = useMutation(api.recipes.toggleFavorite);
+  const toggleGlobalFavorite = useMutation(api.recipes.toggleGlobalRecipeFavorite);
+  const handleToggleFavorite = useCallback((recipe: ConvexRecipe) => {
+    if (recipe.isGlobal) {
+      toggleGlobalFavorite({ recipeId: recipe._id });
+    } else {
+      toggleFavorite({ recipeId: recipe._id });
+    }
+  }, [toggleFavorite, toggleGlobalFavorite]);
 
   useEffect(() => {
     if (filter) {
@@ -322,8 +323,8 @@ export default function RecipesScreen() {
     });
   };
 
-  // Filter recipes based on active tab filter
-  const getBaseFilteredRecipes = (): ConvexRecipe[] => {
+  // Filter recipes based on active tab filter (memoized to avoid duplicate computation)
+  const baseRecipes = useMemo((): ConvexRecipe[] => {
     if (searchQuery && searchResults) {
       return searchResults as ConvexRecipe[];
     }
@@ -354,23 +355,21 @@ export default function RecipesScreen() {
     return (allRecipes as ConvexRecipe[]).filter((r) =>
       r.tags?.some((t: string) => t.toLowerCase() === activeFilter)
     );
-  };
+  }, [searchQuery, searchResults, allRecipes, activeFilter, favoriteRecipes]);
 
-  const baseRecipes = getBaseFilteredRecipes();
   const filteredRecipes = applyAdvancedFilters(baseRecipes);
 
-  // Preview count for pending filters in the sheet
+  // Preview count for pending filters in the sheet (uses memoized baseRecipes)
   const pendingFilteredCount = useMemo(() => {
-    const base = getBaseFilteredRecipes();
     const pendingCount =
       (pendingFilters.cookTime !== null ? 1 : 0) +
       pendingFilters.difficulty.length +
       pendingFilters.cuisine.length +
       pendingFilters.dietary.length;
 
-    if (pendingCount === 0) return base.length;
+    if (pendingCount === 0) return baseRecipes.length;
 
-    return base.filter((recipe) => {
+    return baseRecipes.filter((recipe) => {
       if (pendingFilters.cookTime !== null) {
         const totalTime = (recipe.prepTime || 0) + (recipe.cookTime || 0);
         if (totalTime > pendingFilters.cookTime) return false;
@@ -390,7 +389,7 @@ export default function RecipesScreen() {
       }
       return true;
     }).length;
-  }, [pendingFilters, allRecipes, searchResults, favoriteRecipes, activeFilter, searchQuery]);
+  }, [pendingFilters, baseRecipes]);
 
   // Toggle a value in a multi-select array
   const togglePendingMultiSelect = (
@@ -494,7 +493,7 @@ export default function RecipesScreen() {
       <FlatList
         data={filteredRecipes}
         keyExtractor={(item) => item._id}
-        renderItem={({ item }) => <RecipeListItem recipe={item} />}
+        renderItem={({ item }) => <RecipeListItem recipe={item} onToggleFavorite={handleToggleFavorite} />}
         contentContainerStyle={styles.recipeList}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={

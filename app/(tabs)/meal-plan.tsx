@@ -344,14 +344,17 @@ export default function MealPlanScreen() {
     weekStartDate ? { weekStartDate } : "skip"
   );
 
-  // Fetch all recipes for random generation
-  const allRecipes = useQuery(api.recipes.list, { includeGlobal: true });
+  // Defer loading all recipes until primary meal plan data is available
+  const allRecipes = useQuery(
+    api.recipes.list,
+    mealPlansData !== undefined ? { includeGlobal: true } : "skip"
+  );
   const addMealMutation = useMutation(api.mealPlans.addMeal);
   const removeMealMutation = useMutation(api.mealPlans.removeMeal);
   const changeMealMutation = useMutation(api.mealPlans.changeMeal);
 
-  // Build meal plan object from Convex data
-  const getMealPlan = (): DayMealPlan => {
+  // Build meal plan object from Convex data (memoized)
+  const mealPlan = useMemo((): DayMealPlan => {
     const plan: DayMealPlan = {
       breakfast: [],
       lunch: [],
@@ -372,9 +375,7 @@ export default function MealPlanScreen() {
     }
 
     return plan;
-  };
-
-  const mealPlan = getMealPlan();
+  }, [mealPlansData]);
 
   const { showSuccess, showError } = useToast();
 
