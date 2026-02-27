@@ -1,5 +1,5 @@
 import { query, mutation } from "./_generated/server";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import {
   getCurrentUserId,
   getCurrentUserIdOrNull,
@@ -9,6 +9,7 @@ import {
 } from "./lib/accessControl";
 import { enrichRecipesWithTags, getTagsForRecipe } from "./lib/recipeHelpers";
 import { validateRecipeInput, validateStringLength } from "./lib/validation";
+import { rateLimiter } from "./lib/rateLimiter";
 import { Doc } from "./_generated/dataModel";
 
 // Get all recipes for current user
@@ -375,6 +376,18 @@ export const createManual = mutation({
 
     // Get authenticated user
     const userId = await getCurrentUserId(ctx);
+
+    // Rate limit recipe creation
+    const { ok, retryAfter } = await rateLimiter.limit(ctx, "createRecipe", {
+      key: userId,
+    });
+    if (!ok) {
+      throw new ConvexError({
+        code: "RATE_LIMITED",
+        message: "Too many recipes created. Please try again later.",
+        retryAfter,
+      });
+    }
 
     // Calculate total time
     const totalTime =

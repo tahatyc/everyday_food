@@ -1,6 +1,7 @@
 import { query, mutation } from "./_generated/server";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { getCurrentUserId, getCurrentUserIdOrNull } from "./lib/accessControl";
+import { rateLimiter } from "./lib/rateLimiter";
 
 // Get accepted friends for current user
 export const list = query({
@@ -193,6 +194,20 @@ export const sendRequest = mutation({
   args: { friendId: v.id("users") },
   handler: async (ctx, args) => {
     const userId = await getCurrentUserId(ctx);
+
+    // Rate limit friend requests
+    const { ok, retryAfter } = await rateLimiter.limit(
+      ctx,
+      "sendFriendRequest",
+      { key: userId }
+    );
+    if (!ok) {
+      throw new ConvexError({
+        code: "RATE_LIMITED",
+        message: "Too many friend requests. Please try again later.",
+        retryAfter,
+      });
+    }
 
     // Can't friend yourself
     if (userId === args.friendId) {

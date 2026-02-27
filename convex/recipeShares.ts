@@ -1,7 +1,8 @@
 import { query, mutation } from "./_generated/server";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { getCurrentUserId, getCurrentUserIdOrNull } from "./lib/accessControl";
 import { getTagsForRecipe } from "./lib/recipeHelpers";
+import { rateLimiter } from "./lib/rateLimiter";
 
 // Get users a recipe is shared with (owner only)
 export const getSharedWith = query({
@@ -153,6 +154,18 @@ export const share = mutation({
   handler: async (ctx, args) => {
     const userId = await getCurrentUserId(ctx);
 
+    // Rate limit sharing
+    const { ok, retryAfter } = await rateLimiter.limit(ctx, "shareRecipe", {
+      key: userId,
+    });
+    if (!ok) {
+      throw new ConvexError({
+        code: "RATE_LIMITED",
+        message: "Too many shares. Please try again later.",
+        retryAfter,
+      });
+    }
+
     // Check ownership
     const recipe = await ctx.db.get(args.recipeId);
     if (!recipe) {
@@ -209,6 +222,19 @@ export const shareWithMultiple = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await getCurrentUserId(ctx);
+
+    // Rate limit sharing (count each friend as one share)
+    const { ok, retryAfter } = await rateLimiter.limit(ctx, "shareRecipe", {
+      key: userId,
+      count: args.friendIds.length,
+    });
+    if (!ok) {
+      throw new ConvexError({
+        code: "RATE_LIMITED",
+        message: "Too many shares. Please try again later.",
+        retryAfter,
+      });
+    }
 
     // Check ownership
     const recipe = await ctx.db.get(args.recipeId);
