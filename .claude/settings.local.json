@@ -33,7 +33,8 @@
       "Bash(taskkill:*)",
       "Bash(node -e:*)",
       "Bash(git stash:*)",
-      "Bash(wc -l app/**/*.tsx convex/*.ts src/**/*.ts src/**/*.tsx)"
+      "Bash(wc -l app/**/*.tsx convex/*.ts src/**/*.ts src/**/*.tsx)",
+      "Bash(head -20 grep -rn \"EXPO_PUBLIC\\\\|process\\\\.env\" /d/xamp/htdocs/everyday_food/app/)"
     ]
   }
 }

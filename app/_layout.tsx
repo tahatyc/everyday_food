@@ -72,6 +72,15 @@ function RootLayoutNav() {
     }
   }, [isAuthenticated, isLoading, segments]);
 
+  // Prevent rendering protected screens while auth state is resolving
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <StatusBar style="dark" />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
@@ -165,6 +174,10 @@ function RootLayoutNav() {
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  loadingContainer: {
     flex: 1,
     backgroundColor: colors.background,
   },

@@ -76,8 +76,8 @@ describe('RegisterScreen', () => {
 
     fireEvent.changeText(getByPlaceholderText('Your name'), 'John');
     fireEvent.changeText(getByPlaceholderText('you@example.com'), 'john@test.com');
-    fireEvent.changeText(getByPlaceholderText('Create a password'), 'password123');
-    fireEvent.changeText(getByPlaceholderText('Confirm your password'), 'different123');
+    fireEvent.changeText(getByPlaceholderText('Create a password'), 'Password123');
+    fireEvent.changeText(getByPlaceholderText('Confirm your password'), 'Different123');
 
     const buttons = getAllByText('Create Account');
     fireEvent.press(buttons[buttons.length - 1]);
@@ -110,8 +110,8 @@ describe('RegisterScreen', () => {
 
     fireEvent.changeText(getByPlaceholderText('Your name'), 'John Doe');
     fireEvent.changeText(getByPlaceholderText('you@example.com'), 'john@test.com');
-    fireEvent.changeText(getByPlaceholderText('Create a password'), 'password123');
-    fireEvent.changeText(getByPlaceholderText('Confirm your password'), 'password123');
+    fireEvent.changeText(getByPlaceholderText('Create a password'), 'Password123');
+    fireEvent.changeText(getByPlaceholderText('Confirm your password'), 'Password123');
 
     const buttons = getAllByText('Create Account');
     fireEvent.press(buttons[buttons.length - 1]);
@@ -119,7 +119,7 @@ describe('RegisterScreen', () => {
     await waitFor(() => {
       expect(mockSignIn).toHaveBeenCalledWith('password', {
         email: 'john@test.com',
-        password: 'password123',
+        password: 'Password123',
         name: 'John Doe',
         flow: 'signUp',
       });
@@ -133,8 +133,8 @@ describe('RegisterScreen', () => {
 
     fireEvent.changeText(getByPlaceholderText('Your name'), 'John Doe');
     fireEvent.changeText(getByPlaceholderText('you@example.com'), 'john@test.com');
-    fireEvent.changeText(getByPlaceholderText('Create a password'), 'password123');
-    fireEvent.changeText(getByPlaceholderText('Confirm your password'), 'password123');
+    fireEvent.changeText(getByPlaceholderText('Create a password'), 'Password123');
+    fireEvent.changeText(getByPlaceholderText('Confirm your password'), 'Password123');
 
     const buttons = getAllByText('Create Account');
     fireEvent.press(buttons[buttons.length - 1]);
@@ -151,8 +151,8 @@ describe('RegisterScreen', () => {
 
     fireEvent.changeText(getByPlaceholderText('Your name'), 'John');
     fireEvent.changeText(getByPlaceholderText('you@example.com'), 'j@t.com');
-    fireEvent.changeText(getByPlaceholderText('Create a password'), 'password123');
-    fireEvent.changeText(getByPlaceholderText('Confirm your password'), 'password123');
+    fireEvent.changeText(getByPlaceholderText('Create a password'), 'Password123');
+    fireEvent.changeText(getByPlaceholderText('Confirm your password'), 'Password123');
 
     const buttons = getAllByText('Create Account');
     fireEvent.press(buttons[buttons.length - 1]);
@@ -174,7 +174,7 @@ describe('RegisterScreen', () => {
 
   it('shows helper text for password', () => {
     const { getByText } = render(<RegisterScreen />);
-    expect(getByText('At least 8 characters')).toBeTruthy();
+    expect(getByText('At least 8 characters with uppercase, lowercase, and number')).toBeTruthy();
   });
 
   it('renders the logo emoji', () => {

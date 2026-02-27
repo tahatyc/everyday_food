@@ -1,6 +1,8 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { getCurrentUserId, getCurrentUserIdOrNull, canAccessShoppingList, canAccessShoppingItem } from "./lib/accessControl";
+import { canReadRecipe } from "./lib/accessControl";
+import { validateStringLength, validateDateString, validateNumberRange } from "./lib/validation";
 
 // Aisle mapping based on ingredient name keywords
 const aisleMap: [string, string[]][] = [
@@ -213,6 +215,10 @@ export const addItem = mutation({
     listId: v.optional(v.id("shoppingLists")),
   },
   handler: async (ctx, args) => {
+    validateStringLength(args.name, "name", 200);
+    validateStringLength(args.unit, "unit", 50);
+    validateStringLength(args.aisle, "aisle", 100);
+    validateNumberRange(args.amount, "amount", 0, 10000);
     const userId = await getCurrentUserId(ctx);
     const now = Date.now();
 
@@ -295,6 +301,10 @@ export const addRecipeIngredients = mutation({
 
     const recipe = await ctx.db.get(args.recipeId);
     if (!recipe) throw new Error("Recipe not found");
+
+    // Verify the user can read this recipe before exposing its ingredients
+    const hasAccess = await canReadRecipe(ctx, args.recipeId, userId);
+    if (!hasAccess) throw new Error("Not authorized to access this recipe");
 
     // Get ingredients
     const ingredients = await ctx.db
@@ -440,6 +450,7 @@ export const clearChecked = mutation({
 export const create = mutation({
   args: { name: v.string() },
   handler: async (ctx, args) => {
+    validateStringLength(args.name, "name", 100);
     const userId = await getCurrentUserId(ctx);
 
     const now = Date.now();
@@ -552,6 +563,8 @@ export const createForWeek = mutation({
     weekEndDate: v.string(),
   },
   handler: async (ctx, args) => {
+    validateDateString(args.weekStartDate, "weekStartDate");
+    validateDateString(args.weekEndDate, "weekEndDate");
     const userId = await getCurrentUserId(ctx);
 
     // Guard against duplicates

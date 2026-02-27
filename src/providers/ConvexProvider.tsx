@@ -4,8 +4,12 @@ import React, { ReactNode } from "react";
 import { convexAsyncStorage } from "./convexStorage";
 
 // Initialize Convex client
-// In production, this URL comes from environment variables
-const convexUrl = process.env.EXPO_PUBLIC_CONVEX_URL || "";
+const convexUrl = process.env.EXPO_PUBLIC_CONVEX_URL;
+if (!convexUrl) {
+  throw new Error(
+    "EXPO_PUBLIC_CONVEX_URL is not set. Check your .env.local file."
+  );
+}
 
 const convex = new ConvexReactClient(convexUrl);
 

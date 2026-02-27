@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { validateStringLength, validateUrl, validateNumberRange, validateArrayLength } from "./lib/validation";
 
 // Get current authenticated user
 export const current = query({
@@ -10,7 +11,11 @@ export const current = query({
     if (!userId) {
       return null;
     }
-    return await ctx.db.get(userId);
+    const user = await ctx.db.get(userId);
+    if (!user) return null;
+    // Strip internal fields from the client response
+    const { tokenIdentifier, ...safeUser } = user;
+    return safeUser;
   },
 });
 
@@ -28,7 +33,8 @@ export const getOrCreateProfile = mutation({
 
     const existingUser = await ctx.db.get(userId);
     if (existingUser) {
-      return existingUser;
+      const { tokenIdentifier, ...safeUser } = existingUser;
+      return safeUser;
     }
 
     // Create new user profile
@@ -43,7 +49,10 @@ export const getOrCreateProfile = mutation({
       defaultServings: 4,
     });
 
-    return await ctx.db.get(newUserId);
+    const newUser = await ctx.db.get(newUserId);
+    if (!newUser) return null;
+    const { tokenIdentifier: _, ...safeNewUser } = newUser;
+    return safeNewUser;
   },
 });
 
@@ -98,6 +107,18 @@ export const updateProfile = mutation({
     weekStartDay: v.optional(v.union(v.literal("monday"), v.literal("sunday"))),
   },
   handler: async (ctx, args) => {
+    validateStringLength(args.name, "name", 100);
+    validateStringLength(args.email, "email", 254);
+    validateStringLength(args.bio, "bio", 500);
+    validateUrl(args.imageUrl, "imageUrl");
+    validateNumberRange(args.defaultServings, "defaultServings", 1, 100);
+    if (args.dietaryPreferences) {
+      validateArrayLength(args.dietaryPreferences, "dietaryPreferences", 20);
+      for (const pref of args.dietaryPreferences) {
+        validateStringLength(pref, "dietary preference", 50);
+      }
+    }
+
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new Error("Not authenticated");
@@ -113,6 +134,9 @@ export const updateProfile = mutation({
       updatedAt: Date.now(),
     });
 
-    return await ctx.db.get(userId);
+    const updated = await ctx.db.get(userId);
+    if (!updated) return null;
+    const { tokenIdentifier, ...safeUser } = updated;
+    return safeUser;
   },
 });

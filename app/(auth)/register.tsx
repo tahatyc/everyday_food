@@ -45,8 +45,13 @@ export default function RegisterScreen() {
 
     if (!name) { setNameError("Name is required"); return; }
     if (!email) { setEmailError("Email is required"); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setEmailError("Please enter a valid email address"); return; }
     if (!password) { setPasswordError("Password is required"); return; }
     if (password.length < 8) { setPasswordError("Password must be at least 8 characters"); return; }
+    if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
+      setPasswordError("Password must include uppercase, lowercase, and a number");
+      return;
+    }
     if (!confirmPassword) { setConfirmPasswordError("Please confirm your password"); return; }
     if (password !== confirmPassword) { setConfirmPasswordError("Passwords do not match"); return; }
 
@@ -113,7 +118,7 @@ export default function RegisterScreen() {
             leftIcon="lock-closed-outline"
             rightIcon={showPassword ? "eye-off-outline" : "eye-outline"}
             onRightIconPress={() => setShowPassword(!showPassword)}
-            helperText={!passwordError ? "At least 8 characters" : undefined}
+            helperText={!passwordError ? "At least 8 characters with uppercase, lowercase, and number" : undefined}
             error={passwordError}
           />
 

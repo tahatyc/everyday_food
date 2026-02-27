@@ -8,6 +8,7 @@ import {
   canDeleteRecipe,
 } from "./lib/accessControl";
 import { enrichRecipesWithTags, getTagsForRecipe } from "./lib/recipeHelpers";
+import { validateRecipeInput, validateStringLength } from "./lib/validation";
 import { Doc } from "./_generated/dataModel";
 
 // Get all recipes for current user
@@ -106,7 +107,8 @@ export const list = query({
     }
 
     // Apply limit BEFORE expansion to avoid unnecessary DB queries
-    const limitedRecipes = args.limit ? recipes.slice(0, args.limit) : recipes;
+    const cappedLimit = args.limit ? Math.min(args.limit, 100) : 100;
+    const limitedRecipes = recipes.slice(0, cappedLimit);
 
     // Only fetch tags for each recipe (ingredients & steps are only needed in getById)
     return enrichRecipesWithTags(ctx, limitedRecipes);
@@ -359,6 +361,16 @@ export const createManual = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    validateRecipeInput(args);
+    for (const ing of args.ingredients) {
+      validateStringLength(ing.name, "ingredient name", 200);
+      validateStringLength(ing.preparation, "ingredient preparation", 500);
+    }
+    for (const step of args.steps) {
+      validateStringLength(step.instruction, "step instruction", 5000);
+      validateStringLength(step.tips, "step tips", 1000);
+    }
+
     const now = Date.now();
 
     // Get authenticated user
@@ -462,6 +474,16 @@ export const updateManual = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    validateRecipeInput(args);
+    for (const ing of args.ingredients) {
+      validateStringLength(ing.name, "ingredient name", 200);
+      validateStringLength(ing.preparation, "ingredient preparation", 500);
+    }
+    for (const step of args.steps) {
+      validateStringLength(step.instruction, "step instruction", 5000);
+      validateStringLength(step.tips, "step tips", 1000);
+    }
+
     const userId = await getCurrentUserId(ctx);
     const canModify = await canModifyRecipe(ctx, args.recipeId, userId);
     if (!canModify) throw new Error("Not authorized to edit this recipe");
@@ -606,7 +628,7 @@ export const getRecentlyViewed = query({
     const userId = await getCurrentUserIdOrNull(ctx);
     if (!userId) return [];
 
-    const limit = args.limit || 10;
+    const limit = Math.min(args.limit || 10, 50);
 
     // Get interactions with lastViewedAt, ordered desc
     const interactions = await ctx.db

@@ -557,13 +557,7 @@ export const seedDatabase = mutation({
 export const clearUserData = mutation({
   args: {},
   handler: async (ctx) => {
-    await getCurrentUserId(ctx);
-    const users = await ctx.db.query("users").collect();
-    if (users.length === 0) {
-      return { success: false, message: "No users found" };
-    }
-
-    const userId = users[0]._id;
+    const userId = await getCurrentUserId(ctx);
 
     // Delete in order to respect foreign keys
     const recipes = await ctx.db.query("recipes").withIndex("by_user", (q) => q.eq("userId", userId)).collect();

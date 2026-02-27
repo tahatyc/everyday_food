@@ -1,12 +1,14 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { getCurrentUserId, getCurrentUserIdOrNull, canAccessMealPlan } from "./lib/accessControl";
+import { getCurrentUserId, getCurrentUserIdOrNull, canAccessMealPlan, canReadRecipe } from "./lib/accessControl";
 import { getTagsForRecipe } from "./lib/recipeHelpers";
+import { validateDateString, validateNumberRange } from "./lib/validation";
 
 // Get meal plans for a specific date
 export const getByDate = query({
   args: { date: v.string() },
   handler: async (ctx, args) => {
+    validateDateString(args.date, "date");
     const userId = await getCurrentUserIdOrNull(ctx);
     if (!userId) return [];
 
@@ -45,6 +47,8 @@ export const getByDateRange = query({
     endDate: v.string(),
   },
   handler: async (ctx, args) => {
+    validateDateString(args.startDate, "startDate");
+    validateDateString(args.endDate, "endDate");
     const userId = await getCurrentUserIdOrNull(ctx);
     if (!userId) return [];
 
@@ -91,7 +95,13 @@ export const addMeal = mutation({
     servings: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    validateDateString(args.date, "date");
+    validateNumberRange(args.servings, "servings", 1, 100);
     const userId = await getCurrentUserId(ctx);
+
+    // Verify the user can access the recipe being added
+    const hasRecipeAccess = await canReadRecipe(ctx, args.recipeId, userId);
+    if (!hasRecipeAccess) throw new Error("Not authorized to access this recipe");
 
     // Check cap: max 3 meals per slot
     const existing = await ctx.db

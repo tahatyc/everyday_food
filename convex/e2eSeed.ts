@@ -1,20 +1,25 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { getCurrentUserId } from "./lib/accessControl";
 
 /**
  * E2E Test Support Mutations
- * These are used by Playwright tests for database seeding and cleanup
+ * These are used by Playwright tests for database seeding and cleanup.
+ * All handlers require authentication and are restricted to the known
+ * test-user email to prevent misuse in production.
  */
 
 // E2E test user credentials (must match e2e/fixtures/auth.fixture.ts)
 const E2E_TEST_USER_EMAIL = "test@example.com";
 
 /**
- * Check if E2E test user exists
+ * Check if E2E test user exists (requires authentication)
  */
 export const checkE2ETestUser = query({
   args: {},
   handler: async (ctx) => {
+    await getCurrentUserId(ctx);
+
     const user = await ctx.db
       .query("users")
       .withIndex("by_email", (q) => q.eq("email", E2E_TEST_USER_EMAIL))
@@ -34,6 +39,8 @@ export const checkE2ETestUser = query({
 export const clearE2ETestUser = mutation({
   args: {},
   handler: async (ctx) => {
+    await getCurrentUserId(ctx);
+
     const user = await ctx.db
       .query("users")
       .withIndex("by_email", (q) => q.eq("email", E2E_TEST_USER_EMAIL))
@@ -211,6 +218,8 @@ export const clearE2ETestUser = mutation({
 export const seedE2ETestData = mutation({
   args: {},
   handler: async (ctx) => {
+    await getCurrentUserId(ctx);
+
     const user = await ctx.db
       .query("users")
       .withIndex("by_email", (q) => q.eq("email", E2E_TEST_USER_EMAIL))
