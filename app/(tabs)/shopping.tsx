@@ -137,6 +137,7 @@ export default function ShoppingScreen() {
             icon="add"
             variant="primary"
             onPress={() => setShowAddInput(true)}
+            accessibilityLabel="Add shopping item"
           />
         </View>
       </View>

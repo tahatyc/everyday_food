@@ -61,8 +61,9 @@ export default function ShareRecipeModal({
       }
       setSelectedFriends(new Set());
       Alert.alert("Success", "Recipe shared successfully!");
-    } catch (error: any) {
-      Alert.alert("Error", error.message || "Failed to share recipe");
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to share recipe";
+      Alert.alert("Error", message);
     } finally {
       setIsSharing(false);
     }
@@ -71,8 +72,9 @@ export default function ShareRecipeModal({
   const handleUnshare = async (userId: Id<"users">) => {
     try {
       await unshare({ recipeId, userId });
-    } catch (error: any) {
-      Alert.alert("Error", error.message || "Failed to revoke access");
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to revoke access";
+      Alert.alert("Error", message);
     }
   };
 

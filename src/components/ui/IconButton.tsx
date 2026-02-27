@@ -9,6 +9,7 @@ type IconButtonSize = "sm" | "md" | "lg";
 interface IconButtonProps {
   icon: keyof typeof Ionicons.glyphMap;
   onPress: () => void;
+  accessibilityLabel: string;
   variant?: IconButtonVariant;
   size?: IconButtonSize;
   disabled?: boolean;
@@ -43,6 +44,7 @@ const variantStyles: Record<IconButtonVariant, ViewStyle> = {
 export function IconButton({
   icon,
   onPress,
+  accessibilityLabel,
   variant = "default",
   size = "md",
   disabled = false,
@@ -56,6 +58,9 @@ export function IconButton({
     <Pressable
       onPress={onPress}
       disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ disabled }}
       style={({ pressed }) => [
         styles.base,
         {

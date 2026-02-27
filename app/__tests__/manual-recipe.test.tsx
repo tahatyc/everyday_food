@@ -3,7 +3,20 @@ import { useMutation, useQuery } from 'convex/react';
 import { router, useLocalSearchParams } from 'expo-router';
 import React from 'react';
 import { Alert } from 'react-native';
+import { api } from '../../convex/_generated/api';
 import ManualRecipeScreen from '../manual-recipe';
+
+// Mock Convex API with stable references (anyApi uses Proxy, creating new objects on each access)
+jest.mock('../../convex/_generated/api', () => ({
+  api: {
+    users: { current: Symbol('users.current') },
+    recipes: {
+      getById: Symbol('recipes.getById'),
+      createManual: Symbol('recipes.createManual'),
+      updateManual: Symbol('recipes.updateManual'),
+    },
+  },
+}));
 
 // Mock useToast (Alert spy kept for step validation which still uses Alert.alert)
 const mockShowError = jest.fn();
@@ -52,17 +65,16 @@ beforeEach(() => {
   mockShowError.mockReset();
   mockShowSuccess.mockReset();
   (useLocalSearchParams as jest.Mock).mockReturnValue({});
-  // Distinguish api.users.current (no args) from api.recipes.getById (has args)
-  (useQuery as jest.Mock).mockImplementation((_queryFn: unknown, args?: unknown) => {
-    if (args === undefined) return undefined; // users.current — no preference
-    return undefined; // recipes.getById — not in edit mode
+  // Match by API function reference instead of call count cycling
+  (useQuery as jest.Mock).mockImplementation((queryFn: unknown, args?: unknown) => {
+    if (queryFn === api.users.current) return undefined; // no preference
+    if (queryFn === api.recipes.getById) return undefined; // not in edit mode
+    return undefined;
   });
-  // Cycle between createManual (odd calls) and updateManual (even calls)
-  // so re-renders always return the correct mock regardless of render count.
-  let mutationCallCount = 0;
-  (useMutation as jest.Mock).mockImplementation(() => {
-    mutationCallCount++;
-    return mutationCallCount % 2 === 1 ? mockCreateRecipe : mockUpdateRecipe;
+  (useMutation as jest.Mock).mockImplementation((mutationFn: unknown) => {
+    if (mutationFn === api.recipes.createManual) return mockCreateRecipe;
+    if (mutationFn === api.recipes.updateManual) return mockUpdateRecipe;
+    return jest.fn();
   });
 });
 
@@ -744,8 +756,9 @@ describe('ManualRecipeScreen', () => {
     };
 
     const setupPreference = (preference: 'metric' | 'imperial') => {
-      (useQuery as jest.Mock).mockImplementation((_queryFn: unknown, args?: unknown) => {
-        if (args === undefined) return { preferredUnits: preference };
+      (useQuery as jest.Mock).mockImplementation((queryFn: unknown) => {
+        if (queryFn === api.users.current) return { preferredUnits: preference };
+        if (queryFn === api.recipes.getById) return undefined;
         return undefined;
       });
     };
@@ -856,10 +869,10 @@ describe('ManualRecipeScreen', () => {
   describe('Edit mode', () => {
     beforeEach(() => {
       (useLocalSearchParams as jest.Mock).mockReturnValue({ recipeId: 'recipe1' });
-      // users.current has no args; recipes.getById has args
-      (useQuery as jest.Mock).mockImplementation((_queryFn: unknown, args?: unknown) => {
-        if (args === undefined) return undefined; // users.current — no preference in edit mode
-        return mockExistingRecipe; // recipes.getById
+      (useQuery as jest.Mock).mockImplementation((queryFn: unknown) => {
+        if (queryFn === api.users.current) return undefined; // no preference in edit mode
+        if (queryFn === api.recipes.getById) return mockExistingRecipe;
+        return undefined;
       });
     });
 

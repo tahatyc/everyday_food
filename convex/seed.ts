@@ -1,4 +1,6 @@
 import { mutation } from "./_generated/server";
+import { Id } from "./_generated/dataModel";
+import { getCurrentUserId } from "./lib/accessControl";
 
 // Seed data for recipes
 const seedRecipes = [
@@ -213,6 +215,7 @@ const seedTags = [
 export const seedDatabase = mutation({
   args: {},
   handler: async (ctx) => {
+    await getCurrentUserId(ctx);
     const now = Date.now();
 
     // Create a demo user
@@ -221,7 +224,7 @@ export const seedDatabase = mutation({
 
     if (existingUsers.length > 0) {
       userId = existingUsers[0]._id;
-      console.log("Using existing user:", userId);
+
     } else {
       userId = await ctx.db.insert("users", {
         tokenIdentifier: "demo-user",
@@ -232,11 +235,11 @@ export const seedDatabase = mutation({
         createdAt: now,
         updatedAt: now,
       });
-      console.log("Created demo user:", userId);
+
     }
 
     // Create GLOBAL tags (no userId for seed tags)
-    const globalTagMap: Record<string, any> = {};
+    const globalTagMap: Record<string, Id<"tags">> = {};
     for (const tag of seedTags) {
       const existingTag = await ctx.db
         .query("tags")
@@ -256,10 +259,10 @@ export const seedDatabase = mutation({
         globalTagMap[tag.name.toLowerCase()] = existingTag._id;
       }
     }
-    console.log("Created/found global tags:", Object.keys(globalTagMap).length);
+
 
     // Create USER tags (for backwards compatibility with existing user tags)
-    const tagMap: Record<string, any> = {};
+    const tagMap: Record<string, Id<"tags">> = {};
     for (const tag of seedTags) {
       const existingTag = await ctx.db
         .query("tags")
@@ -278,7 +281,7 @@ export const seedDatabase = mutation({
         tagMap[tag.name.toLowerCase()] = existingTag._id;
       }
     }
-    console.log("Created/found user tags:", Object.keys(tagMap).length);
+
 
     // Create GLOBAL recipes (no userId, not tied to any user)
     let globalRecipesCreated = 0;
@@ -291,7 +294,7 @@ export const seedDatabase = mutation({
         .first();
 
       if (existingRecipe) {
-        console.log("Global recipe already exists:", recipe.title);
+
         continue;
       }
 
@@ -365,7 +368,7 @@ export const seedDatabase = mutation({
 
       globalRecipesCreated++;
     }
-    console.log("Created global recipes:", globalRecipesCreated);
+
 
     // Create USER recipes (kept for backwards compatibility)
     let recipesCreated = 0;
@@ -378,7 +381,7 @@ export const seedDatabase = mutation({
         .first();
 
       if (existingRecipe) {
-        console.log("Recipe already exists:", recipe.title);
+
         continue;
       }
 
@@ -554,6 +557,7 @@ export const seedDatabase = mutation({
 export const clearUserData = mutation({
   args: {},
   handler: async (ctx) => {
+    await getCurrentUserId(ctx);
     const users = await ctx.db.query("users").collect();
     if (users.length === 0) {
       return { success: false, message: "No users found" };

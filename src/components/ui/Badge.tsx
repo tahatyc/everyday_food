@@ -12,6 +12,7 @@ interface BadgeProps {
   color?: string;
   style?: ViewStyle;
   textStyle?: TextStyle;
+  accessibilityLabel?: string;
 }
 
 const variantColors: Record<BadgeVariant, { bg: string; text: string }> = {
@@ -30,11 +31,14 @@ export function Badge({
   color,
   style,
   textStyle,
+  accessibilityLabel,
 }: BadgeProps) {
   const variantStyle = variantColors[variant];
 
   return (
     <View
+      accessibilityRole="text"
+      accessibilityLabel={accessibilityLabel}
       style={[
         styles.base,
         size === "sm" && styles.sm,

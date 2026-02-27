@@ -27,6 +27,7 @@ import {
   spacing,
   typography,
 } from "../src/styles/neobrutalism";
+import { getMealTypeEmoji, getMealTypeFromTags } from "../src/lib/meal-types";
 
 // Recipe type from Convex
 type ConvexRecipe = {
@@ -76,14 +77,7 @@ function RecipeSelectItem({
   const totalTime = (recipe.prepTime || 0) + (recipe.cookTime || 0);
 
   // Get meal type from tags
-  const getMealType = () => {
-    const mealTypes = ["breakfast", "lunch", "dinner", "snack"];
-    return (
-      recipe.tags?.find((t: string) => mealTypes.includes(t.toLowerCase()))?.toLowerCase() ||
-      "dinner"
-    );
-  };
-  const mealType = getMealType();
+  const mealType = getMealTypeFromTags(recipe.tags);
 
   return (
     <Animated.View entering={FadeInDown.delay(index * 50).duration(300)}>
@@ -102,13 +96,7 @@ function RecipeSelectItem({
           ]}
         >
           <Text style={styles.recipeEmoji}>
-            {mealType === "breakfast"
-              ? "🍳"
-              : mealType === "lunch"
-              ? "🥗"
-              : mealType === "dinner"
-              ? "🍝"
-              : "🍪"}
+            {getMealTypeEmoji(mealType)}
           </Text>
         </View>
 

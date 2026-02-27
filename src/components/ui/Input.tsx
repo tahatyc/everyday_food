@@ -18,6 +18,7 @@ interface InputProps extends Omit<TextInputProps, "style"> {
   leftIcon?: keyof typeof Ionicons.glyphMap;
   rightIcon?: keyof typeof Ionicons.glyphMap;
   onRightIconPress?: () => void;
+  rightIconAccessibilityLabel?: string;
   containerStyle?: ViewStyle;
 }
 
@@ -28,6 +29,7 @@ export function Input({
   leftIcon,
   rightIcon,
   onRightIconPress,
+  rightIconAccessibilityLabel,
   containerStyle,
   ...textInputProps
 }: InputProps) {
@@ -60,13 +62,20 @@ export function Input({
             rightIcon && styles.inputWithRightIcon,
           ]}
           placeholderTextColor={colors.textMuted}
+          accessibilityLabel={label}
+          accessibilityHint={error ? `Error: ${error}` : helperText}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           {...textInputProps}
         />
 
         {rightIcon && (
-          <Pressable onPress={onRightIconPress} style={styles.rightIcon}>
+          <Pressable
+            onPress={onRightIconPress}
+            accessibilityRole="button"
+            accessibilityLabel={rightIconAccessibilityLabel}
+            style={styles.rightIcon}
+          >
             <Ionicons
               name={rightIcon}
               size={20}

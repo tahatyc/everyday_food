@@ -34,6 +34,7 @@ import {
   spacing,
   typography,
 } from "../../src/styles/neobrutalism";
+import { getMealTypeEmoji, getMealTypeFromTags } from "../../src/lib/meal-types";
 
 // Recipe type from Convex
 type ConvexRecipe = {
@@ -48,8 +49,6 @@ type ConvexRecipe = {
   isGlobal?: boolean;
   cookCount?: number;
   tags: string[];
-  ingredients: any[];
-  steps: any[];
 };
 
 // Advanced filter state
@@ -71,11 +70,7 @@ const DEFAULT_FILTERS: RecipeFilters = {
 function RecipeListItem({ recipe, onToggleFavorite }: { recipe: ConvexRecipe; onToggleFavorite: (recipe: ConvexRecipe) => void }) {
   const totalTime = (recipe.prepTime || 0) + (recipe.cookTime || 0);
 
-  const getMealType = () => {
-    const mealTypes = ["breakfast", "lunch", "dinner", "snack"];
-    return recipe.tags?.find((t: string) => mealTypes.includes(t.toLowerCase()))?.toLowerCase() || "dinner";
-  };
-  const mealType = getMealType();
+  const mealType = getMealTypeFromTags(recipe.tags);
 
   return (
     <Card style={styles.recipeItem} onPress={() => router.push(`/recipe/${recipe._id}` as any)}>
@@ -93,13 +88,7 @@ function RecipeListItem({ recipe, onToggleFavorite }: { recipe: ConvexRecipe; on
         ]}
       >
         <Text style={styles.recipeEmoji}>
-          {mealType === "breakfast"
-            ? "🍳"
-            : mealType === "lunch"
-            ? "🥗"
-            : mealType === "dinner"
-            ? "🍝"
-            : "🍪"}
+          {getMealTypeEmoji(mealType)}
         </Text>
       </View>
 
@@ -425,7 +414,7 @@ export default function RecipesScreen() {
       <SafeAreaView style={styles.container} edges={["top"]}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Recipes</Text>
-          <IconButton icon="add" variant="primary" onPress={() => router.push("/import")} />
+          <IconButton icon="add" variant="primary" onPress={() => router.push("/import")} accessibilityLabel="Add recipe" />
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.cyan} />
@@ -440,7 +429,7 @@ export default function RecipesScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Recipes</Text>
-        <IconButton icon="add" variant="primary" onPress={() => router.push("/import")} />
+        <IconButton icon="add" variant="primary" onPress={() => router.push("/import")} accessibilityLabel="Add recipe" />
       </View>
 
       {/* Search */}
@@ -457,6 +446,7 @@ export default function RecipesScreen() {
             icon="options-outline"
             variant="default"
             onPress={handleOpenFilterSheet}
+            accessibilityLabel="Filter options"
           />
           {activeFilterCount > 0 && (
             <View style={styles.filterBadge}>

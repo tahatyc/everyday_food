@@ -24,6 +24,7 @@ import {
   spacing,
   typography,
 } from "../../src/styles/neobrutalism";
+import { getMealTypeEmoji, getMealTypeFromTags } from "../../src/lib/meal-types";
 
 // Recipe type from Convex
 type ConvexRecipe = {
@@ -83,14 +84,13 @@ function MealCard({ meal, index }: { meal: TodayMeal; index: number }) {
 
   const handlePress = () => {
     if (primaryRecipe && extraCount === 0) {
-      router.push(`/recipe/${primaryRecipe._id}` as any);
+      router.push(`/recipe/${primaryRecipe._id}`);
     } else {
       router.push("/(tabs)/meal-plan");
     }
   };
 
-  const mealEmoji =
-    meal.type === "breakfast" ? "🍳" : meal.type === "lunch" ? "🥗" : "🍝";
+  const mealEmoji = getMealTypeEmoji(meal.type);
 
   return (
     <Animated.View entering={FadeInDown.delay(200 + index * 100).duration(400)}>
@@ -163,16 +163,7 @@ function RecipeCard({
 }) {
   const totalTime = (recipe.prepTime || 0) + (recipe.cookTime || 0);
 
-  // Get meal type from tags
-  const getMealType = () => {
-    const mealTypes = ["breakfast", "lunch", "dinner", "snack"];
-    return (
-      recipe.tags
-        ?.find((t: string) => mealTypes.includes(t.toLowerCase()))
-        ?.toLowerCase() || "dinner"
-    );
-  };
-  const mealType = getMealType();
+  const mealType = getMealTypeFromTags(recipe.tags);
 
   return (
     <Animated.View
@@ -183,7 +174,7 @@ function RecipeCard({
           styles.recipeCard,
           pressed && styles.cardPressed,
         ]}
-        onPress={() => router.push(`/recipe/${recipe._id}` as any)}
+        onPress={() => router.push(`/recipe/${recipe._id}`)}
       >
         {/* Recipe Image */}
         <View
@@ -193,13 +184,7 @@ function RecipeCard({
           ]}
         >
           <Text style={styles.recipeEmoji}>
-            {mealType === "breakfast"
-              ? "🍳"
-              : mealType === "lunch"
-              ? "🥗"
-              : mealType === "dinner"
-              ? "🍝"
-              : "🍪"}
+            {getMealTypeEmoji(mealType)}
           </Text>
         </View>
 
@@ -323,7 +308,7 @@ export default function HomeScreen() {
               styles.importButton,
               pressed && styles.importButtonPressed,
             ]}
-            onPress={() => router.push("/import" as any)}
+            onPress={() => router.push("/import")}
           >
             <Ionicons name="add-circle-outline" size={22} color={colors.text} />
             <Text style={styles.importButtonText}>IMPORT RECIPE</Text>

@@ -3,7 +3,32 @@ import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 import { useQuery, useMutation } from 'convex/react';
 import { router, useLocalSearchParams } from 'expo-router';
+import { api } from '../../../convex/_generated/api';
 import RecipeDetailScreen from '../[id]';
+
+// Mock Convex API with stable references (anyApi uses Proxy, creating new objects on each access)
+jest.mock('../../../convex/_generated/api', () => ({
+  api: {
+    recipes: {
+      getById: Symbol('recipes.getById'),
+      toggleFavorite: Symbol('recipes.toggleFavorite'),
+      toggleGlobalRecipeFavorite: Symbol('recipes.toggleGlobalRecipeFavorite'),
+      recordView: Symbol('recipes.recordView'),
+      deleteRecipe: Symbol('recipes.deleteRecipe'),
+    },
+    shoppingLists: {
+      addRecipeIngredients: Symbol('shoppingLists.addRecipeIngredients'),
+    },
+    friends: {
+      list: Symbol('friends.list'),
+    },
+    recipeShares: {
+      getSharedWith: Symbol('recipeShares.getSharedWith'),
+      share: Symbol('recipeShares.share'),
+      unshare: Symbol('recipeShares.unshare'),
+    },
+  },
+}));
 
 jest.spyOn(Alert, 'alert');
 
@@ -50,18 +75,15 @@ beforeEach(() => {
   (useLocalSearchParams as jest.Mock).mockReturnValue({ id: 'recipe1' });
   // Default return [] for ShareRecipeModal's useQuery calls (friends, sharedWith)
   (useQuery as jest.Mock).mockReturnValue([]);
-  // RecipeDetailScreen mutations: toggleFavorite(1), toggleGlobalFavorite(2), addToList(3),
-  //   recordView(4), deleteRecipe(5)
-  // ShareRecipeModal mutations: shareWithFriend(6), unshare(7)
-  let mutationCallCount = 0;
-  (useMutation as jest.Mock).mockImplementation(() => {
-    mutationCallCount++;
-    const idx = ((mutationCallCount - 1) % 7) + 1;
-    if (idx === 1) return mockToggleFavorite;
-    if (idx === 2) return mockToggleGlobalFavorite;
-    if (idx === 3) return mockAddToList;
-    if (idx === 4) return mockRecordView;
-    if (idx === 5) return mockDeleteRecipe;
+  // Match by API function reference instead of call count cycling
+  (useMutation as jest.Mock).mockImplementation((mutationFn: unknown) => {
+    if (mutationFn === api.recipes.toggleFavorite) return mockToggleFavorite;
+    if (mutationFn === api.recipes.toggleGlobalRecipeFavorite) return mockToggleGlobalFavorite;
+    if (mutationFn === api.shoppingLists.addRecipeIngredients) return mockAddToList;
+    if (mutationFn === api.recipes.recordView) return mockRecordView;
+    if (mutationFn === api.recipes.deleteRecipe) return mockDeleteRecipe;
+    if (mutationFn === api.recipeShares.share) return noopFn;
+    if (mutationFn === api.recipeShares.unshare) return noopFn;
     return noopFn;
   });
 });
@@ -95,29 +117,25 @@ const mockRecipe = {
   ],
 };
 
-/** Helper: mock useQuery to return recipe data for first call, [] for the rest.
- * Uses mockImplementation to persist across re-renders. */
-function mockRecipeQuery(recipe: any) {
-  let callCount = 0;
-  (useQuery as jest.Mock).mockImplementation(() => {
-    callCount++;
-    // Every 3rd call starting from 1 is api.recipes.getById
-    // Calls 2,3 are ShareRecipeModal queries (friends, sharedWith)
-    if (callCount % 3 === 1) return recipe;
+/** Helper: mock useQuery to return recipe data by API function reference. */
+function mockRecipeQuery(recipe: unknown) {
+  (useQuery as jest.Mock).mockImplementation((queryFn: unknown) => {
+    if (queryFn === api.recipes.getById) return recipe;
+    // ShareRecipeModal queries (friends, sharedWith)
     return [];
   });
 }
 
 describe('RecipeDetailScreen', () => {
   it('shows loading state when recipe is undefined', () => {
-    (useQuery as jest.Mock).mockReturnValueOnce(undefined);
+    mockRecipeQuery(undefined);
 
     const { getByText } = render(<RecipeDetailScreen />);
     expect(getByText('Loading recipe...')).toBeTruthy();
   });
 
   it('shows error state when recipe is null', () => {
-    (useQuery as jest.Mock).mockReturnValueOnce(null);
+    mockRecipeQuery(null);
 
     const { getByText } = render(<RecipeDetailScreen />);
     expect(getByText('Recipe not found')).toBeTruthy();
@@ -125,7 +143,7 @@ describe('RecipeDetailScreen', () => {
   });
 
   it('navigates back from error state', () => {
-    (useQuery as jest.Mock).mockReturnValueOnce(null);
+    mockRecipeQuery(null);
 
     const { getByText } = render(<RecipeDetailScreen />);
     fireEvent.press(getByText('Go Back'));

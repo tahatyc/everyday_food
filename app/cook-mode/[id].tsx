@@ -34,6 +34,7 @@ import {
   spacing,
   typography,
 } from "../../src/styles/neobrutalism";
+import { getMealTypeFromTags } from "../../src/lib/meal-types";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -331,13 +332,7 @@ export default function CookModeScreen() {
               styles.stepImage,
               {
                 backgroundColor: getMealTypeColor(
-                  recipe.tags
-                    ?.find((t) =>
-                      ["breakfast", "lunch", "dinner", "snack"].includes(
-                        t.toLowerCase(),
-                      ),
-                    )
-                    ?.toLowerCase() || "dinner",
+                  getMealTypeFromTags(recipe.tags),
                 ),
               },
             ]}

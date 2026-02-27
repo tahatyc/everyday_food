@@ -27,6 +27,7 @@ import {
   spacing,
   typography,
 } from "../../src/styles/neobrutalism";
+import { getMealTypeEmoji, getMealTypeFromTags } from "../../src/lib/meal-types";
 
 // Nutrition Card Component
 function NutritionCard({
@@ -189,7 +190,7 @@ export default function RecipeDetailScreen() {
   };
 
   const handleEdit = () => {
-    router.push(`/manual-recipe?recipeId=${recipe._id}` as any);
+    router.push(`/manual-recipe?recipeId=${recipe._id}`);
   };
 
   const handleDelete = () => {
@@ -253,20 +254,7 @@ export default function RecipeDetailScreen() {
     },
   ];
 
-  // Get meal type for color
-  const getMealType = (): string => {
-    if (recipe.tags) {
-      const mealTypes = ["breakfast", "lunch", "dinner", "snack"];
-      return (
-        recipe.tags
-          .find((t) => mealTypes.includes(t.toLowerCase()))
-          ?.toLowerCase() || "dinner"
-      );
-    }
-    return "dinner";
-  };
-
-  const mealType = getMealType();
+  const mealType = getMealTypeFromTags(recipe.tags);
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -361,13 +349,7 @@ export default function RecipeDetailScreen() {
             ]}
           >
             <Text style={styles.imageEmoji}>
-              {mealType === "breakfast"
-                ? "🍳"
-                : mealType === "lunch"
-                ? "🥗"
-                : mealType === "dinner"
-                ? "🍝"
-                : "🍪"}
+              {getMealTypeEmoji(mealType)}
             </Text>
           </View>
         </Animated.View>

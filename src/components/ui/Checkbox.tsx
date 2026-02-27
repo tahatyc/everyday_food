@@ -32,6 +32,9 @@ export function Checkbox({
     <Pressable
       onPress={onToggle}
       disabled={disabled}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked, disabled }}
+      accessibilityLabel={label}
       style={[styles.container, disabled && styles.disabled, style]}
     >
       <View

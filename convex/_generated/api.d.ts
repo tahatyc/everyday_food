@@ -13,6 +13,7 @@ import type * as e2eSeed from "../e2eSeed.js";
 import type * as friends from "../friends.js";
 import type * as http from "../http.js";
 import type * as lib_accessControl from "../lib/accessControl.js";
+import type * as lib_recipeHelpers from "../lib/recipeHelpers.js";
 import type * as mealPlans from "../mealPlans.js";
 import type * as recipeShares from "../recipeShares.js";
 import type * as recipes from "../recipes.js";
@@ -32,6 +33,7 @@ declare const fullApi: ApiFromModules<{
   friends: typeof friends;
   http: typeof http;
   "lib/accessControl": typeof lib_accessControl;
+  "lib/recipeHelpers": typeof lib_recipeHelpers;
   mealPlans: typeof mealPlans;
   recipeShares: typeof recipeShares;
   recipes: typeof recipes;

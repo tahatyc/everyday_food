@@ -7,6 +7,8 @@ import {
   canModifyRecipe,
   canDeleteRecipe,
 } from "./lib/accessControl";
+import { enrichRecipesWithTags, getTagsForRecipe } from "./lib/recipeHelpers";
+import { Doc } from "./_generated/dataModel";
 
 // Get all recipes for current user
 export const list = query({
@@ -19,7 +21,7 @@ export const list = query({
   handler: async (ctx, args) => {
     const userId = await getCurrentUserIdOrNull(ctx);
 
-    let recipes: any[] = [];
+    let recipes: Array<Doc<"recipes"> & Record<string, unknown>> = [];
 
     // Global only mode
     if (args.globalOnly) {
@@ -103,34 +105,11 @@ export const list = query({
       }
     }
 
-    const typedRecipes = recipes as any[];
-
     // Apply limit BEFORE expansion to avoid unnecessary DB queries
-    const limitedRecipes = args.limit ? typedRecipes.slice(0, args.limit) : typedRecipes;
+    const limitedRecipes = args.limit ? recipes.slice(0, args.limit) : recipes;
 
     // Only fetch tags for each recipe (ingredients & steps are only needed in getById)
-    const recipesWithTags = await Promise.all(
-      limitedRecipes.map(async (recipe) => {
-        const recipeTags = await ctx.db
-          .query("recipeTags")
-          .withIndex("by_recipe", (q) => q.eq("recipeId", recipe._id))
-          .collect();
-
-        const tags = await Promise.all(
-          recipeTags.map(async (rt) => {
-            const tag = await ctx.db.get(rt.tagId);
-            return tag?.name || "";
-          })
-        );
-
-        return {
-          ...recipe,
-          tags: tags.filter(Boolean),
-        };
-      })
-    );
-
-    return recipesWithTags;
+    return enrichRecipesWithTags(ctx, limitedRecipes);
   },
 });
 
@@ -164,23 +143,13 @@ export const getById = query({
       .withIndex("by_recipe", (q) => q.eq("recipeId", recipe._id))
       .collect();
 
-    const recipeTags = await ctx.db
-      .query("recipeTags")
-      .withIndex("by_recipe", (q) => q.eq("recipeId", recipe._id))
-      .collect();
-
-    const tags = await Promise.all(
-      recipeTags.map(async (rt) => {
-        const tag = await ctx.db.get(rt.tagId);
-        return tag?.name || "";
-      })
-    );
+    const tags = await getTagsForRecipe(ctx, recipe._id);
 
     return {
       ...recipe,
       ingredients: ingredients.sort((a, b) => a.sortOrder - b.sortOrder),
       steps: steps.sort((a, b) => a.stepNumber - b.stepNumber),
-      tags: tags.filter(Boolean),
+      tags,
       isOwner,
       ownerName,
     };
@@ -260,29 +229,11 @@ export const getFavorites = query({
     ];
 
     // Only fetch tags for each recipe (ingredients & steps are only needed in getById)
-    const recipesWithTags = await Promise.all(
-      recipes.map(async (recipe) => {
-        const recipeTags = await ctx.db
-          .query("recipeTags")
-          .withIndex("by_recipe", (q) => q.eq("recipeId", recipe._id))
-          .collect();
-
-        const tags = await Promise.all(
-          recipeTags.map(async (rt) => {
-            const tag = await ctx.db.get(rt.tagId);
-            return tag?.name || "";
-          })
-        );
-
-        return {
-          ...recipe,
-          isFavorite: true as const,
-          tags: tags.filter(Boolean),
-        };
-      })
-    );
-
-    return recipesWithTags;
+    const recipesWithFavorite = recipes.map((recipe) => ({
+      ...recipe,
+      isFavorite: true as const,
+    }));
+    return enrichRecipesWithTags(ctx, recipesWithFavorite);
   },
 });
 
@@ -320,7 +271,7 @@ export const search = query({
   handler: async (ctx, args) => {
     const userId = await getCurrentUserIdOrNull(ctx);
 
-    let results: any[] = [];
+    let results: Doc<"recipes">[] = [];
 
     // Search personal recipes
     if (userId) {
@@ -670,31 +621,13 @@ export const getRecentlyViewed = query({
       .slice(0, limit);
 
     // Fetch recipe details
-    const recipes = await Promise.all(
-      viewed.map(async (interaction) => {
-        const recipe = await ctx.db.get(interaction.recipeId);
-        if (!recipe) return null;
+    const recipes = (
+      await Promise.all(
+        viewed.map((interaction) => ctx.db.get(interaction.recipeId))
+      )
+    ).filter((r): r is NonNullable<typeof r> => r !== null);
 
-        const recipeTags = await ctx.db
-          .query("recipeTags")
-          .withIndex("by_recipe", (q) => q.eq("recipeId", recipe._id))
-          .collect();
-
-        const tags = await Promise.all(
-          recipeTags.map(async (rt) => {
-            const tag = await ctx.db.get(rt.tagId);
-            return tag?.name || "";
-          })
-        );
-
-        return {
-          ...recipe,
-          tags: tags.filter(Boolean),
-        };
-      })
-    );
-
-    return recipes.filter(Boolean);
+    return enrichRecipesWithTags(ctx, recipes);
   },
 });
 

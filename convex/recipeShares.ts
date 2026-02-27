@@ -1,6 +1,7 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { getCurrentUserId, getCurrentUserIdOrNull } from "./lib/accessControl";
+import { getTagsForRecipe } from "./lib/recipeHelpers";
 
 // Get users a recipe is shared with (owner only)
 export const getSharedWith = query({
@@ -79,23 +80,13 @@ export const getSharedWithMe = query({
           .collect();
 
         // Get tags
-        const recipeTags = await ctx.db
-          .query("recipeTags")
-          .withIndex("by_recipe", (q) => q.eq("recipeId", recipe._id))
-          .collect();
-
-        const tags = await Promise.all(
-          recipeTags.map(async (rt) => {
-            const tag = await ctx.db.get(rt.tagId);
-            return tag?.name || "";
-          })
-        );
+        const tags = await getTagsForRecipe(ctx, recipe._id);
 
         return {
           ...recipe,
           ingredients: ingredients.sort((a, b) => a.sortOrder - b.sortOrder),
           steps: steps.sort((a, b) => a.stepNumber - b.stepNumber),
-          tags: tags.filter(Boolean),
+          tags,
           isShared: true,
           ownerName: owner?.name || "Unknown",
           sharedAt: share.sharedAt,

@@ -29,6 +29,7 @@ import {
   spacing,
   typography,
 } from "../../src/styles/neobrutalism";
+import { getMealTypeEmoji } from "../../src/lib/meal-types";
 
 // Recipe type from Convex
 type ConvexRecipe = {
@@ -153,13 +154,7 @@ function MealCard({
       <View style={styles.mealImageContainer}>
         <View style={[styles.mealImage, { backgroundColor: bgColor }]}>
           <Text style={styles.mealEmoji}>
-            {recipeMealType === "breakfast"
-              ? "🍳"
-              : recipeMealType === "lunch"
-              ? "🥗"
-              : recipeMealType === "snack"
-              ? "🍪"
-              : "🍝"}
+            {getMealTypeEmoji(recipeMealType)}
           </Text>
         </View>
       </View>

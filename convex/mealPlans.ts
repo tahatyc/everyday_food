@@ -1,6 +1,7 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { getCurrentUserId, getCurrentUserIdOrNull, canAccessMealPlan } from "./lib/accessControl";
+import { getTagsForRecipe } from "./lib/recipeHelpers";
 
 // Get meal plans for a specific date
 export const getByDate = query({
@@ -23,30 +24,13 @@ export const getByDate = query({
         if (plan.recipeId) {
           const recipeData = await ctx.db.get(plan.recipeId);
           if (recipeData) {
-            // Get tags for the recipe
-            const recipeTags = await ctx.db
-              .query("recipeTags")
-              .withIndex("by_recipe", (q) => q.eq("recipeId", recipeData._id))
-              .collect();
-
-            const tags = await Promise.all(
-              recipeTags.map(async (rt) => {
-                const tag = await ctx.db.get(rt.tagId);
-                return tag?.name || "";
-              })
-            );
-
             recipe = {
               ...recipeData,
-              tags: tags.filter(Boolean),
+              tags: await getTagsForRecipe(ctx, recipeData._id),
             };
           }
         }
-
-        return {
-          ...plan,
-          recipe,
-        };
+        return { ...plan, recipe };
       })
     );
 
@@ -64,16 +48,13 @@ export const getByDateRange = query({
     const userId = await getCurrentUserIdOrNull(ctx);
     if (!userId) return [];
 
-    // Get all meal plans for the user
-    const allMealPlans = await ctx.db
+    // Use by_user_and_date index with range scan instead of full user scan + in-memory filter
+    const mealPlans = await ctx.db
       .query("mealPlans")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_user_and_date", (q) =>
+        q.eq("userId", userId).gte("date", args.startDate).lte("date", args.endDate)
+      )
       .collect();
-
-    // Filter by date range
-    const mealPlans = allMealPlans.filter(
-      (plan) => plan.date >= args.startDate && plan.date <= args.endDate
-    );
 
     // Fetch recipe details for each meal plan
     const mealPlansWithRecipes = await Promise.all(
@@ -82,29 +63,13 @@ export const getByDateRange = query({
         if (plan.recipeId) {
           const recipeData = await ctx.db.get(plan.recipeId);
           if (recipeData) {
-            const recipeTags = await ctx.db
-              .query("recipeTags")
-              .withIndex("by_recipe", (q) => q.eq("recipeId", recipeData._id))
-              .collect();
-
-            const tags = await Promise.all(
-              recipeTags.map(async (rt) => {
-                const tag = await ctx.db.get(rt.tagId);
-                return tag?.name || "";
-              })
-            );
-
             recipe = {
               ...recipeData,
-              tags: tags.filter(Boolean),
+              tags: await getTagsForRecipe(ctx, recipeData._id),
             };
           }
         }
-
-        return {
-          ...plan,
-          recipe,
-        };
+        return { ...plan, recipe };
       })
     );
 

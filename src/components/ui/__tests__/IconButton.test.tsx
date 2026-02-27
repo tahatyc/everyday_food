@@ -11,7 +11,7 @@ describe('IconButton', () => {
   it('renders correctly', () => {
     const onPress = jest.fn();
     const { UNSAFE_root } = render(
-      <IconButton icon="add" onPress={onPress} />
+      <IconButton icon="add" onPress={onPress} accessibilityLabel="Add" />
     );
     expect(UNSAFE_root).toBeTruthy();
   });
@@ -19,7 +19,7 @@ describe('IconButton', () => {
   it('calls onPress when pressed', () => {
     const onPress = jest.fn();
     const { UNSAFE_root } = render(
-      <IconButton icon="add" onPress={onPress} />
+      <IconButton icon="add" onPress={onPress} accessibilityLabel="Add" />
     );
 
     fireEvent.press(UNSAFE_root);
@@ -29,7 +29,7 @@ describe('IconButton', () => {
   it('renders correctly when disabled', () => {
     const onPress = jest.fn();
     const { UNSAFE_root } = render(
-      <IconButton icon="add" onPress={onPress} disabled />
+      <IconButton icon="add" onPress={onPress} disabled accessibilityLabel="Add" />
     );
 
     // Verify component renders with disabled prop
@@ -42,7 +42,7 @@ describe('IconButton', () => {
     it('renders default variant', () => {
       const onPress = jest.fn();
       const { UNSAFE_root } = render(
-        <IconButton icon="add" onPress={onPress} variant="default" />
+        <IconButton icon="add" onPress={onPress} variant="default" accessibilityLabel="Add" />
       );
       expect(UNSAFE_root).toBeTruthy();
     });
@@ -50,7 +50,7 @@ describe('IconButton', () => {
     it('renders primary variant', () => {
       const onPress = jest.fn();
       const { UNSAFE_root } = render(
-        <IconButton icon="add" onPress={onPress} variant="primary" />
+        <IconButton icon="add" onPress={onPress} variant="primary" accessibilityLabel="Add" />
       );
       expect(UNSAFE_root).toBeTruthy();
     });
@@ -58,7 +58,7 @@ describe('IconButton', () => {
     it('renders secondary variant', () => {
       const onPress = jest.fn();
       const { UNSAFE_root } = render(
-        <IconButton icon="add" onPress={onPress} variant="secondary" />
+        <IconButton icon="add" onPress={onPress} variant="secondary" accessibilityLabel="Add" />
       );
       expect(UNSAFE_root).toBeTruthy();
     });
@@ -66,7 +66,7 @@ describe('IconButton', () => {
     it('renders ghost variant', () => {
       const onPress = jest.fn();
       const { UNSAFE_root } = render(
-        <IconButton icon="add" onPress={onPress} variant="ghost" />
+        <IconButton icon="add" onPress={onPress} variant="ghost" accessibilityLabel="Add" />
       );
       expect(UNSAFE_root).toBeTruthy();
     });
@@ -76,7 +76,7 @@ describe('IconButton', () => {
     it('renders small size', () => {
       const onPress = jest.fn();
       const { UNSAFE_root } = render(
-        <IconButton icon="add" onPress={onPress} size="sm" />
+        <IconButton icon="add" onPress={onPress} size="sm" accessibilityLabel="Add" />
       );
       expect(UNSAFE_root).toBeTruthy();
     });
@@ -84,7 +84,7 @@ describe('IconButton', () => {
     it('renders medium size (default)', () => {
       const onPress = jest.fn();
       const { UNSAFE_root } = render(
-        <IconButton icon="add" onPress={onPress} size="md" />
+        <IconButton icon="add" onPress={onPress} size="md" accessibilityLabel="Add" />
       );
       expect(UNSAFE_root).toBeTruthy();
     });
@@ -92,7 +92,7 @@ describe('IconButton', () => {
     it('renders large size', () => {
       const onPress = jest.fn();
       const { UNSAFE_root } = render(
-        <IconButton icon="add" onPress={onPress} size="lg" />
+        <IconButton icon="add" onPress={onPress} size="lg" accessibilityLabel="Add" />
       );
       expect(UNSAFE_root).toBeTruthy();
     });
@@ -101,7 +101,7 @@ describe('IconButton', () => {
   it('applies custom color', () => {
     const onPress = jest.fn();
     const { UNSAFE_root } = render(
-      <IconButton icon="add" onPress={onPress} color="#FF0000" />
+      <IconButton icon="add" onPress={onPress} color="#FF0000" accessibilityLabel="Add" />
     );
     expect(UNSAFE_root).toBeTruthy();
   });
@@ -109,7 +109,7 @@ describe('IconButton', () => {
   it('applies custom style', () => {
     const onPress = jest.fn();
     const { UNSAFE_root } = render(
-      <IconButton icon="add" onPress={onPress} style={{ marginTop: 10 }} />
+      <IconButton icon="add" onPress={onPress} style={{ marginTop: 10 }} accessibilityLabel="Add" />
     );
     expect(UNSAFE_root).toBeTruthy();
   });
@@ -121,7 +121,7 @@ describe('IconButton', () => {
 
     icons.forEach((icon) => {
       const { UNSAFE_root } = render(
-        <IconButton icon={icon} onPress={onPress} />
+        <IconButton icon={icon} onPress={onPress} accessibilityLabel={icon} />
       );
       expect(UNSAFE_root).toBeTruthy();
     });
@@ -130,7 +130,7 @@ describe('IconButton', () => {
   it('handles rapid presses', () => {
     const onPress = jest.fn();
     const { UNSAFE_root } = render(
-      <IconButton icon="add" onPress={onPress} />
+      <IconButton icon="add" onPress={onPress} accessibilityLabel="Add" />
     );
 
     fireEvent.press(UNSAFE_root);

@@ -474,13 +474,25 @@ export const blockUser = mutation({
       await ctx.db.delete(theirRecord._id);
     }
 
-    // Remove any shares between us
-    const allShares = await ctx.db.query("recipeShares").collect();
-    for (const share of allShares) {
-      if (
-        (share.ownerId === currentUserId && share.sharedWithId === args.userId) ||
-        (share.ownerId === args.userId && share.sharedWithId === currentUserId)
-      ) {
+    // Remove any shares between us (using indexed queries instead of full table scan)
+    const ourShares = await ctx.db
+      .query("recipeShares")
+      .withIndex("by_owner", (q) => q.eq("ownerId", currentUserId))
+      .collect();
+
+    for (const share of ourShares) {
+      if (share.sharedWithId === args.userId) {
+        await ctx.db.delete(share._id);
+      }
+    }
+
+    const theirShares = await ctx.db
+      .query("recipeShares")
+      .withIndex("by_owner", (q) => q.eq("ownerId", args.userId))
+      .collect();
+
+    for (const share of theirShares) {
+      if (share.sharedWithId === currentUserId) {
         await ctx.db.delete(share._id);
       }
     }
