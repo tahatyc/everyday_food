@@ -69,7 +69,7 @@ export const list = query({
               };
             })
           )
-        ).filter(Boolean);
+        ).filter((r): r is NonNullable<typeof r> => r !== null);
         recipes = [...recipes, ...sharedRecipes];
       }
 
