@@ -1,4 +1,5 @@
 import { mutation } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 import { getCurrentUserId } from "./lib/accessControl";
 
@@ -545,9 +546,12 @@ export const seedDatabase = mutation({
       }
     }
 
+    // Seed gamification achievements via scheduler
+    await ctx.scheduler.runAfter(0, internal.gamification.seedAchievements, {});
+
     return {
       success: true,
-      message: `Seeded database with ${globalRecipesCreated} global recipes, ${recipesCreated} user recipes, ${Object.keys(globalTagMap).length} global tags, ${Object.keys(tagMap).length} user tags`,
+      message: `Seeded database with ${globalRecipesCreated} global recipes, ${recipesCreated} user recipes, ${Object.keys(globalTagMap).length} global tags, ${Object.keys(tagMap).length} user tags, and gamification achievements`,
       userId,
     };
   },

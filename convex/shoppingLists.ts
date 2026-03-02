@@ -1,4 +1,5 @@
 import { query, mutation } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { getCurrentUserId, getCurrentUserIdOrNull, canAccessShoppingList, canAccessShoppingItem } from "./lib/accessControl";
 import { canReadRecipe } from "./lib/accessControl";
@@ -192,15 +193,37 @@ export const toggleItem = mutation({
 
     const now = Date.now();
 
+    const newCheckedState = !item.isChecked;
+
     await ctx.db.patch(args.itemId, {
-      isChecked: !item.isChecked,
-      checkedAt: !item.isChecked ? now : undefined,
+      isChecked: newCheckedState,
+      checkedAt: newCheckedState ? now : undefined,
     });
 
     // Update list timestamp
     await ctx.db.patch(item.listId, { updatedAt: now });
 
-    return { isChecked: !item.isChecked };
+    // Check if all items in the list are now checked (shopping list complete)
+    if (newCheckedState) {
+      const allItems = await ctx.db
+        .query("shoppingItems")
+        .withIndex("by_list", (q) => q.eq("listId", item.listId))
+        .collect();
+
+      const allChecked = allItems.every((i) =>
+        i._id === args.itemId ? true : i.isChecked
+      );
+
+      if (allChecked && allItems.length > 0) {
+        await ctx.scheduler.runAfter(0, internal.gamification.processAction, {
+          userId,
+          action: "shopping_list_complete",
+          metadata: { listId: item.listId, itemCount: allItems.length },
+        });
+      }
+    }
+
+    return { isChecked: newCheckedState };
   },
 });
 

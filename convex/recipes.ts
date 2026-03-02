@@ -1,4 +1,5 @@
 import { query, mutation } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { v, ConvexError } from "convex/values";
 import {
   getCurrentUserId,
@@ -441,6 +442,13 @@ export const createManual = mutation({
       });
     }
 
+    // Track gamification action (async, non-blocking)
+    await ctx.scheduler.runAfter(0, internal.gamification.processAction, {
+      userId,
+      action: "recipe_create",
+      metadata: { recipeId },
+    });
+
     return { recipeId };
   },
 });
@@ -683,6 +691,18 @@ export const recordCookCompletion = mutation({
         lastCookedAt: now,
         updatedAt: now,
       });
+
+      // Track gamification action (async, non-blocking)
+      await ctx.scheduler.runAfter(0, internal.gamification.processAction, {
+        userId,
+        action: "cook_complete",
+        metadata: {
+          recipeId: args.recipeId,
+          cuisine: recipe.cuisine,
+          difficulty: recipe.difficulty,
+          totalTime: recipe.totalTime,
+        },
+      });
       return;
     }
 
@@ -710,6 +730,18 @@ export const recordCookCompletion = mutation({
         updatedAt: now,
       });
     }
+
+    // Track gamification action (async, non-blocking)
+    await ctx.scheduler.runAfter(0, internal.gamification.processAction, {
+      userId,
+      action: "cook_complete",
+      metadata: {
+        recipeId: args.recipeId,
+        cuisine: recipe.cuisine,
+        difficulty: recipe.difficulty,
+        totalTime: recipe.totalTime,
+      },
+    });
   },
 });
 

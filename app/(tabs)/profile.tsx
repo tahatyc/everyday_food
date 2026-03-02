@@ -23,6 +23,10 @@ import {
   spacing,
   typography,
 } from "../../src/styles/neobrutalism";
+import { XPProgressBar } from "../../src/components/gamification/XPProgressBar";
+import { LevelBadge } from "../../src/components/gamification/LevelBadge";
+import { StreakCounter } from "../../src/components/gamification/StreakCounter";
+import { useGamification } from "../../src/hooks/useGamification";
 
 // Stats Item Component
 function StatsItem({
@@ -75,6 +79,7 @@ export default function ProfileScreen() {
   const { signOut } = useAuthActions();
   const user = useQuery(api.users.current);
   const stats = useQuery(api.users.getStats);
+  const { profile: gamProfile } = useGamification();
 
   const handleSignOut = async () => {
     await signOut();
@@ -146,6 +151,46 @@ export default function ProfileScreen() {
             <Text style={styles.editProfileText}>EDIT PROFILE</Text>
           </Pressable>
         </Animated.View>
+
+        {/* Gamification Section */}
+        {gamProfile && (
+          <Animated.View
+            style={styles.gamificationSection}
+            entering={FadeInDown.delay(300).duration(400)}
+          >
+            <View style={styles.gamificationRow}>
+              <LevelBadge
+                level={gamProfile.level}
+                title={gamProfile.title}
+              />
+              <StreakCounter currentStreak={gamProfile.currentStreak} />
+            </View>
+            <View style={styles.xpBarContainer}>
+              <XPProgressBar
+                xpProgress={gamProfile.xpProgress}
+                xpForNext={gamProfile.xpForNext}
+                level={gamProfile.level}
+              />
+            </View>
+            <Pressable
+              style={({ pressed }) => [
+                styles.achievementsLink,
+                pressed && styles.cardPressed,
+              ]}
+              onPress={() => router.push("/achievements" as any)}
+            >
+              <Ionicons name="trophy-outline" size={18} color={colors.text} />
+              <Text style={styles.achievementsLinkText}>
+                VIEW ACHIEVEMENTS
+              </Text>
+              <Ionicons
+                name="chevron-forward"
+                size={16}
+                color={colors.textSecondary}
+              />
+            </Pressable>
+          </Animated.View>
+        )}
 
         {/* Stats Section */}
         <Animated.View
@@ -316,6 +361,41 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.bold,
     color: colors.text,
     letterSpacing: typography.letterSpacing.wide,
+  },
+  gamificationSection: {
+    backgroundColor: colors.surface,
+    borderWidth: borders.regular,
+    borderColor: borders.color,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.xl,
+    gap: spacing.md,
+    ...shadows.sm,
+  },
+  gamificationRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  xpBarContainer: {
+    marginTop: spacing.xs,
+  },
+  achievementsLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+    marginTop: spacing.xs,
+  },
+  achievementsLinkText: {
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.bold,
+    color: colors.text,
+    letterSpacing: typography.letterSpacing.wider,
+    flex: 1,
   },
   statsContainer: {
     flexDirection: "row",

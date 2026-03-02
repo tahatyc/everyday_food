@@ -10,6 +10,7 @@ import { View, StyleSheet } from "react-native";
 
 import { ConvexProvider } from "../src/providers/ConvexProvider";
 import { ToastContainer } from "../src/providers/ToastProvider";
+import { XPToast } from "../src/components/gamification/XPToast";
 import { colors } from "../src/styles/neobrutalism";
 
 export {
@@ -168,6 +169,7 @@ function RootLayoutNav() {
         />
       </Stack>
       <ToastContainer />
+      <XPToast />
     </View>
   );
 }

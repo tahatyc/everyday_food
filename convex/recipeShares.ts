@@ -1,4 +1,5 @@
 import { query, mutation } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { v, ConvexError } from "convex/values";
 import { getCurrentUserId, getCurrentUserIdOrNull } from "./lib/accessControl";
 import { getTagsForRecipe } from "./lib/recipeHelpers";
@@ -207,6 +208,13 @@ export const share = mutation({
       permission: "view",
       sharedAt: Date.now(),
       message: args.message,
+    });
+
+    // Track gamification action (async, non-blocking)
+    await ctx.scheduler.runAfter(0, internal.gamification.processAction, {
+      userId,
+      action: "recipe_share",
+      metadata: { recipeId: args.recipeId, sharedWithId: args.friendId },
     });
 
     return { shareId };

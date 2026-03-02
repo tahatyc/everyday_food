@@ -11,8 +11,11 @@
 import type * as auth from "../auth.js";
 import type * as e2eSeed from "../e2eSeed.js";
 import type * as friends from "../friends.js";
+import type * as gamification from "../gamification.js";
 import type * as http from "../http.js";
 import type * as lib_accessControl from "../lib/accessControl.js";
+import type * as lib_gamificationEngine from "../lib/gamificationEngine.js";
+import type * as lib_gamificationHelpers from "../lib/gamificationHelpers.js";
 import type * as lib_rateLimiter from "../lib/rateLimiter.js";
 import type * as lib_recipeHelpers from "../lib/recipeHelpers.js";
 import type * as lib_validation from "../lib/validation.js";
@@ -33,8 +36,11 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   e2eSeed: typeof e2eSeed;
   friends: typeof friends;
+  gamification: typeof gamification;
   http: typeof http;
   "lib/accessControl": typeof lib_accessControl;
+  "lib/gamificationEngine": typeof lib_gamificationEngine;
+  "lib/gamificationHelpers": typeof lib_gamificationHelpers;
   "lib/rateLimiter": typeof lib_rateLimiter;
   "lib/recipeHelpers": typeof lib_recipeHelpers;
   "lib/validation": typeof lib_validation;

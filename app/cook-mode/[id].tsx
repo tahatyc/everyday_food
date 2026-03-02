@@ -35,6 +35,7 @@ import {
   typography,
 } from "../../src/styles/neobrutalism";
 import { getMealTypeFromTags } from "../../src/lib/meal-types";
+import { useGamificationStore } from "../../src/stores/gamificationStore";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -120,6 +121,7 @@ export default function CookModeScreen() {
   const [currentStep, setCurrentStep] = useState(0);
   const [screenAlwaysOn, setScreenAlwaysOn] = useState(true);
   const [showCelebration, setShowCelebration] = useState(false);
+  const showXPToast = useGamificationStore((s) => s.showXPToast);
 
   const particleData = useMemo<ParticleData[]>(
     () =>
@@ -186,7 +188,9 @@ export default function CookModeScreen() {
   const handleFinish = useCallback(async () => {
     await recordCookCompletion({ recipeId: id as Id<"recipes"> });
     setShowCelebration(true);
-  }, [recordCookCompletion, id]);
+    // Show XP toast for cook completion (base 50 XP)
+    showXPToast(50, "cook_complete");
+  }, [recordCookCompletion, id, showXPToast]);
 
   const goToNextStep = useCallback(() => {
     if (currentStep < totalSteps - 1) {

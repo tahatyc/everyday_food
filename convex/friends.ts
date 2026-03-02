@@ -1,4 +1,5 @@
 import { query, mutation } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { v, ConvexError } from "convex/values";
 import { getCurrentUserId, getCurrentUserIdOrNull } from "./lib/accessControl";
 import { rateLimiter } from "./lib/rateLimiter";
@@ -310,6 +311,18 @@ export const acceptRequest = mutation({
         updatedAt: now,
       });
     }
+
+    // Track gamification action for both users (async, non-blocking)
+    await ctx.scheduler.runAfter(0, internal.gamification.processAction, {
+      userId,
+      action: "friend_added",
+      metadata: { friendId: friendship.friendId },
+    });
+    await ctx.scheduler.runAfter(0, internal.gamification.processAction, {
+      userId: friendship.friendId,
+      action: "friend_added",
+      metadata: { friendId: userId },
+    });
 
     return { success: true };
   },

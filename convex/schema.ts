@@ -349,4 +349,107 @@ export default defineSchema({
     .index("by_user_and_recipe", ["userId", "recipeId"])
     .index("by_user_and_favorite", ["userId", "isFavorite"])
     .index("by_user_and_last_viewed", ["userId", "lastViewedAt"]),
+
+  // ==================== GAMIFICATION ====================
+  gamificationProfiles: defineTable({
+    userId: v.id("users"),
+    xp: v.number(),
+    level: v.number(),
+    currentStreak: v.number(),
+    longestStreak: v.number(),
+    lastActivityDate: v.optional(v.string()), // ISO "YYYY-MM-DD"
+    showcaseBadges: v.optional(v.array(v.id("userAchievements"))),
+    // Denormalized action counts for fast achievement evaluation
+    actionCounts: v.optional(v.any()), // { cook_complete: 47, recipe_create: 5, ... }
+    uniqueSets: v.optional(v.any()), // { cuisines: ["italian", "thai", ...] }
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_xp", ["xp"])
+    .index("by_level", ["level"]),
+
+  achievementDefinitions: defineTable({
+    key: v.string(),
+    name: v.string(),
+    description: v.string(),
+    icon: v.string(),
+    category: v.union(
+      v.literal("cooking"),
+      v.literal("planning"),
+      v.literal("social"),
+      v.literal("exploration"),
+      v.literal("streak"),
+      v.literal("special")
+    ),
+    tier: v.union(
+      v.literal("bronze"),
+      v.literal("silver"),
+      v.literal("gold"),
+      v.literal("platinum")
+    ),
+    xpReward: v.number(),
+    condition: v.any(), // JSON condition object
+    sortOrder: v.number(),
+    isActive: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index("by_key", ["key"])
+    .index("by_category", ["category"])
+    .index("by_active", ["isActive"]),
+
+  userAchievements: defineTable({
+    userId: v.id("users"),
+    achievementId: v.id("achievementDefinitions"),
+    unlockedAt: v.number(),
+    progress: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_and_achievement", ["userId", "achievementId"])
+    .index("by_achievement", ["achievementId"]),
+
+  challengeDefinitions: defineTable({
+    key: v.string(),
+    name: v.string(),
+    description: v.string(),
+    icon: v.string(),
+    type: v.union(
+      v.literal("weekly"),
+      v.literal("seasonal"),
+      v.literal("special")
+    ),
+    xpReward: v.number(),
+    condition: v.any(), // JSON condition object
+    startsAt: v.number(),
+    endsAt: v.number(),
+    isActive: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index("by_active_and_dates", ["isActive", "startsAt"])
+    .index("by_type", ["type"])
+    .index("by_key", ["key"]),
+
+  userChallenges: defineTable({
+    userId: v.id("users"),
+    challengeId: v.id("challengeDefinitions"),
+    progress: v.number(),
+    isCompleted: v.boolean(),
+    completedAt: v.optional(v.number()),
+    enrolledAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_and_challenge", ["userId", "challengeId"])
+    .index("by_challenge", ["challengeId"]),
+
+  activityLog: defineTable({
+    userId: v.id("users"),
+    action: v.string(),
+    metadata: v.optional(v.any()),
+    xpEarned: v.number(),
+    timestamp: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_and_action", ["userId", "action"])
+    .index("by_user_and_timestamp", ["userId", "timestamp"])
+    .index("by_action", ["action"]),
 });

@@ -1,4 +1,5 @@
 import { query, mutation } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { getCurrentUserId, getCurrentUserIdOrNull, canAccessMealPlan, canReadRecipe } from "./lib/accessControl";
 import { getTagsForRecipe } from "./lib/recipeHelpers";
@@ -125,6 +126,13 @@ export const addMeal = mutation({
       recipeId: args.recipeId,
       servings: args.servings,
       createdAt: Date.now(),
+    });
+
+    // Track gamification action (async, non-blocking)
+    await ctx.scheduler.runAfter(0, internal.gamification.processAction, {
+      userId,
+      action: "meal_plan_add",
+      metadata: { mealType: args.mealType, date: args.date },
     });
 
     return mealPlanId;
