@@ -37,7 +37,16 @@
       "Bash(head -20 grep -rn \"EXPO_PUBLIC\\\\|process\\\\.env\" /d/xamp/htdocs/everyday_food/app/)",
       "WebFetch(domain:www.convex.dev)",
       "WebFetch(domain:github.com)",
-      "WebFetch(domain:www.npmjs.com)"
+      "WebFetch(domain:www.npmjs.com)",
+      "Bash(sed -n '286,288p' app/cook-mode/[id].tsx)",
+      "Bash(/d/xamp/htdocs/everyday_food/app.json:*)",
+      "Bash(npx expo install expo-speech)",
+      "Bash(npx expo install expo-keep-awake)",
+      "WebFetch(domain:www.creem.io)",
+      "Bash(while read f)",
+      "Bash(do grep -l \"plan\\\\|tier\\\\|pro\\\\|premium\\\\|subscription\\\\|billing\" \"$f\")",
+      "Bash(done)",
+      "WebFetch(domain:docs.creem.io)"
     ]
   }
 }

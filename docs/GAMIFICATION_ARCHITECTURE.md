@@ -137,18 +137,18 @@ Indexes:
 
 These are the `action` values recorded in `activityLog`:
 
-| Action Key | Triggered By | Metadata |
-|---|---|---|
-| `cook_complete` | `recordCookCompletion` mutation | `{ recipeId, cuisine, difficulty, totalTime }` |
-| `meal_plan_add` | `mealPlans.addMeal` mutation | `{ mealType, date }` |
-| `meal_plan_week_complete` | Internal check (all 7 days planned) | `{ weekStartDate }` |
-| `shopping_list_complete` | All items checked off | `{ listId, itemCount }` |
-| `recipe_create` | `recipes.createManual` mutation | `{ recipeId }` |
-| `recipe_share` | `recipeShares.share` mutation | `{ recipeId, sharedWithId }` |
-| `recipe_favorite` | `toggleFavorite` / `toggleGlobalRecipeFavorite` | `{ recipeId }` |
-| `friend_added` | `friends.acceptRequest` mutation | `{ friendId }` |
-| `share_link_created` | `shareLinks.create` mutation | `{ recipeId }` |
-| `daily_login` | App open (once per day) | `{}` |
+| Action Key                | Triggered By                                    | Metadata                                       |
+| ------------------------- | ----------------------------------------------- | ---------------------------------------------- |
+| `cook_complete`           | `recordCookCompletion` mutation                 | `{ recipeId, cuisine, difficulty, totalTime }` |
+| `meal_plan_add`           | `mealPlans.addMeal` mutation                    | `{ mealType, date }`                           |
+| `meal_plan_week_complete` | Internal check (all 7 days planned)             | `{ weekStartDate }`                            |
+| `shopping_list_complete`  | All items checked off                           | `{ listId, itemCount }`                        |
+| `recipe_create`           | `recipes.createManual` mutation                 | `{ recipeId }`                                 |
+| `recipe_share`            | `recipeShares.share` mutation                   | `{ recipeId, sharedWithId }`                   |
+| `recipe_favorite`         | `toggleFavorite` / `toggleGlobalRecipeFavorite` | `{ recipeId }`                                 |
+| `friend_added`            | `friends.acceptRequest` mutation                | `{ friendId }`                                 |
+| `share_link_created`      | `shareLinks.create` mutation                    | `{ recipeId }`                                 |
+| `daily_login`             | App open (once per day)                         | `{}`                                           |
 
 ---
 
@@ -156,35 +156,35 @@ These are the `action` values recorded in `activityLog`:
 
 ### 3.1 XP Rewards Table
 
-| Action | Base XP | Bonus Conditions |
-|---|---|---|
-| Cook a recipe (Cook Mode complete) | 50 | +25 if new cuisine, +10 if hard difficulty |
-| Plan a meal | 10 | — |
-| Complete full week plan | 100 | Bonus: triggers separately from individual plans |
-| Complete shopping list | 20 | — |
-| Create a recipe | 30 | — |
-| Share a recipe | 15 | — |
-| Add a friend | 10 | — |
-| Daily login | 5 | — |
-| 7-day cooking streak | 100 | Bonus: awarded on top of daily cook XP |
-| 30-day cooking streak | 500 | Bonus: awarded on top of 7-day bonus |
+| Action                             | Base XP | Bonus Conditions                                 |
+| ---------------------------------- | ------- | ------------------------------------------------ |
+| Cook a recipe (Cook Mode complete) | 50      | +25 if new cuisine, +10 if hard difficulty       |
+| Plan a meal                        | 10      | —                                                |
+| Complete full week plan            | 100     | Bonus: triggers separately from individual plans |
+| Complete shopping list             | 20      | —                                                |
+| Create a recipe                    | 30      | —                                                |
+| Share a recipe                     | 15      | —                                                |
+| Add a friend                       | 10      | —                                                |
+| Daily login                        | 5       | —                                                |
+| 7-day cooking streak               | 100     | Bonus: awarded on top of daily cook XP           |
+| 30-day cooking streak              | 500     | Bonus: awarded on top of 7-day bonus             |
 
 ### 3.2 Level Thresholds
 
 Exponential curve — early levels are fast, later levels require commitment:
 
-| Level | Title | XP Required (Cumulative) |
-|---|---|---|
-| 1 | Home Cook | 0 |
-| 2 | Kitchen Helper | 100 |
-| 3 | Line Cook | 300 |
-| 4 | Prep Chef | 600 |
-| 5 | Station Chef | 1,000 |
-| 6 | Sous Chef | 1,500 |
-| 7 | Head Chef | 2,200 |
-| 8 | Executive Chef | 3,100 |
-| 9 | Master Chef | 4,200 |
-| 10 | Culinary Legend | 5,500 |
+| Level | Title           | XP Required (Cumulative) |
+| ----- | --------------- | ------------------------ |
+| 1     | Home Cook       | 0                        |
+| 2     | Kitchen Helper  | 100                      |
+| 3     | Line Cook       | 300                      |
+| 4     | Prep Chef       | 600                      |
+| 5     | Station Chef    | 1,000                    |
+| 6     | Sous Chef       | 1,500                    |
+| 7     | Head Chef       | 2,200                    |
+| 8     | Executive Chef  | 3,100                    |
+| 9     | Master Chef     | 4,200                    |
+| 10    | Culinary Legend | 5,500                    |
 
 **Formula**: `XP_for_level(n) = round(50 * n * (n + 1) / 2)` — configurable via a helper function, not hardcoded per level.
 
@@ -192,7 +192,12 @@ Exponential curve — early levels are fast, later levels require commitment:
 
 ```typescript
 // convex/lib/gamificationHelpers.ts
-export function calculateLevel(xp: number): { level: number; title: string; xpForNext: number; xpProgress: number } {
+export function calculateLevel(xp: number): {
+  level: number;
+  title: string;
+  xpForNext: number;
+  xpProgress: number;
+} {
   // Uses the formula to find current level from XP
   // Returns level number, title, XP needed for next level, current progress
 }
@@ -210,23 +215,32 @@ Conditions are stored as JSON in `achievementDefinitions.condition`:
 
 ```typescript
 type AchievementCondition =
-  | { type: "count"; action: string; threshold: number; filters?: Record<string, string> }
+  | {
+      type: "count";
+      action: string;
+      threshold: number;
+      filters?: Record<string, string>;
+    }
   | { type: "streak"; action: string; threshold: number }
   | { type: "unique_count"; action: string; field: string; threshold: number }
   | { type: "threshold"; field: string; threshold: number }
-  | { type: "compound"; operator: "and" | "or"; conditions: AchievementCondition[] }
+  | {
+      type: "compound";
+      operator: "and" | "or";
+      conditions: AchievementCondition[];
+    };
 ```
 
 **Examples**:
 
-| Achievement | Condition |
-|---|---|
-| First Flame | `{ type: "count", action: "cook_complete", threshold: 1 }` |
-| Iron Chef (100 cooks) | `{ type: "count", action: "cook_complete", threshold: 100 }` |
-| World Traveler | `{ type: "unique_count", action: "cook_complete", field: "metadata.cuisine", threshold: 10 }` |
-| 7-Day Streak | `{ type: "streak", action: "cook_complete", threshold: 7 }` |
-| Meal Prep Master | `{ type: "count", action: "meal_plan_week_complete", threshold: 4 }` |
-| Social Butterfly | `{ type: "compound", operator: "and", conditions: [{ type: "count", action: "recipe_share", threshold: 10 }, { type: "count", action: "friend_added", threshold: 5 }] }` |
+| Achievement           | Condition                                                                                                                                                                |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| First Flame           | `{ type: "count", action: "cook_complete", threshold: 1 }`                                                                                                               |
+| Iron Chef (100 cooks) | `{ type: "count", action: "cook_complete", threshold: 100 }`                                                                                                             |
+| World Traveler        | `{ type: "unique_count", action: "cook_complete", field: "metadata.cuisine", threshold: 10 }`                                                                            |
+| 7-Day Streak          | `{ type: "streak", action: "cook_complete", threshold: 7 }`                                                                                                              |
+| Meal Prep Master      | `{ type: "count", action: "meal_plan_week_complete", threshold: 4 }`                                                                                                     |
+| Social Butterfly      | `{ type: "compound", operator: "and", conditions: [{ type: "count", action: "recipe_share", threshold: 10 }, { type: "count", action: "friend_added", threshold: 5 }] }` |
 
 ### 4.2 Evaluation Flow
 
@@ -254,25 +268,25 @@ export async function trackAction(
   ctx: MutationCtx,
   userId: Id<"users">,
   action: string,
-  metadata: Record<string, any> = {}
+  metadata: Record<string, any> = {},
 ): Promise<{
   xpEarned: number;
-  newLevel: number | null;       // non-null if leveled up
-  newAchievements: string[];     // keys of newly unlocked achievements
+  newLevel: number | null; // non-null if leveled up
+  newAchievements: string[]; // keys of newly unlocked achievements
   challengeProgress: Array<{ name: string; progress: number; total: number }>;
 }>;
 ```
 
 **Modified existing files** (additions only, ~3-5 lines per file):
 
-| File | Change |
-|---|---|
-| `convex/recipes.ts` → `recordCookCompletion` | Add `await trackAction(ctx, userId, "cook_complete", { recipeId, ... })` |
-| `convex/recipes.ts` → `createManual` | Add `await trackAction(ctx, userId, "recipe_create", { recipeId })` |
-| `convex/mealPlans.ts` → `addMeal` | Add `await trackAction(ctx, userId, "meal_plan_add", { mealType, date })` |
-| `convex/shoppingLists.ts` → `toggleItem` | Check if all items checked → `trackAction(ctx, userId, "shopping_list_complete")` |
-| `convex/friends.ts` → `acceptRequest` | Add `await trackAction(ctx, userId, "friend_added", { friendId })` |
-| `convex/recipeShares.ts` → `share` | Add `await trackAction(ctx, userId, "recipe_share", { recipeId })` |
+| File                                         | Change                                                                            |
+| -------------------------------------------- | --------------------------------------------------------------------------------- |
+| `convex/recipes.ts` → `recordCookCompletion` | Add `await trackAction(ctx, userId, "cook_complete", { recipeId, ... })`          |
+| `convex/recipes.ts` → `createManual`         | Add `await trackAction(ctx, userId, "recipe_create", { recipeId })`               |
+| `convex/mealPlans.ts` → `addMeal`            | Add `await trackAction(ctx, userId, "meal_plan_add", { mealType, date })`         |
+| `convex/shoppingLists.ts` → `toggleItem`     | Check if all items checked → `trackAction(ctx, userId, "shopping_list_complete")` |
+| `convex/friends.ts` → `acceptRequest`        | Add `await trackAction(ctx, userId, "friend_added", { friendId })`                |
+| `convex/recipeShares.ts` → `share`           | Add `await trackAction(ctx, userId, "recipe_share", { recipeId })`                |
 
 No existing function signatures change. No existing return types change. Pure additions.
 
@@ -297,7 +311,11 @@ A Convex cron job (or manual seed) creates new weekly challenges every Monday:
 
 ```typescript
 // convex/crons.ts
-crons.weekly("rotate-challenges", { dayOfWeek: "monday", hourUTC: 0 }, api.gamification.rotateWeeklyChallenges);
+crons.weekly(
+  "rotate-challenges",
+  { dayOfWeek: "monday", hourUTC: 0 },
+  api.gamification.rotateWeeklyChallenges,
+);
 ```
 
 Challenge templates are stored in code (a `CHALLENGE_TEMPLATES` array) and rotated. This keeps it simple for Phase 1 while allowing future admin UI.
@@ -379,12 +397,12 @@ src/
 
 ### 7.2 Integration into Existing Screens
 
-| Screen | Addition |
-|---|---|
-| **Profile** (`app/(tabs)/profile.tsx`) | Replace stats section with gamification stats: Level badge, XP bar, streak counter, showcase badges. Add "View Achievements" and "Leaderboard" links |
-| **Home** (`app/(tabs)/index.tsx`) | Add streak counter in header. Show active challenges card. Show "Daily Progress" mini-widget |
-| **Cook Mode Complete** (`app/cook-mode/[id].tsx`) | After cook completion, show XP toast + any new achievement unlocks |
-| **Tab Bar** (`src/components/navigation/BottomTabBar.tsx`) | Optional: subtle level indicator on profile tab |
+| Screen                                                     | Addition                                                                                                                                             |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Profile** (`app/(tabs)/profile.tsx`)                     | Replace stats section with gamification stats: Level badge, XP bar, streak counter, showcase badges. Add "View Achievements" and "Leaderboard" links |
+| **Home** (`app/(tabs)/index.tsx`)                          | Add streak counter in header. Show active challenges card. Show "Daily Progress" mini-widget                                                         |
+| **Cook Mode Complete** (`app/cook-mode/[id].tsx`)          | After cook completion, show XP toast + any new achievement unlocks                                                                                   |
+| **Tab Bar** (`src/components/navigation/BottomTabBar.tsx`) | Optional: subtle level indicator on profile tab                                                                                                      |
 
 ### 7.3 XP Toast Notification Flow
 
@@ -460,7 +478,9 @@ interface GamificationStore {
 ## 9. Implementation Phases
 
 ### Phase 1 — Core Engine (MVP)
+
 **New files:**
+
 - `convex/gamification.ts` — queries + mutations
 - `convex/lib/gamificationEngine.ts` — `trackAction()` + helpers
 - `convex/lib/gamificationHelpers.ts` — level calc, condition evaluation
@@ -468,6 +488,7 @@ interface GamificationStore {
 - `convex/seed.ts` update — seed initial achievements
 
 **Modified files (minimal changes):**
+
 - `convex/recipes.ts` — add `trackAction` call in `recordCookCompletion` + `createManual`
 - `convex/mealPlans.ts` — add `trackAction` call in `addMeal`
 - `convex/shoppingLists.ts` — add `trackAction` call in `toggleItem` (list completion check)
@@ -475,6 +496,7 @@ interface GamificationStore {
 - `convex/recipeShares.ts` — add `trackAction` call in `share`
 
 **New frontend files:**
+
 - `src/components/gamification/XPProgressBar.tsx`
 - `src/components/gamification/AchievementBadge.tsx`
 - `src/components/gamification/StreakCounter.tsx`
@@ -484,11 +506,13 @@ interface GamificationStore {
 - `src/hooks/useGamification.ts`
 
 **Modified frontend files:**
+
 - `app/(tabs)/profile.tsx` — add level + XP bar + streak + badge showcase
 - `app/_layout.tsx` — render `XPToast` overlay
 - `app/cook-mode/[id].tsx` — show XP earned after cook completion
 
 ### Phase 2 — Challenges & Social
+
 - `challengeDefinitions` + `userChallenges` tables (already in schema)
 - `convex/crons.ts` — weekly challenge rotation
 - `app/achievements.tsx` — full achievements screen
@@ -498,6 +522,7 @@ interface GamificationStore {
 - Home screen integration (active challenges widget)
 
 ### Phase 3 — Polish & Engagement
+
 - `src/components/gamification/AchievementGrid.tsx` — categorized grid
 - Seasonal/special event challenges
 - Stats heatmap (cooking calendar)
@@ -508,35 +533,35 @@ interface GamificationStore {
 
 ## 10. Achievement Seed Data (Phase 1)
 
-| Key | Name | Category | Tier | Condition | XP |
-|---|---|---|---|---|---|
-| `first_flame` | First Flame | cooking | bronze | `count:cook_complete:1` | 25 |
-| `five_star_cook` | Five Star Cook | cooking | silver | `count:cook_complete:5` | 50 |
-| `iron_chef` | Iron Chef | cooking | platinum | `count:cook_complete:100` | 500 |
-| `speed_demon` | Speed Demon | cooking | silver | `count:cook_complete:5` + filter `totalTime<=30` | 75 |
-| `world_traveler` | World Traveler | exploration | gold | `unique_count:cook_complete:cuisine:10` | 200 |
-| `recipe_creator` | Recipe Creator | cooking | bronze | `count:recipe_create:1` | 25 |
-| `cookbook_author` | Cookbook Author | cooking | gold | `count:recipe_create:10` | 150 |
-| `meal_planner` | Meal Planner | planning | bronze | `count:meal_plan_add:1` | 15 |
-| `meal_prep_master` | Meal Prep Master | planning | gold | `count:meal_plan_week_complete:4` | 200 |
-| `grocery_guru` | Grocery Guru | planning | silver | `count:shopping_list_complete:20` | 100 |
-| `social_butterfly` | Social Butterfly | social | silver | `count:recipe_share:10` | 100 |
-| `streak_starter` | Streak Starter | streak | bronze | `streak:cook_complete:3` | 50 |
-| `week_warrior` | Week Warrior | streak | silver | `streak:cook_complete:7` | 100 |
-| `monthly_master` | Monthly Master | streak | gold | `streak:cook_complete:30` | 500 |
-| `breakfast_champion` | Breakfast Champion | cooking | silver | `count:meal_plan_add:7` + filter `mealType=breakfast` | 75 |
+| Key                  | Name               | Category    | Tier     | Condition                                             | XP  |
+| -------------------- | ------------------ | ----------- | -------- | ----------------------------------------------------- | --- |
+| `first_flame`        | First Flame        | cooking     | bronze   | `count:cook_complete:1`                               | 25  |
+| `five_star_cook`     | Five Star Cook     | cooking     | silver   | `count:cook_complete:5`                               | 50  |
+| `iron_chef`          | Iron Chef          | cooking     | platinum | `count:cook_complete:100`                             | 500 |
+| `speed_demon`        | Speed Demon        | cooking     | silver   | `count:cook_complete:5` + filter `totalTime<=30`      | 75  |
+| `world_traveler`     | World Traveler     | exploration | gold     | `unique_count:cook_complete:cuisine:10`               | 200 |
+| `recipe_creator`     | Recipe Creator     | cooking     | bronze   | `count:recipe_create:1`                               | 25  |
+| `cookbook_author`    | Cookbook Author    | cooking     | gold     | `count:recipe_create:10`                              | 150 |
+| `meal_planner`       | Meal Planner       | planning    | bronze   | `count:meal_plan_add:1`                               | 15  |
+| `meal_prep_master`   | Meal Prep Master   | planning    | gold     | `count:meal_plan_week_complete:4`                     | 200 |
+| `grocery_guru`       | Grocery Guru       | planning    | silver   | `count:shopping_list_complete:20`                     | 100 |
+| `social_butterfly`   | Social Butterfly   | social      | silver   | `count:recipe_share:10`                               | 100 |
+| `streak_starter`     | Streak Starter     | streak      | bronze   | `streak:cook_complete:3`                              | 50  |
+| `week_warrior`       | Week Warrior       | streak      | silver   | `streak:cook_complete:7`                              | 100 |
+| `monthly_master`     | Monthly Master     | streak      | gold     | `streak:cook_complete:30`                             | 500 |
+| `breakfast_champion` | Breakfast Champion | cooking     | silver   | `count:meal_plan_add:7` + filter `mealType=breakfast` | 75  |
 
 ---
 
 ## 11. Performance Considerations
 
-| Concern | Mitigation |
-|---|---|
-| `trackAction` adds latency to every mutation | Achievement check queries are index-backed. Only checks achievements user hasn't unlocked yet (small set). Activity log queries use `by_user_and_action` index. |
-| `activityLog` grows unbounded | Add a TTL/archival strategy in Phase 3. For Phase 1, Convex handles this fine — activity log rows are small (~200 bytes each). |
-| Leaderboard queries scan many users | `by_xp` index on `gamificationProfiles`. Friends leaderboard filters to accepted friendships first (small set). Global leaderboard uses `.take(limit)`. |
-| Streak calculation on every cook | Streak is maintained incrementally (compare `lastActivityDate` to today). No historical scan needed. |
-| Achievement evaluation queries | Each condition type maps to a single indexed query. `count` = count by user+action. `unique_count` = collect + dedupe on field. `streak` = read from profile (pre-computed). |
+| Concern                                      | Mitigation                                                                                                                                                                   |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `trackAction` adds latency to every mutation | Achievement check queries are index-backed. Only checks achievements user hasn't unlocked yet (small set). Activity log queries use `by_user_and_action` index.              |
+| `activityLog` grows unbounded                | Add a TTL/archival strategy in Phase 3. For Phase 1, Convex handles this fine — activity log rows are small (~200 bytes each).                                               |
+| Leaderboard queries scan many users          | `by_xp` index on `gamificationProfiles`. Friends leaderboard filters to accepted friendships first (small set). Global leaderboard uses `.take(limit)`.                      |
+| Streak calculation on every cook             | Streak is maintained incrementally (compare `lastActivityDate` to today). No historical scan needed.                                                                         |
+| Achievement evaluation queries               | Each condition type maps to a single indexed query. `count` = count by user+action. `unique_count` = collect + dedupe on field. `streak` = read from profile (pre-computed). |
 
 ### 11.1 Solutions & Optimizations
 
@@ -581,10 +606,13 @@ Update these counters atomically inside `trackAction` when inserting the activit
 Prevent unbounded `activityLog` growth with a two-tier strategy:
 
 **Tier 1 — TTL Cleanup Cron (Phase 1)**:
+
 ```typescript
 // convex/crons.ts
-crons.weekly("cleanup-activity-log", { dayOfWeek: "sunday", hourUTC: 3 },
-  internal.gamification.cleanupOldActivityLogs
+crons.weekly(
+  "cleanup-activity-log",
+  { dayOfWeek: "sunday", hourUTC: 3 },
+  internal.gamification.cleanupOldActivityLogs,
 );
 
 // Deletes activityLog entries older than 90 days.
@@ -592,6 +620,7 @@ crons.weekly("cleanup-activity-log", { dayOfWeek: "sunday", hourUTC: 3 },
 ```
 
 **Tier 2 — Aggregate Rollup Table (Phase 3)**:
+
 ```
 activitySummary
 ├── userId: Id<"users">
@@ -648,7 +677,10 @@ function updateStreak(profile: GamificationProfile, localDate: string) {
   if (lastDate === yesterday) {
     // Continue streak
     profile.currentStreak += 1;
-    profile.longestStreak = Math.max(profile.longestStreak, profile.currentStreak);
+    profile.longestStreak = Math.max(
+      profile.longestStreak,
+      profile.currentStreak,
+    );
   } else {
     // Streak broken — reset
     profile.currentStreak = 1;
@@ -659,14 +691,14 @@ function updateStreak(profile: GamificationProfile, localDate: string) {
 
 ### 11.2 Performance Optimization Summary
 
-| Optimization | Impact | Effort | Phase |
-|---|---|---|---|
-| `ctx.scheduler.runAfter(0, ...)` for async tracking | Eliminates mutation latency entirely | Low | 1 |
-| Denormalize action counts into `gamificationProfiles` | Eliminates most activityLog queries for achievement checks | Low | 1 |
-| Activity log TTL cron (90-day retention) | Prevents unbounded table growth | Low | 1 |
-| Client-side local date for streak tracking | Prevents timezone-related streak loss | Low | 1 |
-| Leaderboard cache singleton + cron refresh | Global leaderboard becomes single-doc read | Medium | 2 |
-| Aggregate rollup table for archived data | Preserves historical stats after log cleanup | Medium | 3 |
+| Optimization                                          | Impact                                                     | Effort | Phase |
+| ----------------------------------------------------- | ---------------------------------------------------------- | ------ | ----- |
+| `ctx.scheduler.runAfter(0, ...)` for async tracking   | Eliminates mutation latency entirely                       | Low    | 1     |
+| Denormalize action counts into `gamificationProfiles` | Eliminates most activityLog queries for achievement checks | Low    | 1     |
+| Activity log TTL cron (90-day retention)              | Prevents unbounded table growth                            | Low    | 1     |
+| Client-side local date for streak tracking            | Prevents timezone-related streak loss                      | Low    | 1     |
+| Leaderboard cache singleton + cron refresh            | Global leaderboard becomes single-doc read                 | Medium | 2     |
+| Aggregate rollup table for archived data              | Preserves historical stats after log cleanup               | Medium | 3     |
 
 The highest-impact, lowest-effort changes are making `trackAction` asynchronous and denormalizing counts into the profile — together these eliminate both the latency concern and most of the activityLog query pressure.
 
@@ -674,22 +706,23 @@ The highest-impact, lowest-effort changes are making `trackAction` asynchronous 
 
 ## 12. Extensibility Points
 
-| Future Feature | How the Architecture Supports It |
-|---|---|
-| New achievements | Insert row into `achievementDefinitions` — no code changes |
-| New action types | Add action key string + `trackAction` call in relevant mutation |
-| New condition types | Add evaluator function in `gamificationHelpers.ts` |
-| Unlockable rewards (themes, recipe packs) | Add `rewardType` + `rewardData` fields to `achievementDefinitions` |
-| Admin panel | CRUD on `achievementDefinitions` + `challengeDefinitions` tables |
-| Push notifications | Subscribe to `activityLog` inserts via Convex reactive queries |
-| Cooking clubs/groups | New `groups` table + group-scoped leaderboard query |
-| Custom user challenges | User-created entries in `challengeDefinitions` with `createdBy` field |
+| Future Feature                            | How the Architecture Supports It                                      |
+| ----------------------------------------- | --------------------------------------------------------------------- |
+| New achievements                          | Insert row into `achievementDefinitions` — no code changes            |
+| New action types                          | Add action key string + `trackAction` call in relevant mutation       |
+| New condition types                       | Add evaluator function in `gamificationHelpers.ts`                    |
+| Unlockable rewards (themes, recipe packs) | Add `rewardType` + `rewardData` fields to `achievementDefinitions`    |
+| Admin panel                               | CRUD on `achievementDefinitions` + `challengeDefinitions` tables      |
+| Push notifications                        | Subscribe to `activityLog` inserts via Convex reactive queries        |
+| Cooking clubs/groups                      | New `groups` table + group-scoped leaderboard query                   |
+| Custom user challenges                    | User-created entries in `challengeDefinitions` with `createdBy` field |
 
 ---
 
 ## 13. Files Summary
 
 ### New Files (Backend)
+
 ```
 convex/gamification.ts              # Main gamification queries + mutations
 convex/lib/gamificationEngine.ts    # trackAction() core engine
@@ -698,6 +731,7 @@ convex/lib/achievementEvaluator.ts  # Condition type evaluators
 ```
 
 ### New Files (Frontend)
+
 ```
 src/components/gamification/XPProgressBar.tsx
 src/components/gamification/AchievementBadge.tsx
@@ -714,6 +748,7 @@ app/leaderboard.tsx
 ```
 
 ### Modified Files (Minimal Changes)
+
 ```
 convex/schema.ts                    # +6 table definitions
 convex/recipes.ts                   # +2 trackAction calls

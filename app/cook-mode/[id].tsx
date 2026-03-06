@@ -1,6 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useMutation } from "convex/react";
 import { router, useLocalSearchParams } from "expo-router";
+import { activateKeepAwake, deactivateKeepAwake } from "expo-keep-awake";
+import * as Speech from "expo-speech";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -121,7 +123,16 @@ export default function CookModeScreen() {
   const [currentStep, setCurrentStep] = useState(0);
   const [screenAlwaysOn, setScreenAlwaysOn] = useState(true);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const showXPToast = useGamificationStore((s) => s.showXPToast);
+
+  const recordCookCompletion = useMutation(api.recipes.recordCookCompletion);
+
+  // Fetch recipe from Convex
+  const recipe = useQuery(
+    api.recipes.getById,
+    id ? { id: id as Id<"recipes"> } : "skip",
+  );
 
   const particleData = useMemo<ParticleData[]>(
     () =>
@@ -137,13 +148,44 @@ export default function CookModeScreen() {
     []
   );
 
-  const recordCookCompletion = useMutation(api.recipes.recordCookCompletion);
+  const toggleSpeech = useCallback(async () => {
+    const speaking = await Speech.isSpeakingAsync();
+    if (speaking) {
+      await Speech.stop();
+      setIsSpeaking(false);
+    } else if (recipe?.steps?.[currentStep]) {
+      setIsSpeaking(true);
+      Speech.speak(recipe.steps[currentStep].instruction, {
+        language: "en-US",
+        rate: 0.9,
+        onDone: () => setIsSpeaking(false),
+        onStopped: () => setIsSpeaking(false),
+        onError: () => setIsSpeaking(false),
+      });
+    }
+  }, [recipe, currentStep]);
 
-  // Fetch recipe from Convex
-  const recipe = useQuery(
-    api.recipes.getById,
-    id ? { id: id as Id<"recipes"> } : "skip",
-  );
+  // Stop speech when step changes or component unmounts
+  useEffect(() => {
+    Speech.stop();
+    setIsSpeaking(false);
+  }, [currentStep]);
+
+  useEffect(() => {
+    return () => {
+      Speech.stop();
+    };
+  }, []);
+
+  // Keep screen awake while cooking
+  useEffect(() => {
+    if (screenAlwaysOn) {
+      activateKeepAwake("cook-mode");
+    } else {
+      deactivateKeepAwake("cook-mode");
+    }
+    return () => { deactivateKeepAwake("cook-mode"); };
+  }, [screenAlwaysOn]);
 
   // Fix 2: Navigation guard — blocks rapid taps while transition animation runs
   const isNavigating = useRef(false);
@@ -283,8 +325,15 @@ export default function CookModeScreen() {
           {recipe.title}
         </Text>
 
-        <Pressable style={styles.voiceButton}>
-          <Ionicons name="mic-outline" size={24} color={colors.text} />
+        <Pressable
+          style={[styles.voiceButton, isSpeaking && styles.voiceButtonActive]}
+          onPress={toggleSpeech}
+        >
+          <Ionicons
+            name={isSpeaking ? "volume-high" : "volume-medium-outline"}
+            size={24}
+            color={isSpeaking ? colors.surface : colors.text}
+          />
         </Pressable>
       </Animated.View>
 
@@ -505,6 +554,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     ...shadows.sm,
+  },
+  voiceButtonActive: {
+    backgroundColor: colors.primary,
   },
   progressSection: {
     paddingHorizontal: spacing.lg,

@@ -4,6 +4,7 @@ import { useFonts } from "expo-font";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
+import * as Linking from "expo-linking";
 import "react-native-reanimated";
 import { StatusBar } from "expo-status-bar";
 import { View, StyleSheet } from "react-native";
@@ -72,6 +73,20 @@ function RootLayoutNav() {
       router.replace("/(tabs)");
     }
   }, [isAuthenticated, isLoading, segments]);
+
+  // Handle deep links for payment success
+  const url = Linking.useURL();
+  useEffect(() => {
+    if (!url) return;
+    const parsed = Linking.parse(url);
+    if (parsed.path === "payment-success" || parsed.hostname === "payment-success") {
+      const checkoutId = parsed.queryParams?.checkout_id;
+      router.push({
+        pathname: "/payment-success" as any,
+        params: checkoutId ? { checkout_id: checkoutId as string } : {},
+      });
+    }
+  }, [url]);
 
   // Prevent rendering protected screens while auth state is resolving
   if (isLoading) {
@@ -165,6 +180,21 @@ function RootLayoutNav() {
           options={{
             headerShown: false,
             animation: "slide_from_right",
+          }}
+        />
+        <Stack.Screen
+          name="paywall"
+          options={{
+            headerShown: false,
+            presentation: "modal",
+            animation: "slide_from_bottom",
+          }}
+        />
+        <Stack.Screen
+          name="payment-success"
+          options={{
+            headerShown: false,
+            animation: "fade",
           }}
         />
       </Stack>

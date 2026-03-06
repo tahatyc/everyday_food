@@ -11,6 +11,7 @@ import {
 import { enrichRecipesWithTags, getTagsForRecipe } from "./lib/recipeHelpers";
 import { validateRecipeInput, validateStringLength } from "./lib/validation";
 import { rateLimiter } from "./lib/rateLimiter";
+import { enforceFeatureLimit } from "./lib/subscription";
 import { Doc } from "./_generated/dataModel";
 
 // Get all recipes for current user
@@ -389,6 +390,13 @@ export const createManual = mutation({
         retryAfter,
       });
     }
+
+    // Check recipe count limit
+    const userRecipes = await ctx.db
+      .query("recipes")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+    await enforceFeatureLimit(ctx, userId, "recipes", userRecipes.length);
 
     // Calculate total time
     const totalTime =

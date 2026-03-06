@@ -374,7 +374,7 @@ export default function GroceryListScreen() {
   const displayedGroups = activeView === "aisle" ? aisleGroupedItems : recipeGroupedItems;
 
   const totalItems = shoppingList?.items?.length || 0;
-  const checkedItems = shoppingList?.items?.filter((item) => item.isChecked).length || 0;
+  const checkedItems = shoppingList?.items?.filter((item: any) => item.isChecked).length || 0;
   const uncheckedItems = totalItems - checkedItems;
 
   const showChangeBanner =

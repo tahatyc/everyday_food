@@ -4,6 +4,7 @@ import { v, ConvexError } from "convex/values";
 import { getCurrentUserId, getCurrentUserIdOrNull } from "./lib/accessControl";
 import { getTagsForRecipe } from "./lib/recipeHelpers";
 import { rateLimiter } from "./lib/rateLimiter";
+import { enforceFeatureLimit } from "./lib/subscription";
 
 // Get users a recipe is shared with (owner only)
 export const getSharedWith = query({
@@ -167,6 +168,21 @@ export const share = mutation({
       });
     }
 
+    // Check share recipients limit
+    const existingShares = await ctx.db
+      .query("recipeShares")
+      .withIndex("by_owner", (q) => q.eq("ownerId", userId))
+      .collect();
+    const uniqueRecipients = new Set(
+      existingShares.map((s) => s.sharedWithId)
+    );
+    await enforceFeatureLimit(
+      ctx,
+      userId,
+      "shareRecipesWith",
+      uniqueRecipients.size
+    );
+
     // Check ownership
     const recipe = await ctx.db.get(args.recipeId);
     if (!recipe) {
@@ -243,6 +259,21 @@ export const shareWithMultiple = mutation({
         retryAfter,
       });
     }
+
+    // Check share recipients limit
+    const existingShares = await ctx.db
+      .query("recipeShares")
+      .withIndex("by_owner", (q) => q.eq("ownerId", userId))
+      .collect();
+    const uniqueRecipients = new Set(
+      existingShares.map((s) => s.sharedWithId)
+    );
+    await enforceFeatureLimit(
+      ctx,
+      userId,
+      "shareRecipesWith",
+      uniqueRecipients.size
+    );
 
     // Check ownership
     const recipe = await ctx.db.get(args.recipeId);

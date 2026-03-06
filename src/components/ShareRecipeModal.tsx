@@ -89,7 +89,7 @@ export default function ShareRecipeModal({
   };
 
   const isAlreadyShared = (friendId: Id<"users">) => {
-    return sharedWith?.some((s) => s.userId === friendId) ?? false;
+    return sharedWith?.some((s: any) => s.userId === friendId) ?? false;
   };
 
   return (
@@ -140,7 +140,7 @@ export default function ShareRecipeModal({
                 </View>
               ) : (
                 <View style={styles.friendsList}>
-                  {friends.filter((f): f is NonNullable<typeof f> => f !== null).map((friend, index) => {
+                  {friends.filter((f: any): f is NonNullable<typeof f> => f !== null).map((friend: any, index: number) => {
                     const alreadyShared = isAlreadyShared(friend.friendId);
                     const isSelected = selectedFriends.has(friend.friendId);
                     return (

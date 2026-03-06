@@ -21,6 +21,16 @@ export default defineSchema({
     weekStartDay: v.optional(
       v.union(v.literal("monday"), v.literal("sunday"))
     ),
+    // Subscription
+    subscriptionStatus: v.optional(
+      v.union(
+        v.literal("free"),
+        v.literal("trialing"),
+        v.literal("pro"),
+        v.literal("past_due"),
+        v.literal("expired")
+      )
+    ),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -349,6 +359,37 @@ export default defineSchema({
     .index("by_user_and_recipe", ["userId", "recipeId"])
     .index("by_user_and_favorite", ["userId", "isFavorite"])
     .index("by_user_and_last_viewed", ["userId", "lastViewedAt"]),
+
+  // ==================== SUBSCRIPTIONS ====================
+  subscriptions: defineTable({
+    userId: v.id("users"),
+    creemSubscriptionId: v.string(),
+    creemCustomerId: v.string(),
+    status: v.union(
+      v.literal("trialing"),
+      v.literal("active"),
+      v.literal("past_due"),
+      v.literal("canceled"),
+      v.literal("expired")
+    ),
+    plan: v.literal("pro"),
+    currentPeriodStart: v.number(),
+    currentPeriodEnd: v.number(),
+    trialEnd: v.optional(v.number()),
+    cancelAtPeriodEnd: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_creem_subscription", ["creemSubscriptionId"])
+    .index("by_status", ["status"]),
+
+  webhookEvents: defineTable({
+    eventId: v.string(),
+    eventType: v.string(),
+    processedAt: v.number(),
+  })
+    .index("by_event_id", ["eventId"]),
 
   // ==================== GAMIFICATION ====================
   gamificationProfiles: defineTable({

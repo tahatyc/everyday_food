@@ -94,7 +94,7 @@ export default function SettingsScreen() {
     if (!user) return;
     const current = user.dietaryPreferences || [];
     const updated = current.includes(option)
-      ? current.filter((d) => d !== option)
+      ? current.filter((d: string) => d !== option)
       : [...current, option];
     await updateProfile({ dietaryPreferences: updated });
   };

@@ -177,7 +177,7 @@ export default function SelectRecipeScreen() {
   // Filter recipes based on active filter and search
   const getFilteredRecipes = (): ConvexRecipe[] => {
     if (searchQuery && searchResults) {
-      return searchResults as ConvexRecipe[];
+      return searchResults as unknown as ConvexRecipe[];
     }
 
     if (!allRecipes) return [];

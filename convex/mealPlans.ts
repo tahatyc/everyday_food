@@ -4,6 +4,7 @@ import { v } from "convex/values";
 import { getCurrentUserId, getCurrentUserIdOrNull, canAccessMealPlan, canReadRecipe } from "./lib/accessControl";
 import { getTagsForRecipe } from "./lib/recipeHelpers";
 import { validateDateString, validateNumberRange } from "./lib/validation";
+import { enforceFeatureLimit } from "./lib/subscription";
 
 // Get meal plans for a specific date
 export const getByDate = query({
@@ -103,6 +104,17 @@ export const addMeal = mutation({
     // Verify the user can access the recipe being added
     const hasRecipeAccess = await canReadRecipe(ctx, args.recipeId, userId);
     if (!hasRecipeAccess) throw new Error("Not authorized to access this recipe");
+
+    // Check meal plan days limit (how far ahead free users can plan)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const mealDate = new Date(args.date);
+    const daysDiff = Math.ceil(
+      (mealDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    if (daysDiff > 0) {
+      await enforceFeatureLimit(ctx, userId, "mealPlanDays", daysDiff);
+    }
 
     // Check cap: max 3 meals per slot
     const existing = await ctx.db

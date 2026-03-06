@@ -132,7 +132,7 @@ export function useRecipeForm(recipeId?: string) {
           : initialState.nutrition,
         ingredients:
           existingRecipe.ingredients.length > 0
-            ? existingRecipe.ingredients.map((ing, i) => ({
+            ? existingRecipe.ingredients.map((ing: any, i: number) => ({
                 id: String(i),
                 name: ing.name,
                 amount: ing.amount ? String(ing.amount) : "",
@@ -141,7 +141,7 @@ export function useRecipeForm(recipeId?: string) {
             : initialState.ingredients,
         steps:
           existingRecipe.steps.length > 0
-            ? existingRecipe.steps.map((step, i) => ({
+            ? existingRecipe.steps.map((step: any, i: number) => ({
                 id: String(i),
                 instruction: step.instruction,
                 tip: (step as any).tips || "",

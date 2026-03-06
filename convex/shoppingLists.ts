@@ -4,6 +4,7 @@ import { v } from "convex/values";
 import { getCurrentUserId, getCurrentUserIdOrNull, canAccessShoppingList, canAccessShoppingItem } from "./lib/accessControl";
 import { canReadRecipe } from "./lib/accessControl";
 import { validateStringLength, validateDateString, validateNumberRange } from "./lib/validation";
+import { enforceFeatureLimit } from "./lib/subscription";
 
 // Aisle mapping based on ingredient name keywords
 const aisleMap: [string, string[]][] = [
@@ -475,6 +476,20 @@ export const create = mutation({
   handler: async (ctx, args) => {
     validateStringLength(args.name, "name", 100);
     const userId = await getCurrentUserId(ctx);
+
+    // Check active shopping lists limit
+    const activeLists = await ctx.db
+      .query("shoppingLists")
+      .withIndex("by_user_and_active", (q) =>
+        q.eq("userId", userId).eq("isActive", true)
+      )
+      .collect();
+    await enforceFeatureLimit(
+      ctx,
+      userId,
+      "activeShoppingLists",
+      activeLists.length
+    );
 
     const now = Date.now();
 

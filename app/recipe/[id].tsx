@@ -422,7 +422,7 @@ export default function RecipeDetailScreen() {
         </View>
 
         <View style={styles.ingredientsList}>
-          {recipe.ingredients.map((ingredient, index) => (
+          {recipe.ingredients.map((ingredient: any, index: number) => (
             <IngredientItem
               key={index}
               ingredient={ingredient}

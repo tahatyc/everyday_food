@@ -315,7 +315,7 @@ export default function RecipesScreen() {
   // Filter recipes based on active tab filter (memoized to avoid duplicate computation)
   const baseRecipes = useMemo((): ConvexRecipe[] => {
     if (searchQuery && searchResults) {
-      return searchResults as ConvexRecipe[];
+      return searchResults as unknown as ConvexRecipe[];
     }
 
     if (!allRecipes) return [];

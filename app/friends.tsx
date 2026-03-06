@@ -319,7 +319,7 @@ export default function FriendsScreen() {
               ) : searchResults.length === 0 ? (
                 <Text style={styles.noResults}>No users found</Text>
               ) : (
-                searchResults.map((user, index) => (
+                searchResults.map((user: any, index: number) => (
                   <UserSearchCard
                     key={user.userId}
                     user={user}
@@ -347,7 +347,7 @@ export default function FriendsScreen() {
               {pending.incoming.length > 0 && (
                 <View style={styles.subsection}>
                   <Text style={styles.subsectionTitle}>Incoming</Text>
-                  {pending.incoming.map((request, index) => (
+                  {pending.incoming.map((request: any, index: number) => (
                     <RequestCard
                       key={request.friendshipId}
                       request={request}
@@ -364,7 +364,7 @@ export default function FriendsScreen() {
               {pending.outgoing.length > 0 && (
                 <View style={styles.subsection}>
                   <Text style={styles.subsectionTitle}>Sent</Text>
-                  {pending.outgoing.map((request, index) => (
+                  {pending.outgoing.map((request: any, index: number) => (
                     <RequestCard
                       key={request.friendshipId}
                       request={request}
@@ -395,7 +395,7 @@ export default function FriendsScreen() {
             </View>
           ) : friends && friends.length > 0 ? (
             <View style={styles.friendsList}>
-              {friends.map((friend, index) => (
+              {friends.map((friend: any, index: number) => (
                 <FriendCard
                   key={friend.friendshipId}
                   friend={friend}

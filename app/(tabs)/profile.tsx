@@ -27,6 +27,7 @@ import { XPProgressBar } from "../../src/components/gamification/XPProgressBar";
 import { LevelBadge } from "../../src/components/gamification/LevelBadge";
 import { StreakCounter } from "../../src/components/gamification/StreakCounter";
 import { useGamification } from "../../src/hooks/useGamification";
+import { useSubscription } from "../../src/hooks/useSubscription";
 
 // Stats Item Component
 function StatsItem({
@@ -80,6 +81,14 @@ export default function ProfileScreen() {
   const user = useQuery(api.users.current);
   const stats = useQuery(api.users.getStats);
   const { profile: gamProfile } = useGamification();
+  const {
+    status: subStatus,
+    isPro,
+    isTrialing,
+    daysLeftInTrial,
+    openPaywall,
+    openBilling,
+  } = useSubscription();
 
   const handleSignOut = async () => {
     await signOut();
@@ -191,6 +200,58 @@ export default function ProfileScreen() {
             </Pressable>
           </Animated.View>
         )}
+
+        {/* Subscription Section */}
+        <Animated.View
+          style={[
+            styles.subscriptionCard,
+            isPro && styles.subscriptionCardPro,
+          ]}
+          entering={FadeInDown.delay(400).duration(400)}
+        >
+          <View style={styles.subscriptionHeader}>
+            <Ionicons
+              name={isPro ? "star" : "star-outline"}
+              size={22}
+              color={isPro ? colors.secondary : colors.accent}
+            />
+            <Text style={styles.subscriptionTitle}>
+              EVERYDAY FOOD PRO
+            </Text>
+          </View>
+          <Text style={styles.subscriptionStatus}>
+            {subStatus === "free" && "Free Plan"}
+            {subStatus === "trialing" &&
+              `Trial${daysLeftInTrial !== null ? ` — ${daysLeftInTrial} days left` : ""}`}
+            {subStatus === "pro" && "Pro Member"}
+            {subStatus === "past_due" && "Payment Issue"}
+            {subStatus === "expired" && "Expired"}
+          </Text>
+          {isPro ? (
+            <Pressable
+              style={({ pressed }) => [
+                styles.subscriptionButton,
+                pressed && styles.cardPressed,
+              ]}
+              onPress={openBilling}
+            >
+              <Text style={styles.subscriptionButtonText}>
+                MANAGE SUBSCRIPTION
+              </Text>
+            </Pressable>
+          ) : (
+            <Pressable
+              style={({ pressed }) => [
+                styles.upgradeButton,
+                pressed && styles.cardPressed,
+              ]}
+              onPress={openPaywall}
+            >
+              <Ionicons name="star" size={16} color={colors.textLight} />
+              <Text style={styles.upgradeButtonText}>UPGRADE TO PRO</Text>
+            </Pressable>
+          )}
+        </Animated.View>
 
         {/* Stats Section */}
         <Animated.View
@@ -396,6 +457,71 @@ const styles = StyleSheet.create({
     color: colors.text,
     letterSpacing: typography.letterSpacing.wider,
     flex: 1,
+  },
+  subscriptionCard: {
+    backgroundColor: colors.surface,
+    borderWidth: borders.regular,
+    borderColor: borders.color,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.xl,
+    gap: spacing.sm,
+    ...shadows.sm,
+  },
+  subscriptionCardPro: {
+    borderColor: colors.primary,
+    borderWidth: borders.thick,
+  },
+  subscriptionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  subscriptionTitle: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.black,
+    color: colors.text,
+    letterSpacing: typography.letterSpacing.wider,
+  },
+  subscriptionStatus: {
+    fontSize: typography.sizes.sm,
+    color: colors.textSecondary,
+    fontWeight: typography.weights.semibold,
+  },
+  subscriptionButton: {
+    backgroundColor: colors.surface,
+    borderWidth: borders.regular,
+    borderColor: borders.color,
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.sm,
+    alignItems: "center",
+    marginTop: spacing.xs,
+    ...shadows.sm,
+  },
+  subscriptionButtonText: {
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.bold,
+    color: colors.text,
+    letterSpacing: typography.letterSpacing.wider,
+  },
+  upgradeButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.accent,
+    borderWidth: borders.regular,
+    borderColor: borders.color,
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.sm,
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+    ...shadows.sm,
+  },
+  upgradeButtonText: {
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.bold,
+    color: colors.textLight,
+    letterSpacing: typography.letterSpacing.wider,
   },
   statsContainer: {
     flexDirection: "row",
