@@ -230,15 +230,17 @@ export default defineSchema({
     .index("by_list_and_checked", ["listId", "isChecked"])
     .index("by_list_and_aisle", ["listId", "aisle"]),
 
-  // Track which recipes are in a shopping list
+  // Track which recipes are in a shopping list (one entry per meal plan entry)
   shoppingListRecipes: defineTable({
     listId: v.id("shoppingLists"),
     recipeId: v.id("recipes"),
-    servings: v.number(),
+    mealPlanId: v.optional(v.id("mealPlans")), // links to specific meal plan entry
+    servings: v.number(), // the scaled servings used for this entry
     addedAt: v.number(),
   })
     .index("by_list", ["listId"])
-    .index("by_recipe", ["recipeId"]),
+    .index("by_recipe", ["recipeId"])
+    .index("by_meal_plan", ["mealPlanId"]),
 
   // ==================== COOKING SESSIONS ====================
   cookingSessions: defineTable({

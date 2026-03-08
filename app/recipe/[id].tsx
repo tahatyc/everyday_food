@@ -17,6 +17,7 @@ import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import ShareRecipeModal from "../../src/components/ShareRecipeModal";
 import { useToast } from "../../src/hooks/useToast";
+import { useRecipeScaling } from "../../src/hooks/useRecipeScaling";
 
 import {
   borderRadius,
@@ -75,11 +76,15 @@ function IngredientItem({
   checked,
   onToggle,
   index,
+  displayAmount,
+  displayUnit,
 }: {
   ingredient: Ingredient;
   checked: boolean;
   onToggle: () => void;
   index: number;
+  displayAmount?: string;
+  displayUnit?: string;
 }) {
   return (
     <Animated.View entering={FadeInDown.delay(500 + index * 30).duration(300)}>
@@ -98,7 +103,7 @@ function IngredientItem({
             checked && styles.ingredientTextChecked,
           ]}
         >
-          {ingredient.amount} {ingredient.unit} {ingredient.name}
+          {displayAmount ?? ingredient.amount} {displayUnit ?? ingredient.unit} {ingredient.name}
           {ingredient.preparation ? `, ${ingredient.preparation}` : ""}
         </Text>
       </Pressable>
@@ -127,6 +132,12 @@ export default function RecipeDetailScreen() {
   const deleteRecipeMutation = useMutation(api.recipes.deleteRecipe);
 
   const { showSuccess, showError } = useToast();
+
+  // Recipe scaling
+  const scaling = useRecipeScaling({
+    recipeServings: recipe?.servings ?? 4,
+    ingredients: recipe?.ingredients ?? [],
+  });
 
   // Derive favorite state directly from the live Convex query
   const isFavorite = recipe?.isFavorite || false;
@@ -217,7 +228,10 @@ export default function RecipeDetailScreen() {
 
   const handleAddToList = async () => {
     try {
-      const result = await addToListMutation({ recipeId: recipe._id });
+      const result = await addToListMutation({
+        recipeId: recipe._id,
+        targetServings: scaling.targetServings,
+      });
       showSuccess(`${result.itemsAdded} ingredients added to your shopping list`);
     } catch {
       showError("Failed to add ingredients to list.");
@@ -382,6 +396,59 @@ export default function RecipeDetailScreen() {
           </View>
         </View>
 
+        {/* Servings Scaler */}
+        <Animated.View
+          style={styles.scalerContainer}
+          entering={FadeInDown.delay(250).duration(400)}
+        >
+          <View style={styles.scalerHeader}>
+            <Text style={styles.scalerTitle}>SCALE RECIPE</Text>
+            {scaling.isScaled && (
+              <Pressable onPress={scaling.reset}>
+                <Text style={styles.scalerReset}>RESET</Text>
+              </Pressable>
+            )}
+          </View>
+          <View style={styles.scalerControls}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.scalerButton,
+                scaling.targetServings <= 1 && styles.scalerButtonDisabled,
+                pressed && scaling.targetServings > 1 && styles.buttonPressed,
+              ]}
+              onPress={scaling.decrement}
+              disabled={scaling.targetServings <= 1}
+            >
+              <Ionicons
+                name="remove"
+                size={20}
+                color={scaling.targetServings <= 1 ? colors.textMuted : colors.text}
+              />
+            </Pressable>
+            <View style={styles.scalerValue}>
+              <Text style={styles.scalerValueText}>
+                {scaling.targetServings}
+              </Text>
+              <Text style={styles.scalerValueLabel}>SERVINGS</Text>
+            </View>
+            <Pressable
+              style={({ pressed }) => [
+                styles.scalerButton,
+                pressed && styles.buttonPressed,
+              ]}
+              onPress={scaling.increment}
+            >
+              <Ionicons name="add" size={20} color={colors.text} />
+            </Pressable>
+          </View>
+          {scaling.isScaled && (
+            <Text style={styles.scalerMultiplier}>
+              {scaling.multiplier.toFixed(1)}x original
+              {scaling.preferredUnits === "metric" ? " (metric)" : " (imperial)"}
+            </Text>
+          )}
+        </Animated.View>
+
         {/* Nutrition Grid */}
         <View style={styles.nutritionGrid}>
           {nutritionData.map((item, index) => (
@@ -422,15 +489,20 @@ export default function RecipeDetailScreen() {
         </View>
 
         <View style={styles.ingredientsList}>
-          {recipe.ingredients.map((ingredient: any, index: number) => (
-            <IngredientItem
-              key={index}
-              ingredient={ingredient}
-              checked={checkedIngredients.has(index)}
-              onToggle={() => toggleIngredient(index)}
-              index={index}
-            />
-          ))}
+          {recipe.ingredients.map((ingredient: any, index: number) => {
+            const scaled = scaling.scaledIngredients[index];
+            return (
+              <IngredientItem
+                key={index}
+                ingredient={ingredient}
+                checked={checkedIngredients.has(index)}
+                onToggle={() => toggleIngredient(index)}
+                index={index}
+                displayAmount={scaled ? scaling.formatAmount(scaled.amount) : undefined}
+                displayUnit={scaled?.unit}
+              />
+            );
+          })}
         </View>
 
         {/* Bottom Spacing */}
@@ -699,6 +771,75 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.sm,
     color: colors.textSecondary,
     fontWeight: typography.weights.medium,
+  },
+  scalerContainer: {
+    backgroundColor: colors.surface,
+    borderWidth: borders.regular,
+    borderColor: borders.color,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+    ...shadows.sm,
+  },
+  scalerHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: spacing.md,
+  },
+  scalerTitle: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.black,
+    fontStyle: "italic",
+    color: colors.text,
+    letterSpacing: typography.letterSpacing.wider,
+  },
+  scalerReset: {
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.bold,
+    color: colors.accent,
+    letterSpacing: typography.letterSpacing.wide,
+  },
+  scalerControls: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xl,
+  },
+  scalerButton: {
+    width: 44,
+    height: 44,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: borders.regular,
+    borderColor: borders.color,
+    borderRadius: borderRadius.md,
+    alignItems: "center",
+    justifyContent: "center",
+    ...shadows.sm,
+  },
+  scalerButtonDisabled: {
+    opacity: 0.4,
+  },
+  scalerValue: {
+    alignItems: "center",
+  },
+  scalerValueText: {
+    fontSize: typography.sizes.xxl,
+    fontWeight: typography.weights.black,
+    color: colors.text,
+  },
+  scalerValueLabel: {
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.semibold,
+    color: colors.textMuted,
+    letterSpacing: typography.letterSpacing.wide,
+  },
+  scalerMultiplier: {
+    textAlign: "center",
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.semibold,
+    color: colors.primary,
+    marginTop: spacing.sm,
   },
   bottomSpacer: {
     height: spacing.xxxxl,

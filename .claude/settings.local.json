@@ -46,7 +46,11 @@
       "Bash(while read f)",
       "Bash(do grep -l \"plan\\\\|tier\\\\|pro\\\\|premium\\\\|subscription\\\\|billing\" \"$f\")",
       "Bash(done)",
-      "WebFetch(domain:docs.creem.io)"
+      "WebFetch(domain:docs.creem.io)",
+      "WebFetch(domain:www.calai.app)",
+      "WebFetch(domain:www.recime.app)",
+      "WebSearch",
+      "Bash(python3 .claude/skills/ui-ux-pro-max/scripts/search.py \"accessibility touch targets mobile react-native\" --domain ux -n 15)"
     ]
   }
 }

@@ -199,8 +199,7 @@ describe('SelectRecipeScreen', () => {
     expect(getByText('4 servings')).toBeTruthy();
   });
 
-  it('calls addMeal mutation and navigates back on recipe select', async () => {
-    mockAddMeal.mockResolvedValue(undefined);
+  it('shows servings picker when recipe is selected', () => {
     (useQuery as jest.Mock)
       .mockReturnValueOnce(mockRecipes)
       .mockReturnValueOnce(undefined);
@@ -208,14 +207,47 @@ describe('SelectRecipeScreen', () => {
     const { getByText } = render(<SelectRecipeScreen />);
     fireEvent.press(getByText('Pancakes'));
 
+    expect(getByText('HOW MANY SERVINGS?')).toBeTruthy();
+    expect(getByText('ADD MEAL')).toBeTruthy();
+    expect(getByText('CANCEL')).toBeTruthy();
+  });
+
+  it('calls addMeal mutation with chosen servings and navigates back', async () => {
+    mockAddMeal.mockResolvedValue(undefined);
+    (useQuery as jest.Mock).mockImplementation((queryRef: any, args: any) => {
+      if (args === 'skip') return undefined;
+      return mockRecipes;
+    });
+
+    const { getByText } = render(<SelectRecipeScreen />);
+    fireEvent.press(getByText('Pancakes'));
+
+    // Confirm with default servings
+    fireEvent.press(getByText('ADD MEAL'));
+
     await waitFor(() => {
       expect(mockAddMeal).toHaveBeenCalledWith({
         date: '2026-02-07',
         mealType: 'breakfast',
         recipeId: 'r1',
+        servings: 4,
       });
       expect(router.back).toHaveBeenCalled();
     });
+  });
+
+  it('dismisses servings picker when CANCEL is pressed', () => {
+    (useQuery as jest.Mock).mockImplementation((queryRef: any, args: any) => {
+      if (args === 'skip') return undefined;
+      return mockRecipes;
+    });
+
+    const { getByText, queryByText } = render(<SelectRecipeScreen />);
+    fireEvent.press(getByText('Pancakes'));
+    expect(getByText('HOW MANY SERVINGS?')).toBeTruthy();
+
+    fireEvent.press(getByText('CANCEL'));
+    expect(queryByText('HOW MANY SERVINGS?')).toBeNull();
   });
 
   it('shows empty state when no recipes match filter', () => {
@@ -261,12 +293,16 @@ describe('SelectRecipeScreen', () => {
     // Select a breakfast-tagged recipe (Pancakes)
     fireEvent.press(getByText('Pancakes'));
 
+    // Confirm via servings picker
+    fireEvent.press(getByText('ADD MEAL'));
+
     await waitFor(() => {
       // Should still use mealType 'dinner' (the slot), not 'breakfast' (the recipe's tag)
       expect(mockAddMeal).toHaveBeenCalledWith({
         date: '2026-02-07',
         mealType: 'dinner',
         recipeId: 'r1',
+        servings: 4,
       });
       expect(router.back).toHaveBeenCalled();
     });

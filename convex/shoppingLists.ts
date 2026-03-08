@@ -1,5 +1,6 @@
 import { query, mutation } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 import { getCurrentUserId, getCurrentUserIdOrNull, canAccessShoppingList, canAccessShoppingItem } from "./lib/accessControl";
 import { canReadRecipe } from "./lib/accessControl";
@@ -317,9 +318,24 @@ export const addItem = mutation({
   },
 });
 
+// Scale an ingredient amount based on target vs recipe servings
+function scaleAmount(
+  amount: number | undefined,
+  recipeServings: number,
+  targetServings: number
+): number | undefined {
+  if (amount === undefined || amount === 0) return amount;
+  if (recipeServings <= 0 || targetServings <= 0) return amount;
+  const multiplier = targetServings / recipeServings;
+  return Math.round(amount * multiplier * 100) / 100;
+}
+
 // Add all ingredients from a recipe to shopping list
 export const addRecipeIngredients = mutation({
-  args: { recipeId: v.id("recipes") },
+  args: {
+    recipeId: v.id("recipes"),
+    targetServings: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     const userId = await getCurrentUserId(ctx);
 
@@ -329,6 +345,8 @@ export const addRecipeIngredients = mutation({
     // Verify the user can read this recipe before exposing its ingredients
     const hasAccess = await canReadRecipe(ctx, args.recipeId, userId);
     if (!hasAccess) throw new Error("Not authorized to access this recipe");
+
+    const servingsToUse = args.targetServings ?? recipe.servings;
 
     // Get ingredients
     const ingredients = await ctx.db
@@ -367,9 +385,11 @@ export const addRecipeIngredients = mutation({
 
     let maxSort = Math.max(...existingItems.map((i) => i.sortOrder || 0), 0);
 
-    // Add each ingredient
+    // Add each ingredient (scaled)
     for (const ing of ingredients) {
       if (ing.isOptional) continue; // Skip optional ingredients
+
+      const scaledAmount = scaleAmount(ing.amount, recipe.servings, servingsToUse);
 
       // Check if already exists
       const existing = existingItems.find(
@@ -379,7 +399,7 @@ export const addRecipeIngredients = mutation({
       if (existing) {
         // Update amount if exists
         await ctx.db.patch(existing._id, {
-          amount: (existing.amount || 0) + (ing.amount || 0),
+          amount: (existing.amount || 0) + (scaledAmount || 0),
         });
       } else {
         // Add new item
@@ -387,7 +407,7 @@ export const addRecipeIngredients = mutation({
         await ctx.db.insert("shoppingItems", {
           listId: list._id,
           name: ing.name,
-          amount: ing.amount,
+          amount: scaledAmount,
           unit: ing.unit,
           aisle: getAisle(ing.name),
           recipeId: args.recipeId,
@@ -408,7 +428,7 @@ export const addRecipeIngredients = mutation({
       await ctx.db.insert("shoppingListRecipes", {
         listId: list._id,
         recipeId: args.recipeId,
-        servings: recipe.servings,
+        servings: servingsToUse,
         addedAt: now,
       });
     }
@@ -622,16 +642,8 @@ export const createForWeek = mutation({
       .collect();
 
     const weekMealPlans = allMealPlans.filter(
-      (plan) => plan.date >= args.weekStartDate && plan.date <= args.weekEndDate
+      (plan) => plan.date >= args.weekStartDate && plan.date <= args.weekEndDate && plan.recipeId
     );
-
-    // Collect unique recipe IDs
-    const recipeIdSet = new Set(
-      weekMealPlans
-        .filter((plan) => plan.recipeId)
-        .map((plan) => plan.recipeId!)
-    );
-    const recipeIds = Array.from(recipeIdSet);
 
     const now = Date.now();
 
@@ -645,79 +657,98 @@ export const createForWeek = mutation({
       updatedAt: now,
     });
 
-    // Combine ingredients across all recipes
+    // Combine ingredients across all meal plan entries, scaling per entry
     const combinedItems = new Map<string, {
       name: string;
       amount: number;
       unit: string;
       aisle: string;
-      recipeId: typeof recipeIds[number];
-      originalItems: { recipeId: typeof recipeIds[number]; amount: number; unit: string }[];
+      recipeId: Id<"recipes">;
+      originalItems: { recipeId: Id<"recipes">; amount: number; unit: string }[];
     }>();
+
+    // Cache recipe data to avoid re-fetching
+    const recipeCache = new Map<string, { servings: number }>();
+    const ingredientCache = new Map<string, Array<{ name: string; amount?: number; unit?: string; isOptional?: boolean }>>();
 
     let sortOrder = 0;
 
-    for (const recipeId of recipeIds) {
-      const recipeDoc = await ctx.db.get(recipeId);
-      if (!recipeDoc || !("servings" in recipeDoc)) continue;
-      const recipe = recipeDoc as { servings: number };
+    // Iterate per meal plan entry (not per unique recipe)
+    for (const mealPlan of weekMealPlans) {
+      const recipeId = mealPlan.recipeId!;
+      const recipeIdStr = recipeId.toString();
 
-      const ingredients = await ctx.db
-        .query("ingredients")
-        .withIndex("by_recipe", (q) => q.eq("recipeId", recipeId))
-        .collect();
+      // Fetch recipe (cached)
+      if (!recipeCache.has(recipeIdStr)) {
+        const recipeDoc = await ctx.db.get(recipeId);
+        if (!recipeDoc || !("servings" in recipeDoc)) continue;
+        recipeCache.set(recipeIdStr, { servings: recipeDoc.servings });
+
+        const ingredients = await ctx.db
+          .query("ingredients")
+          .withIndex("by_recipe", (q) => q.eq("recipeId", recipeId))
+          .collect();
+        ingredientCache.set(recipeIdStr, ingredients);
+      }
+
+      const recipe = recipeCache.get(recipeIdStr)!;
+      const ingredients = ingredientCache.get(recipeIdStr)!;
+
+      // Use the meal plan's servings if set, otherwise fall back to recipe default
+      const entryServings = mealPlan.servings ?? recipe.servings;
 
       for (const ing of ingredients) {
         if (ing.isOptional) continue;
+
+        // Scale the ingredient amount for this meal plan entry
+        const scaledAmount = scaleAmount(ing.amount, recipe.servings, entryServings) || 0;
 
         const key = ing.name.toLowerCase();
         const existingCombined = combinedItems.get(key);
 
         if (existingCombined && existingCombined.unit === (ing.unit || "")) {
-          // Same name and unit — combine amounts
-          existingCombined.amount += ing.amount || 0;
+          existingCombined.amount += scaledAmount;
           existingCombined.originalItems.push({
             recipeId,
-            amount: ing.amount || 0,
+            amount: scaledAmount,
             unit: ing.unit || "",
           });
         } else if (!existingCombined) {
-          // New item
           combinedItems.set(key, {
             name: ing.name,
-            amount: ing.amount || 0,
+            amount: scaledAmount,
             unit: ing.unit || "",
             aisle: getAisle(ing.name),
             recipeId,
             originalItems: [{
               recipeId,
-              amount: ing.amount || 0,
+              amount: scaledAmount,
               unit: ing.unit || "",
             }],
           });
         } else {
-          // Same name but different unit — keep as separate entry
           const separateKey = `${key}__${ing.unit || ""}`;
           combinedItems.set(separateKey, {
             name: ing.name,
-            amount: ing.amount || 0,
+            amount: scaledAmount,
             unit: ing.unit || "",
             aisle: getAisle(ing.name),
             recipeId,
             originalItems: [{
               recipeId,
-              amount: ing.amount || 0,
+              amount: scaledAmount,
               unit: ing.unit || "",
             }],
           });
         }
       }
 
-      // Track recipe in shoppingListRecipes
+      // Track per meal plan entry in shoppingListRecipes
       await ctx.db.insert("shoppingListRecipes", {
         listId,
         recipeId,
-        servings: recipe.servings,
+        mealPlanId: mealPlan._id,
+        servings: entryServings,
         addedAt: now,
       });
     }
@@ -747,44 +778,63 @@ export const detectMealPlanChanges = query({
   args: { listId: v.id("shoppingLists") },
   handler: async (ctx, args) => {
     const userId = await getCurrentUserIdOrNull(ctx);
-    if (!userId) return { hasChanges: false, addedRecipes: [], removedRecipes: [] };
+    if (!userId) return { hasChanges: false, addedEntries: [], removedEntries: [], changedServings: [] };
 
     const list = await ctx.db.get(args.listId);
     if (!list || list.userId !== userId || !list.weekStartDate || !list.weekEndDate) {
-      return { hasChanges: false, addedRecipes: [], removedRecipes: [] };
+      return { hasChanges: false, addedEntries: [], removedEntries: [], changedServings: [] };
     }
 
-    // Current meal plan recipe IDs
+    // Current meal plan entries for this week
     const allMealPlans = await ctx.db
       .query("mealPlans")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
 
-    const currentRecipeIds = new Set(
-      allMealPlans
-        .filter((plan) => plan.date >= list.weekStartDate! && plan.date <= list.weekEndDate! && plan.recipeId)
-        .map((plan) => plan.recipeId!.toString())
+    const currentEntries = allMealPlans.filter(
+      (plan) => plan.date >= list.weekStartDate! && plan.date <= list.weekEndDate! && plan.recipeId
     );
 
-    // Tracked recipe IDs in the shopping list
+    const currentEntryIds = new Set(currentEntries.map((e) => e._id.toString()));
+
+    // Tracked entries in the shopping list
     const listRecipes = await ctx.db
       .query("shoppingListRecipes")
       .withIndex("by_list", (q) => q.eq("listId", args.listId))
       .collect();
 
-    const trackedRecipeIds = new Set(listRecipes.map((r) => r.recipeId.toString()));
+    const trackedEntryIds = new Set(
+      listRecipes.filter((r) => r.mealPlanId).map((r) => r.mealPlanId!.toString())
+    );
 
-    // Diff
-    const currentArr = Array.from(currentRecipeIds);
-    const trackedArr = Array.from(trackedRecipeIds);
+    // Diff: new entries not yet tracked
+    const addedEntries = currentEntries
+      .filter((e) => !trackedEntryIds.has(e._id.toString()))
+      .map((e) => e._id.toString());
 
-    const addedRecipes = currentArr.filter((id) => !trackedRecipeIds.has(id));
-    const removedRecipes = trackedArr.filter((id) => !currentRecipeIds.has(id));
+    // Diff: tracked entries no longer in meal plan
+    const removedEntries = listRecipes
+      .filter((r) => r.mealPlanId && !currentEntryIds.has(r.mealPlanId.toString()))
+      .map((r) => r.mealPlanId!.toString());
+
+    // Diff: servings changed on existing entries
+    const changedServings: string[] = [];
+    for (const tracked of listRecipes) {
+      if (!tracked.mealPlanId) continue;
+      const currentEntry = currentEntries.find((e) => e._id.toString() === tracked.mealPlanId!.toString());
+      if (currentEntry) {
+        const currentServings = currentEntry.servings ?? tracked.servings;
+        if (currentServings !== tracked.servings) {
+          changedServings.push(tracked.mealPlanId.toString());
+        }
+      }
+    }
 
     return {
-      hasChanges: addedRecipes.length > 0 || removedRecipes.length > 0,
-      addedRecipes,
-      removedRecipes,
+      hasChanges: addedEntries.length > 0 || removedEntries.length > 0 || changedServings.length > 0,
+      addedEntries,
+      removedEntries,
+      changedServings,
     };
   },
 });
@@ -799,102 +849,149 @@ export const syncWithMealPlan = mutation({
     if (!list || list.userId !== userId) throw new Error("Not authorized");
     if (!list.weekStartDate || !list.weekEndDate) throw new Error("Not a week-scoped list");
 
-    // Current meal plan recipe IDs
+    // Current meal plan entries for this week
     const allMealPlans = await ctx.db
       .query("mealPlans")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
 
-    const currentRecipeIds = new Set(
-      allMealPlans
-        .filter((plan) => plan.date >= list.weekStartDate! && plan.date <= list.weekEndDate! && plan.recipeId)
-        .map((plan) => plan.recipeId!)
+    const currentEntries = allMealPlans.filter(
+      (plan) => plan.date >= list.weekStartDate! && plan.date <= list.weekEndDate! && plan.recipeId
     );
 
-    // Tracked recipe IDs
+    const currentEntryIds = new Set(currentEntries.map((e) => e._id.toString()));
+
+    // Tracked entries in the shopping list
     const listRecipes = await ctx.db
       .query("shoppingListRecipes")
       .withIndex("by_list", (q) => q.eq("listId", args.listId))
       .collect();
 
-    const trackedRecipeIds = new Set(listRecipes.map((r) => r.recipeId));
+    const trackedEntryIds = new Set(
+      listRecipes.filter((r) => r.mealPlanId).map((r) => r.mealPlanId!.toString())
+    );
 
     const now = Date.now();
 
-    // Remove items for recipes no longer in meal plan
-    for (const tracked of listRecipes) {
-      if (!currentRecipeIds.has(tracked.recipeId)) {
-        // Delete shopping items for this recipe
-        const items = await ctx.db
-          .query("shoppingItems")
-          .withIndex("by_list", (q) => q.eq("listId", args.listId))
-          .collect();
-
-        for (const item of items) {
-          if (item.recipeId && item.recipeId === tracked.recipeId) {
-            await ctx.db.delete(item._id);
-          }
-        }
-
-        // Remove recipe tracking
-        await ctx.db.delete(tracked._id);
-      }
-    }
-
-    // Get max sort order for new items
-    const remainingItems = await ctx.db
+    // Step 1: Delete ALL existing shopping items and rebuild
+    // This is simpler and more correct than trying to diff individual ingredient amounts
+    const existingItems = await ctx.db
       .query("shoppingItems")
       .withIndex("by_list", (q) => q.eq("listId", args.listId))
       .collect();
 
-    let sortOrder = Math.max(...remainingItems.map((i) => i.sortOrder || 0), 0);
+    for (const item of existingItems) {
+      await ctx.db.delete(item._id);
+    }
 
-    // Add items for new recipes
-    for (const recipeId of Array.from(currentRecipeIds)) {
-      if (trackedRecipeIds.has(recipeId)) continue;
+    // Remove all old tracking entries
+    for (const tracked of listRecipes) {
+      await ctx.db.delete(tracked._id);
+    }
 
-      const recipeDoc = await ctx.db.get(recipeId);
-      if (!recipeDoc || !("servings" in recipeDoc)) continue;
-      const recipe = recipeDoc as { servings: number };
+    // Step 2: Rebuild from current meal plan entries (same logic as createForWeek)
+    const combinedItems = new Map<string, {
+      name: string;
+      amount: number;
+      unit: string;
+      aisle: string;
+      recipeId: Id<"recipes">;
+      originalItems: { recipeId: Id<"recipes">; amount: number; unit: string }[];
+    }>();
 
-      const ingredients = await ctx.db
-        .query("ingredients")
-        .withIndex("by_recipe", (q) => q.eq("recipeId", recipeId))
-        .collect();
+    const recipeCache = new Map<string, { servings: number }>();
+    const ingredientCache = new Map<string, Array<{ name: string; amount?: number; unit?: string; isOptional?: boolean }>>();
+
+    let sortOrder = 0;
+
+    for (const mealPlan of currentEntries) {
+      const recipeId = mealPlan.recipeId!;
+      const recipeIdStr = recipeId.toString();
+
+      if (!recipeCache.has(recipeIdStr)) {
+        const recipeDoc = await ctx.db.get(recipeId);
+        if (!recipeDoc || !("servings" in recipeDoc)) continue;
+        recipeCache.set(recipeIdStr, { servings: recipeDoc.servings });
+
+        const ingredients = await ctx.db
+          .query("ingredients")
+          .withIndex("by_recipe", (q) => q.eq("recipeId", recipeId))
+          .collect();
+        ingredientCache.set(recipeIdStr, ingredients);
+      }
+
+      const recipe = recipeCache.get(recipeIdStr)!;
+      const ingredients = ingredientCache.get(recipeIdStr)!;
+      const entryServings = mealPlan.servings ?? recipe.servings;
 
       for (const ing of ingredients) {
         if (ing.isOptional) continue;
 
-        // Check if same ingredient already exists in list (from another recipe)
-        const existingItem = remainingItems.find(
-          (i) => i.name.toLowerCase() === ing.name.toLowerCase() && i.unit === (ing.unit || undefined)
-        );
+        const scaledAmount = scaleAmount(ing.amount, recipe.servings, entryServings) || 0;
 
-        if (existingItem) {
-          await ctx.db.patch(existingItem._id, {
-            amount: (existingItem.amount || 0) + (ing.amount || 0),
+        const key = ing.name.toLowerCase();
+        const existingCombined = combinedItems.get(key);
+
+        if (existingCombined && existingCombined.unit === (ing.unit || "")) {
+          existingCombined.amount += scaledAmount;
+          existingCombined.originalItems.push({
+            recipeId,
+            amount: scaledAmount,
+            unit: ing.unit || "",
           });
-        } else {
-          sortOrder += 1;
-          await ctx.db.insert("shoppingItems", {
-            listId: args.listId,
+        } else if (!existingCombined) {
+          combinedItems.set(key, {
             name: ing.name,
-            amount: ing.amount,
-            unit: ing.unit,
+            amount: scaledAmount,
+            unit: ing.unit || "",
             aisle: getAisle(ing.name),
             recipeId,
-            isChecked: false,
-            sortOrder,
+            originalItems: [{
+              recipeId,
+              amount: scaledAmount,
+              unit: ing.unit || "",
+            }],
+          });
+        } else {
+          const separateKey = `${key}__${ing.unit || ""}`;
+          combinedItems.set(separateKey, {
+            name: ing.name,
+            amount: scaledAmount,
+            unit: ing.unit || "",
+            aisle: getAisle(ing.name),
+            recipeId,
+            originalItems: [{
+              recipeId,
+              amount: scaledAmount,
+              unit: ing.unit || "",
+            }],
           });
         }
       }
 
-      // Track the new recipe
+      // Track per meal plan entry
       await ctx.db.insert("shoppingListRecipes", {
         listId: args.listId,
         recipeId,
-        servings: recipe.servings,
+        mealPlanId: mealPlan._id,
+        servings: entryServings,
         addedAt: now,
+      });
+    }
+
+    // Insert all combined items
+    for (const item of Array.from(combinedItems.values())) {
+      sortOrder += 1;
+      await ctx.db.insert("shoppingItems", {
+        listId: args.listId,
+        name: item.name,
+        amount: item.amount || undefined,
+        unit: item.unit || undefined,
+        aisle: item.aisle,
+        recipeId: item.recipeId,
+        isChecked: false,
+        sortOrder,
+        originalItems: item.originalItems.length > 1 ? item.originalItems : undefined,
       });
     }
 

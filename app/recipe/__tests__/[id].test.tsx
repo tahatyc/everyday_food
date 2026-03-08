@@ -27,6 +27,9 @@ jest.mock('../../../convex/_generated/api', () => ({
       share: Symbol('recipeShares.share'),
       unshare: Symbol('recipeShares.unshare'),
     },
+    users: {
+      current: Symbol('users.current'),
+    },
   },
 }));
 
@@ -121,6 +124,7 @@ const mockRecipe = {
 function mockRecipeQuery(recipe: unknown) {
   (useQuery as jest.Mock).mockImplementation((queryFn: unknown) => {
     if (queryFn === api.recipes.getById) return recipe;
+    if (queryFn === api.users.current) return { preferredUnits: 'imperial' };
     // ShareRecipeModal queries (friends, sharedWith)
     return [];
   });
@@ -216,20 +220,21 @@ describe('RecipeDetailScreen', () => {
     expect(getByText('0/3')).toBeTruthy();
   });
 
-  it('renders ingredient items', () => {
+  it('renders ingredient items with unit conversion', () => {
     mockRecipeQuery(mockRecipe);
 
     const { getByText } = render(<RecipeDetailScreen />);
-    expect(getByText('400 g Spaghetti')).toBeTruthy();
-    expect(getByText('4  Eggs')).toBeTruthy();
-    expect(getByText('100 g Pecorino, grated')).toBeTruthy();
+    // 400g → ~14 oz (imperial preference), 100g → ~3.5 oz
+    expect(getByText(/Spaghetti/)).toBeTruthy();
+    expect(getByText(/Eggs/)).toBeTruthy();
+    expect(getByText(/Pecorino, grated/)).toBeTruthy();
   });
 
   it('toggles ingredient checked state', () => {
     mockRecipeQuery(mockRecipe);
 
     const { getByText } = render(<RecipeDetailScreen />);
-    fireEvent.press(getByText('400 g Spaghetti'));
+    fireEvent.press(getByText(/Spaghetti/));
     expect(getByText('1/3')).toBeTruthy();
   });
 

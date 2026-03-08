@@ -7,6 +7,7 @@ import MealPlanScreen from '../(tabs)/meal-plan';
 const mockAddMeal = jest.fn();
 const mockRemoveMeal = jest.fn();
 const mockChangeMeal = jest.fn();
+const mockUpdateServings = jest.fn();
 
 // Mock useToast
 const mockShowError = jest.fn();
@@ -28,7 +29,8 @@ beforeEach(() => {
   (useMutation as jest.Mock)
     .mockReturnValueOnce(mockAddMeal)
     .mockReturnValueOnce(mockRemoveMeal)
-    .mockReturnValueOnce(mockChangeMeal);
+    .mockReturnValueOnce(mockChangeMeal)
+    .mockReturnValueOnce(mockUpdateServings);
 });
 
 // Helper to set up cycling query mocks (survives re-renders)
@@ -50,14 +52,16 @@ function setupCyclingMocks({
   });
 }
 
-const makeMealPlan = (mealType: string, title: string, id = 'mp1') => ({
+const makeMealPlan = (mealType: string, title: string, id = 'mp1', servings = 2) => ({
   _id: id,
   mealType,
+  servings,
   recipe: {
     _id: `recipe-${mealType}`,
     title,
     prepTime: 10,
     cookTime: 20,
+    servings,
     nutritionPerServing: { calories: 400, protein: 20, carbs: 50, fat: 15 },
     tags: [mealType],
   },
@@ -553,5 +557,56 @@ describe('MealPlanScreen', () => {
         params: expect.objectContaining({ mealType: 'lunch' }),
       })
     );
+  });
+
+  it('displays servings controls on meal card', () => {
+    setupCyclingMocks({
+      mealPlans: [makeMealPlan('breakfast', 'Pancakes', 'mp1', 2)],
+    });
+
+    const { getAllByTestId } = render(<MealPlanScreen />);
+    // Servings control should have increment and decrement icons
+    const addIcons = getAllByTestId('icon-add');
+    const removeIcons = getAllByTestId('icon-remove');
+    expect(addIcons.length).toBeGreaterThanOrEqual(1);
+    expect(removeIcons.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('calls updateServings when increment button is pressed', async () => {
+    mockUpdateServings.mockResolvedValue('mp1');
+    setupCyclingMocks({
+      mealPlans: [makeMealPlan('breakfast', 'Pancakes', 'mp1', 2)],
+    });
+
+    const { getAllByTestId } = render(<MealPlanScreen />);
+    // The "add" icon inside the servings control
+    const addButtons = getAllByTestId('icon-add');
+    fireEvent.press(addButtons[0], mockPressEvent);
+
+    await waitFor(() => {
+      expect(mockUpdateServings).toHaveBeenCalledWith({
+        mealPlanId: 'mp1',
+        servings: 3,
+      });
+    });
+  });
+
+  it('calls updateServings when decrement button is pressed', async () => {
+    mockUpdateServings.mockResolvedValue('mp1');
+    setupCyclingMocks({
+      mealPlans: [makeMealPlan('breakfast', 'Pancakes', 'mp1', 3)],
+    });
+
+    const { getAllByTestId } = render(<MealPlanScreen />);
+    // The "remove" icon inside the servings control
+    const removeButtons = getAllByTestId('icon-remove');
+    fireEvent.press(removeButtons[0], mockPressEvent);
+
+    await waitFor(() => {
+      expect(mockUpdateServings).toHaveBeenCalledWith({
+        mealPlanId: 'mp1',
+        servings: 2,
+      });
+    });
   });
 });

@@ -175,6 +175,29 @@ export const changeMeal = mutation({
   },
 });
 
+// Update servings for an existing meal plan entry
+export const updateServings = mutation({
+  args: {
+    mealPlanId: v.id("mealPlans"),
+    servings: v.number(),
+  },
+  handler: async (ctx, args) => {
+    validateNumberRange(args.servings, "servings", 1, 100);
+    const userId = await getCurrentUserId(ctx);
+
+    const hasAccess = await canAccessMealPlan(ctx, args.mealPlanId, userId);
+    if (!hasAccess) {
+      throw new Error("Not authorized to modify this meal plan entry.");
+    }
+
+    await ctx.db.patch(args.mealPlanId, {
+      servings: args.servings,
+    });
+
+    return args.mealPlanId;
+  },
+});
+
 // Remove a meal from the plan
 export const removeMeal = mutation({
   args: {

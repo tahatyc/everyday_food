@@ -50,6 +50,7 @@ type ConvexRecipe = {
 type MealEntry = {
   recipe: ConvexRecipe;
   mealPlanId: Id<"mealPlans">;
+  servings: number;
 };
 
 // The full day plan — one array per slot
@@ -134,11 +135,13 @@ function MealCard({
   mealType,
   onChangeMeal,
   onRemoveMeal,
+  onUpdateServings,
 }: {
   entry: MealEntry;
   mealType: "breakfast" | "lunch" | "dinner";
   onChangeMeal: () => void;
   onRemoveMeal: () => void;
+  onUpdateServings: (servings: number) => void;
 }) {
   const recipeMealType =
     entry.recipe.tags?.find((t: string) =>
@@ -163,10 +166,44 @@ function MealCard({
         <Text style={styles.mealTitle} numberOfLines={1}>
           {entry.recipe.title.toUpperCase()}
         </Text>
-        <View style={styles.mealBadge}>
-          <Text style={styles.mealBadgeText}>
-            {entry.recipe.nutritionPerServing?.calories || 0} KCAL
-          </Text>
+        <View style={styles.mealBadgeRow}>
+          <View style={styles.mealBadge}>
+            <Text style={styles.mealBadgeText}>
+              {entry.recipe.nutritionPerServing?.calories || 0} KCAL
+            </Text>
+          </View>
+          <View style={styles.servingsControl}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.servingsBtn,
+                pressed && styles.servingsBtnPressed,
+                entry.servings <= 1 && styles.servingsBtnDisabled,
+              ]}
+              onPress={(e) => {
+                e.stopPropagation();
+                if (entry.servings > 1) onUpdateServings(entry.servings - 1);
+              }}
+              disabled={entry.servings <= 1}
+            >
+              <Ionicons name="remove" size={12} color={entry.servings <= 1 ? colors.textMuted : colors.text} />
+            </Pressable>
+            <Text style={styles.servingsText}>{entry.servings}</Text>
+            <Ionicons name="people-outline" size={12} color={colors.textSecondary} />
+            <Pressable
+              style={({ pressed }) => [
+                styles.servingsBtn,
+                pressed && styles.servingsBtnPressed,
+                entry.servings >= 100 && styles.servingsBtnDisabled,
+              ]}
+              onPress={(e) => {
+                e.stopPropagation();
+                if (entry.servings < 100) onUpdateServings(entry.servings + 1);
+              }}
+              disabled={entry.servings >= 100}
+            >
+              <Ionicons name="add" size={12} color={entry.servings >= 100 ? colors.textMuted : colors.text} />
+            </Pressable>
+          </View>
         </View>
         <View style={styles.mealActions}>
           <Pressable
@@ -209,6 +246,7 @@ function MealSection({
   onChangeMeal,
   onAddMeal,
   onRemoveMeal,
+  onUpdateServings,
 }: {
   type: "breakfast" | "lunch" | "dinner";
   label: string;
@@ -217,6 +255,7 @@ function MealSection({
   onChangeMeal: (mealPlanId: Id<"mealPlans">) => void;
   onAddMeal: () => void;
   onRemoveMeal: (mealPlanId: Id<"mealPlans">) => void;
+  onUpdateServings: (mealPlanId: Id<"mealPlans">, servings: number) => void;
 }) {
   const totalCalories = meals.reduce(
     (sum, entry) => sum + (entry.recipe.nutritionPerServing?.calories ?? 0),
@@ -264,6 +303,7 @@ function MealSection({
           mealType={type}
           onChangeMeal={() => onChangeMeal(entry.mealPlanId)}
           onRemoveMeal={() => onRemoveMeal(entry.mealPlanId)}
+          onUpdateServings={(servings) => onUpdateServings(entry.mealPlanId, servings)}
         />
       ))}
 
@@ -347,6 +387,7 @@ export default function MealPlanScreen() {
   const addMealMutation = useMutation(api.mealPlans.addMeal);
   const removeMealMutation = useMutation(api.mealPlans.removeMeal);
   const changeMealMutation = useMutation(api.mealPlans.changeMeal);
+  const updateServingsMutation = useMutation(api.mealPlans.updateServings);
 
   // Build meal plan object from Convex data (memoized)
   const mealPlan = useMemo((): DayMealPlan => {
@@ -360,9 +401,11 @@ export default function MealPlanScreen() {
 
     for (const meal of mealPlansData) {
       if (!meal.recipe) continue;
+      const recipe = meal.recipe as ConvexRecipe;
       const entry: MealEntry = {
-        recipe: meal.recipe as ConvexRecipe,
+        recipe,
         mealPlanId: meal._id,
+        servings: meal.servings ?? (recipe as any).servings ?? 1,
       };
       if (meal.mealType === "breakfast") plan.breakfast.push(entry);
       else if (meal.mealType === "lunch") plan.lunch.push(entry);
@@ -423,6 +466,18 @@ export default function MealPlanScreen() {
       });
     } catch (error) {
       showError("Failed to update meal.");
+    }
+  };
+
+  // Handler for updating servings on a meal plan entry
+  const handleUpdateServings = async (
+    mealPlanId: Id<"mealPlans">,
+    servings: number
+  ) => {
+    try {
+      await updateServingsMutation({ mealPlanId, servings });
+    } catch {
+      showError("Failed to update servings.");
     }
   };
 
@@ -590,6 +645,7 @@ export default function MealPlanScreen() {
           onChangeMeal={(id) => handleChangeMeal("breakfast", id)}
           onAddMeal={() => handleAddMeal("breakfast")}
           onRemoveMeal={(id) => handleRemoveMeal(id)}
+          onUpdateServings={handleUpdateServings}
         />
         <MealSection
           type="lunch"
@@ -599,6 +655,7 @@ export default function MealPlanScreen() {
           onChangeMeal={(id) => handleChangeMeal("lunch", id)}
           onAddMeal={() => handleAddMeal("lunch")}
           onRemoveMeal={(id) => handleRemoveMeal(id)}
+          onUpdateServings={handleUpdateServings}
         />
         <MealSection
           type="dinner"
@@ -608,6 +665,7 @@ export default function MealPlanScreen() {
           onChangeMeal={(id) => handleChangeMeal("dinner", id)}
           onAddMeal={() => handleAddMeal("dinner")}
           onRemoveMeal={(id) => handleRemoveMeal(id)}
+          onUpdateServings={handleUpdateServings}
         />
 
         {/* Generate Random Plan Button */}
@@ -848,6 +906,12 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: spacing.xs,
   },
+  mealBadgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: spacing.sm,
+  },
   mealBadge: {
     alignSelf: "flex-start",
     backgroundColor: colors.primary,
@@ -856,12 +920,39 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.sm,
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
-    marginBottom: spacing.sm,
   },
   mealBadgeText: {
     fontSize: typography.sizes.xs,
     fontWeight: typography.weights.bold,
     color: colors.text,
+  },
+  servingsControl: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  servingsBtn: {
+    width: 24,
+    height: 24,
+    backgroundColor: colors.surface,
+    borderWidth: borders.thin,
+    borderColor: borders.color,
+    borderRadius: borderRadius.sm,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  servingsBtnPressed: {
+    opacity: 0.6,
+  },
+  servingsBtnDisabled: {
+    opacity: 0.3,
+  },
+  servingsText: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.bold,
+    color: colors.text,
+    minWidth: 16,
+    textAlign: "center",
   },
   mealActions: {
     flexDirection: "row",
