@@ -207,7 +207,7 @@ describe('SelectRecipeScreen', () => {
     const { getByText } = render(<SelectRecipeScreen />);
     fireEvent.press(getByText('Pancakes'));
 
-    expect(getByText('HOW MANY SERVINGS?')).toBeTruthy();
+    expect(getByText('ADJUST SERVINGS')).toBeTruthy();
     expect(getByText('ADD MEAL')).toBeTruthy();
     expect(getByText('CANCEL')).toBeTruthy();
   });
@@ -244,10 +244,10 @@ describe('SelectRecipeScreen', () => {
 
     const { getByText, queryByText } = render(<SelectRecipeScreen />);
     fireEvent.press(getByText('Pancakes'));
-    expect(getByText('HOW MANY SERVINGS?')).toBeTruthy();
+    expect(getByText('ADJUST SERVINGS')).toBeTruthy();
 
     fireEvent.press(getByText('CANCEL'));
-    expect(queryByText('HOW MANY SERVINGS?')).toBeNull();
+    expect(queryByText('ADJUST SERVINGS')).toBeNull();
   });
 
   it('shows empty state when no recipes match filter', () => {

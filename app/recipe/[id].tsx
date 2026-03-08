@@ -112,7 +112,12 @@ function IngredientItem({
 }
 
 export default function RecipeDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, servings: servingsParam, fromMealPlan } = useLocalSearchParams<{
+    id: string;
+    servings?: string;
+    fromMealPlan?: string;
+  }>();
+  const mealPlanServings = servingsParam ? parseInt(servingsParam, 10) : undefined;
   const [checkedIngredients, setCheckedIngredients] = useState<Set<number>>(
     new Set(),
   );
@@ -133,9 +138,10 @@ export default function RecipeDetailScreen() {
 
   const { showSuccess, showError } = useToast();
 
-  // Recipe scaling
+  // Recipe scaling — use meal plan servings if navigating from meal plan
   const scaling = useRecipeScaling({
     recipeServings: recipe?.servings ?? 4,
+    initialServings: mealPlanServings,
     ingredients: recipe?.ingredients ?? [],
   });
 
@@ -402,7 +408,19 @@ export default function RecipeDetailScreen() {
           entering={FadeInDown.delay(250).duration(400)}
         >
           <View style={styles.scalerHeader}>
-            <Text style={styles.scalerTitle}>SCALE RECIPE</Text>
+            <View style={styles.scalerTitleRow}>
+              <Text style={styles.scalerTitle}>SCALE RECIPE</Text>
+              {fromMealPlan ? (
+                <View style={styles.mealPlanBadge}>
+                  <Ionicons name="calendar-outline" size={10} color={colors.cyan} />
+                  <Text style={styles.mealPlanBadgeText}>MEAL PLAN</Text>
+                </View>
+              ) : (
+                <View style={styles.previewBadge}>
+                  <Text style={styles.previewBadgeText}>PREVIEW</Text>
+                </View>
+              )}
+            </View>
             {scaling.isScaled && (
               <Pressable onPress={scaling.reset}>
                 <Text style={styles.scalerReset}>RESET</Text>
@@ -787,12 +805,48 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: spacing.md,
   },
+  scalerTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
   scalerTitle: {
     fontSize: typography.sizes.sm,
     fontWeight: typography.weights.black,
     fontStyle: "italic",
     color: colors.text,
     letterSpacing: typography.letterSpacing.wider,
+  },
+  previewBadge: {
+    backgroundColor: colors.secondary,
+    borderWidth: borders.thin,
+    borderColor: colors.secondary,
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+  },
+  previewBadgeText: {
+    fontSize: 10,
+    fontWeight: typography.weights.bold,
+    color: colors.textSecondary,
+    letterSpacing: typography.letterSpacing.wide,
+  },
+  mealPlanBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: colors.cyanLight,
+    borderWidth: borders.thin,
+    borderColor: colors.cyan,
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+  },
+  mealPlanBadgeText: {
+    fontSize: 10,
+    fontWeight: typography.weights.bold,
+    color: colors.cyan,
+    letterSpacing: typography.letterSpacing.wide,
   },
   scalerReset: {
     fontSize: typography.sizes.xs,

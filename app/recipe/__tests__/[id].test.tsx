@@ -387,6 +387,14 @@ describe('RecipeDetailScreen', () => {
     });
   });
 
+  it('renders PREVIEW badge on the scaling section', () => {
+    mockRecipeQuery(mockRecipe);
+
+    const { getByText } = render(<RecipeDetailScreen />);
+    expect(getByText('SCALE RECIPE')).toBeTruthy();
+    expect(getByText('PREVIEW')).toBeTruthy();
+  });
+
   it('uses toggleFavorite for non-global recipes', async () => {
     mockToggleFavorite.mockResolvedValue({ isFavorite: true });
     mockRecipeQuery(mockRecipe);

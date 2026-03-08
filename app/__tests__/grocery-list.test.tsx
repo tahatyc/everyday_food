@@ -257,7 +257,7 @@ describe("GroceryListScreen", () => {
       });
 
       const { getByText } = render(<GroceryListScreen />);
-      expect(getByText("Your meal plan has changed.")).toBeTruthy();
+      expect(getByText("MEAL PLAN UPDATED")).toBeTruthy();
       expect(getByText("UPDATE LIST")).toBeTruthy();
       expect(getByText("DISMISS")).toBeTruthy();
     });
@@ -271,7 +271,7 @@ describe("GroceryListScreen", () => {
       });
 
       const { queryByText } = render(<GroceryListScreen />);
-      expect(queryByText("Your meal plan has changed.")).toBeNull();
+      expect(queryByText("MEAL PLAN UPDATED")).toBeNull();
     });
 
     it("calls syncWithMealPlan when UPDATE LIST is pressed", async () => {
@@ -302,10 +302,10 @@ describe("GroceryListScreen", () => {
       });
 
       const { getByText, queryByText } = render(<GroceryListScreen />);
-      expect(getByText("Your meal plan has changed.")).toBeTruthy();
+      expect(getByText("MEAL PLAN UPDATED")).toBeTruthy();
 
       fireEvent.press(getByText("DISMISS"));
-      expect(queryByText("Your meal plan has changed.")).toBeNull();
+      expect(queryByText("MEAL PLAN UPDATED")).toBeNull();
     });
 
     it("does not show change banner in legacy (non-week) mode", () => {
@@ -313,7 +313,7 @@ describe("GroceryListScreen", () => {
       mockQueriesSequential(undefined, sampleList, undefined);
 
       const { queryByText } = render(<GroceryListScreen />);
-      expect(queryByText("Your meal plan has changed.")).toBeNull();
+      expect(queryByText("MEAL PLAN UPDATED")).toBeNull();
     });
   });
 
@@ -593,7 +593,7 @@ describe("GroceryListScreen", () => {
       });
 
       const { getByText } = render(<GroceryListScreen />);
-      expect(getByText("Your meal plan has changed.")).toBeTruthy();
+      expect(getByText("MEAL PLAN UPDATED")).toBeTruthy();
       expect(getByText("UPDATE LIST")).toBeTruthy();
       expect(getByText("DISMISS")).toBeTruthy();
     });
@@ -641,10 +641,10 @@ describe("GroceryListScreen", () => {
       });
 
       const { getByText, queryByText } = render(<GroceryListScreen />);
-      expect(getByText("Your meal plan has changed.")).toBeTruthy();
+      expect(getByText("MEAL PLAN UPDATED")).toBeTruthy();
 
       fireEvent.press(getByText("DISMISS"));
-      expect(queryByText("Your meal plan has changed.")).toBeNull();
+      expect(queryByText("MEAL PLAN UPDATED")).toBeNull();
     });
 
     it("does not show change banner in empty state when not week-scoped", () => {
@@ -653,7 +653,7 @@ describe("GroceryListScreen", () => {
       mockQueriesSequential(undefined, emptyList, undefined);
 
       const { queryByText } = render(<GroceryListScreen />);
-      expect(queryByText("Your meal plan has changed.")).toBeNull();
+      expect(queryByText("MEAL PLAN UPDATED")).toBeNull();
     });
 
     it("shows legacy empty message when no week params", () => {

@@ -15,6 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../convex/_generated/api";
 import { Id } from "../convex/_generated/dataModel";
 
+import { ServingsBottomSheet } from "../src/components/ServingsBottomSheet";
 import { Badge, Input } from "../src/components/ui";
 import { useToast } from "../src/hooks/useToast";
 import {
@@ -143,72 +144,6 @@ function RecipeSelectItem({
           <Ionicons name="add-circle" size={28} color={colors.primary} />
         </View>
       </Pressable>
-    </Animated.View>
-  );
-}
-
-// Servings picker shown after selecting a recipe
-function ServingsPicker({
-  recipe,
-  onConfirm,
-  onCancel,
-}: {
-  recipe: ConvexRecipe;
-  onConfirm: (servings: number) => void;
-  onCancel: () => void;
-}) {
-  const [servings, setServings] = useState(recipe.servings);
-
-  return (
-    <Animated.View entering={FadeInDown.duration(250)} style={styles.servingsOverlay}>
-      <View style={styles.servingsCard}>
-        <Text style={styles.servingsTitle} numberOfLines={1}>
-          {recipe.title.toUpperCase()}
-        </Text>
-        <Text style={styles.servingsLabel}>HOW MANY SERVINGS?</Text>
-        <View style={styles.servingsRow}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.servingsButton,
-              pressed && styles.servingsButtonPressed,
-              servings <= 1 && styles.servingsButtonDisabled,
-            ]}
-            onPress={() => setServings((s) => Math.max(1, s - 1))}
-            disabled={servings <= 1}
-          >
-            <Ionicons name="remove" size={20} color={servings <= 1 ? colors.textMuted : colors.text} />
-          </Pressable>
-          <View style={styles.servingsValueContainer}>
-            <Text style={styles.servingsValue}>{servings}</Text>
-          </View>
-          <Pressable
-            style={({ pressed }) => [
-              styles.servingsButton,
-              pressed && styles.servingsButtonPressed,
-              servings >= 100 && styles.servingsButtonDisabled,
-            ]}
-            onPress={() => setServings((s) => Math.min(100, s + 1))}
-            disabled={servings >= 100}
-          >
-            <Ionicons name="add" size={20} color={servings >= 100 ? colors.textMuted : colors.text} />
-          </Pressable>
-        </View>
-        <View style={styles.servingsActions}>
-          <Pressable
-            style={({ pressed }) => [styles.cancelButton, pressed && styles.buttonPressed]}
-            onPress={onCancel}
-          >
-            <Text style={styles.cancelButtonText}>CANCEL</Text>
-          </Pressable>
-          <Pressable
-            style={({ pressed }) => [styles.confirmButton, pressed && styles.buttonPressed]}
-            onPress={() => onConfirm(servings)}
-          >
-            <Ionicons name="checkmark" size={18} color={colors.text} />
-            <Text style={styles.confirmButtonText}>ADD MEAL</Text>
-          </Pressable>
-        </View>
-      </View>
     </Animated.View>
   );
 }
@@ -401,13 +336,16 @@ export default function SelectRecipeScreen() {
       />
 
       {/* Servings picker overlay */}
-      {selectedRecipe && (
-        <ServingsPicker
-          recipe={selectedRecipe}
-          onConfirm={handleConfirmAdd}
-          onCancel={() => setSelectedRecipe(null)}
-        />
-      )}
+      <ServingsBottomSheet
+        visible={!!selectedRecipe}
+        currentServings={selectedRecipe?.servings ?? 1}
+        recipeName={selectedRecipe?.title ?? ""}
+        onSave={handleConfirmAdd}
+        onClose={() => setSelectedRecipe(null)}
+        confirmLabel="ADD MEAL"
+        hint="Choose how many servings to add to your meal plan"
+        alwaysEnabled
+      />
     </SafeAreaView>
   );
 }
@@ -586,115 +524,5 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: typography.sizes.md,
     color: colors.textMuted,
-  },
-  servingsOverlay: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    top: 0,
-    justifyContent: "flex-end",
-  },
-  servingsCard: {
-    backgroundColor: colors.surface,
-    borderTopWidth: borders.thick,
-    borderColor: borders.color,
-    borderTopLeftRadius: borderRadius.xl,
-    borderTopRightRadius: borderRadius.xl,
-    padding: spacing.xl,
-    paddingBottom: spacing.xxxl,
-    alignItems: "center",
-  },
-  servingsTitle: {
-    fontSize: typography.sizes.md,
-    fontWeight: typography.weights.bold,
-    color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  servingsLabel: {
-    fontSize: typography.sizes.sm,
-    fontWeight: typography.weights.bold,
-    color: colors.textSecondary,
-    letterSpacing: typography.letterSpacing.wide,
-    marginBottom: spacing.lg,
-  },
-  servingsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.lg,
-    marginBottom: spacing.xl,
-  },
-  servingsButton: {
-    width: 44,
-    height: 44,
-    backgroundColor: colors.surface,
-    borderWidth: borders.regular,
-    borderColor: borders.color,
-    borderRadius: borderRadius.md,
-    alignItems: "center",
-    justifyContent: "center",
-    ...shadows.sm,
-  },
-  servingsButtonPressed: {
-    transform: [{ translateX: 1 }, { translateY: 1 }],
-    ...shadows.pressed,
-  },
-  servingsButtonDisabled: {
-    opacity: 0.4,
-  },
-  servingsValueContainer: {
-    width: 60,
-    alignItems: "center",
-  },
-  servingsValue: {
-    fontSize: typography.sizes.xxxl,
-    fontWeight: typography.weights.black,
-    color: colors.text,
-  },
-  servingsActions: {
-    flexDirection: "row",
-    gap: spacing.md,
-    width: "100%",
-  },
-  cancelButton: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderWidth: borders.regular,
-    borderColor: borders.color,
-    borderRadius: borderRadius.md,
-    paddingVertical: spacing.md,
-    alignItems: "center",
-    justifyContent: "center",
-    ...shadows.sm,
-  },
-  cancelButtonText: {
-    fontSize: typography.sizes.sm,
-    fontWeight: typography.weights.bold,
-    color: colors.text,
-    letterSpacing: typography.letterSpacing.wide,
-  },
-  confirmButton: {
-    flex: 2,
-    flexDirection: "row",
-    backgroundColor: colors.primary,
-    borderWidth: borders.regular,
-    borderColor: borders.color,
-    borderRadius: borderRadius.md,
-    paddingVertical: spacing.md,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.sm,
-    ...shadows.sm,
-  },
-  confirmButtonText: {
-    fontSize: typography.sizes.sm,
-    fontWeight: typography.weights.bold,
-    color: colors.text,
-    letterSpacing: typography.letterSpacing.wide,
-  },
-  buttonPressed: {
-    transform: [{ translateX: 2 }, { translateY: 2 }],
-    ...shadows.pressed,
   },
 });

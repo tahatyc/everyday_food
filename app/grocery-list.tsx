@@ -191,16 +191,31 @@ function ViewToggle({
 function ChangeBanner({
   onSync,
   onDismiss,
+  changes,
 }: {
   onSync: () => void;
   onDismiss: () => void;
+  changes?: { addedEntries: string[]; removedEntries: string[]; changedServings: string[] };
 }) {
+  const details: string[] = [];
+  if (changes?.addedEntries?.length) {
+    details.push(`${changes.addedEntries.length} meal${changes.addedEntries.length > 1 ? "s" : ""} added`);
+  }
+  if (changes?.removedEntries?.length) {
+    details.push(`${changes.removedEntries.length} meal${changes.removedEntries.length > 1 ? "s" : ""} removed`);
+  }
+  if (changes?.changedServings?.length) {
+    details.push(`${changes.changedServings.length} serving${changes.changedServings.length > 1 ? "s" : ""} changed`);
+  }
+  const detailText = details.length > 0 ? details.join(", ") : "Your meal plan has changed";
+
   return (
     <Animated.View
       style={styles.changeBanner}
       entering={FadeInDown.duration(300)}
     >
-      <Text style={styles.changeBannerText}>Your meal plan has changed.</Text>
+      <Text style={styles.changeBannerTitle}>MEAL PLAN UPDATED</Text>
+      <Text style={styles.changeBannerText}>{detailText}</Text>
       <View style={styles.changeBannerActions}>
         <Pressable
           style={({ pressed }) => [
@@ -418,6 +433,7 @@ export default function GroceryListScreen() {
             <ChangeBanner
               onSync={handleSync}
               onDismiss={() => setBannerDismissed(true)}
+              changes={changeDetection ?? undefined}
             />
           )}
           <View style={styles.emptyContainer}>
@@ -488,6 +504,7 @@ export default function GroceryListScreen() {
           <ChangeBanner
             onSync={handleSync}
             onDismiss={() => setBannerDismissed(true)}
+            changes={changeDetection ?? undefined}
           />
         )}
 
@@ -593,9 +610,17 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     ...shadows.sm,
   },
+  changeBannerTitle: {
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.black,
+    fontStyle: "italic",
+    color: colors.text,
+    letterSpacing: typography.letterSpacing.wider,
+    marginBottom: spacing.xs,
+  },
   changeBannerText: {
     fontSize: typography.sizes.md,
-    fontWeight: typography.weights.bold,
+    fontWeight: typography.weights.medium,
     color: colors.text,
     marginBottom: spacing.md,
   },

@@ -19,6 +19,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 
+import { ServingsBottomSheet } from "../../src/components/ServingsBottomSheet";
 import { useToast } from "../../src/hooks/useToast";
 import {
   borderRadius,
@@ -143,6 +144,7 @@ function MealCard({
   onRemoveMeal: () => void;
   onUpdateServings: (servings: number) => void;
 }) {
+  const [showServingsSheet, setShowServingsSheet] = useState(false);
   const recipeMealType =
     entry.recipe.tags?.find((t: string) =>
       ["breakfast", "lunch", "dinner", "snack"].includes(t.toLowerCase())
@@ -150,90 +152,84 @@ function MealCard({
   const bgColor = getMealTypeColor(recipeMealType);
 
   return (
-    <Pressable
-      style={({ pressed }) => [styles.mealCard, pressed && styles.cardPressed]}
-      onPress={() => router.push(`/recipe/${entry.recipe._id}` as any)}
-    >
-      <View style={styles.mealImageContainer}>
-        <View style={[styles.mealImage, { backgroundColor: bgColor }]}>
-          <Text style={styles.mealEmoji}>
-            {getMealTypeEmoji(recipeMealType)}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.mealInfo}>
-        <Text style={styles.mealTitle} numberOfLines={1}>
-          {entry.recipe.title.toUpperCase()}
-        </Text>
-        <View style={styles.mealBadgeRow}>
-          <View style={styles.mealBadge}>
-            <Text style={styles.mealBadgeText}>
-              {entry.recipe.nutritionPerServing?.calories || 0} KCAL
+    <>
+      <Pressable
+        style={({ pressed }) => [styles.mealCard, pressed && styles.cardPressed]}
+        onPress={() => router.push(`/recipe/${entry.recipe._id}?servings=${entry.servings}&fromMealPlan=1` as any)}
+      >
+        <View style={styles.mealImageContainer}>
+          <View style={[styles.mealImage, { backgroundColor: bgColor }]}>
+            <Text style={styles.mealEmoji}>
+              {getMealTypeEmoji(recipeMealType)}
             </Text>
           </View>
-          <View style={styles.servingsControl}>
+        </View>
+
+        <View style={styles.mealInfo}>
+          <Text style={styles.mealTitle} numberOfLines={1}>
+            {entry.recipe.title.toUpperCase()}
+          </Text>
+          <View style={styles.mealBadgeRow}>
+            <View style={styles.mealBadge}>
+              <Text style={styles.mealBadgeText}>
+                {entry.recipe.nutritionPerServing?.calories || 0} KCAL
+              </Text>
+            </View>
             <Pressable
               style={({ pressed }) => [
-                styles.servingsBtn,
-                pressed && styles.servingsBtnPressed,
-                entry.servings <= 1 && styles.servingsBtnDisabled,
+                styles.servingsBadge,
+                pressed && styles.servingsBadgePressed,
               ]}
               onPress={(e) => {
                 e.stopPropagation();
-                if (entry.servings > 1) onUpdateServings(entry.servings - 1);
+                setShowServingsSheet(true);
               }}
-              disabled={entry.servings <= 1}
             >
-              <Ionicons name="remove" size={12} color={entry.servings <= 1 ? colors.textMuted : colors.text} />
+              <Ionicons name="people-outline" size={12} color={colors.textSecondary} />
+              <Text style={styles.servingsBadgeText}>
+                {entry.servings} {entry.servings === 1 ? "SERVING" : "SERVINGS"}
+              </Text>
+              <Ionicons name="chevron-down" size={12} color={colors.textSecondary} />
             </Pressable>
-            <Text style={styles.servingsText}>{entry.servings}</Text>
-            <Ionicons name="people-outline" size={12} color={colors.textSecondary} />
+          </View>
+          <View style={styles.mealActions}>
             <Pressable
               style={({ pressed }) => [
-                styles.servingsBtn,
-                pressed && styles.servingsBtnPressed,
-                entry.servings >= 100 && styles.servingsBtnDisabled,
+                styles.changeButton,
+                pressed && styles.changeButtonPressed,
               ]}
               onPress={(e) => {
                 e.stopPropagation();
-                if (entry.servings < 100) onUpdateServings(entry.servings + 1);
+                onChangeMeal();
               }}
-              disabled={entry.servings >= 100}
             >
-              <Ionicons name="add" size={12} color={entry.servings >= 100 ? colors.textMuted : colors.text} />
+              <Ionicons name="swap-horizontal" size={14} color={colors.textLight} />
+              <Text style={styles.changeButtonText}>CHANGE</Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [
+                styles.removeButton,
+                pressed && styles.removeButtonPressed,
+              ]}
+              onPress={(e) => {
+                e.stopPropagation();
+                onRemoveMeal();
+              }}
+            >
+              <Ionicons name="trash-outline" size={14} color={colors.surface} />
             </Pressable>
           </View>
         </View>
-        <View style={styles.mealActions}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.changeButton,
-              pressed && styles.changeButtonPressed,
-            ]}
-            onPress={(e) => {
-              e.stopPropagation();
-              onChangeMeal();
-            }}
-          >
-            <Ionicons name="swap-horizontal" size={14} color={colors.textLight} />
-            <Text style={styles.changeButtonText}>CHANGE</Text>
-          </Pressable>
-          <Pressable
-            style={({ pressed }) => [
-              styles.removeButton,
-              pressed && styles.removeButtonPressed,
-            ]}
-            onPress={(e) => {
-              e.stopPropagation();
-              onRemoveMeal();
-            }}
-          >
-            <Ionicons name="trash-outline" size={14} color={colors.surface} />
-          </Pressable>
-        </View>
-      </View>
-    </Pressable>
+      </Pressable>
+
+      <ServingsBottomSheet
+        visible={showServingsSheet}
+        currentServings={entry.servings}
+        recipeName={entry.recipe.title}
+        onSave={(servings) => onUpdateServings(servings)}
+        onClose={() => setShowServingsSheet(false)}
+      />
+    </>
   );
 }
 
@@ -926,33 +922,26 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.bold,
     color: colors.text,
   },
-  servingsControl: {
+  servingsBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.xs,
-  },
-  servingsBtn: {
-    width: 24,
-    height: 24,
-    backgroundColor: colors.surface,
+    gap: 4,
+    backgroundColor: colors.surfaceAlt,
     borderWidth: borders.thin,
-    borderColor: borders.color,
+    borderColor: colors.borderLight,
     borderRadius: borderRadius.sm,
-    alignItems: "center",
-    justifyContent: "center",
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
   },
-  servingsBtnPressed: {
-    opacity: 0.6,
+  servingsBadgePressed: {
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.primary,
   },
-  servingsBtnDisabled: {
-    opacity: 0.3,
-  },
-  servingsText: {
-    fontSize: typography.sizes.sm,
+  servingsBadgeText: {
+    fontSize: typography.sizes.xs,
     fontWeight: typography.weights.bold,
-    color: colors.text,
-    minWidth: 16,
-    textAlign: "center",
+    color: colors.textSecondary,
+    letterSpacing: typography.letterSpacing.wide,
   },
   mealActions: {
     flexDirection: "row",

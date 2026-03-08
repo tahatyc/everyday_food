@@ -11,6 +11,7 @@ type UnitSystem = "metric" | "imperial";
 
 interface UseRecipeScalingOptions {
   recipeServings: number;
+  initialServings?: number;
   ingredients: Array<{
     name: string;
     amount?: number;
@@ -37,17 +38,20 @@ interface UseRecipeScalingResult {
 
 export function useRecipeScaling({
   recipeServings,
+  initialServings,
   ingredients,
 }: UseRecipeScalingOptions): UseRecipeScalingResult {
   const user = useQuery(api.users.current);
   const preferredUnits: UnitSystem = user?.preferredUnits ?? "imperial";
 
-  const [targetServings, setTargetServings] = useState(recipeServings);
+  const effectiveInitial = initialServings ?? recipeServings;
+  const [targetServings, setTargetServings] = useState(effectiveInitial);
 
-  // Sync targetServings when recipeServings changes (e.g., after recipe loads)
+  // Sync targetServings when recipeServings changes (e.g., after recipe loads),
+  // but respect initialServings override from meal plan navigation
   useEffect(() => {
-    setTargetServings(recipeServings);
-  }, [recipeServings]);
+    setTargetServings(initialServings ?? recipeServings);
+  }, [recipeServings, initialServings]);
 
   const increment = useCallback(() => {
     setTargetServings((prev) => Math.min(prev + 1, 100));

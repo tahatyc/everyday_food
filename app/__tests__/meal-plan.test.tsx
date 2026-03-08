@@ -314,7 +314,7 @@ describe('MealPlanScreen', () => {
     const { getByText } = render(<MealPlanScreen />);
     fireEvent.press(getByText('PANCAKES'));
 
-    expect(router.push).toHaveBeenCalledWith('/recipe/recipe-breakfast');
+    expect(router.push).toHaveBeenCalledWith('/recipe/recipe-breakfast?servings=2&fromMealPlan=1');
   });
 
   it('shows 0 KCAL when recipe has no nutrition data', () => {
@@ -559,29 +559,53 @@ describe('MealPlanScreen', () => {
     );
   });
 
-  it('displays servings controls on meal card', () => {
+  it('displays servings badge on meal card', () => {
     setupCyclingMocks({
       mealPlans: [makeMealPlan('breakfast', 'Pancakes', 'mp1', 2)],
     });
 
-    const { getAllByTestId } = render(<MealPlanScreen />);
-    // Servings control should have increment and decrement icons
-    const addIcons = getAllByTestId('icon-add');
-    const removeIcons = getAllByTestId('icon-remove');
-    expect(addIcons.length).toBeGreaterThanOrEqual(1);
-    expect(removeIcons.length).toBeGreaterThanOrEqual(1);
+    const { getByText } = render(<MealPlanScreen />);
+    expect(getByText('2 SERVINGS')).toBeTruthy();
   });
 
-  it('calls updateServings when increment button is pressed', async () => {
+  it('shows singular SERVING when servings is 1', () => {
+    setupCyclingMocks({
+      mealPlans: [makeMealPlan('breakfast', 'Pancakes', 'mp1', 1)],
+    });
+
+    const { getByText } = render(<MealPlanScreen />);
+    expect(getByText('1 SERVING')).toBeTruthy();
+  });
+
+  it('opens servings bottom sheet when badge is tapped', () => {
+    setupCyclingMocks({
+      mealPlans: [makeMealPlan('breakfast', 'Pancakes', 'mp1', 2)],
+    });
+
+    const { getByText } = render(<MealPlanScreen />);
+    fireEvent.press(getByText('2 SERVINGS'), mockPressEvent);
+
+    expect(getByText('ADJUST SERVINGS')).toBeTruthy();
+    expect(getByText('This will update your grocery list quantities')).toBeTruthy();
+  });
+
+  it('calls updateServings when SAVE is pressed in bottom sheet with changed value', async () => {
     mockUpdateServings.mockResolvedValue('mp1');
     setupCyclingMocks({
       mealPlans: [makeMealPlan('breakfast', 'Pancakes', 'mp1', 2)],
     });
 
-    const { getAllByTestId } = render(<MealPlanScreen />);
-    // The "add" icon inside the servings control
+    const { getByText, getAllByTestId } = render(<MealPlanScreen />);
+
+    // Open the bottom sheet
+    fireEvent.press(getByText('2 SERVINGS'), mockPressEvent);
+
+    // Increment servings in the sheet
     const addButtons = getAllByTestId('icon-add');
-    fireEvent.press(addButtons[0], mockPressEvent);
+    fireEvent.press(addButtons[0]);
+
+    // Save
+    fireEvent.press(getByText('SAVE'));
 
     await waitFor(() => {
       expect(mockUpdateServings).toHaveBeenCalledWith({
@@ -591,22 +615,15 @@ describe('MealPlanScreen', () => {
     });
   });
 
-  it('calls updateServings when decrement button is pressed', async () => {
-    mockUpdateServings.mockResolvedValue('mp1');
+  it('does not call updateServings when CANCEL is pressed in bottom sheet', async () => {
     setupCyclingMocks({
-      mealPlans: [makeMealPlan('breakfast', 'Pancakes', 'mp1', 3)],
+      mealPlans: [makeMealPlan('breakfast', 'Pancakes', 'mp1', 2)],
     });
 
-    const { getAllByTestId } = render(<MealPlanScreen />);
-    // The "remove" icon inside the servings control
-    const removeButtons = getAllByTestId('icon-remove');
-    fireEvent.press(removeButtons[0], mockPressEvent);
+    const { getByText } = render(<MealPlanScreen />);
+    fireEvent.press(getByText('2 SERVINGS'), mockPressEvent);
+    fireEvent.press(getByText('CANCEL'));
 
-    await waitFor(() => {
-      expect(mockUpdateServings).toHaveBeenCalledWith({
-        mealPlanId: 'mp1',
-        servings: 2,
-      });
-    });
+    expect(mockUpdateServings).not.toHaveBeenCalled();
   });
 });
