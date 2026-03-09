@@ -50,7 +50,12 @@
       "WebFetch(domain:www.calai.app)",
       "WebFetch(domain:www.recime.app)",
       "WebSearch",
-      "Bash(python3 .claude/skills/ui-ux-pro-max/scripts/search.py \"accessibility touch targets mobile react-native\" --domain ux -n 15)"
+      "Bash(python3 .claude/skills/ui-ux-pro-max/scripts/search.py \"accessibility touch targets mobile react-native\" --domain ux -n 15)",
+      "Bash(cat /d/xamp/htdocs/everyday_food/src/components/ui/*.tsx)",
+      "Bash(npx expo install react-native-gesture-handler)",
+      "Bash(rm -rf node_modules/.cache)",
+      "Bash(rm -rf %TMPDIR%/metro-*)",
+      "Bash(rm -rf $LOCALAPPDATA/Temp/metro-*)"
     ]
   }
 }

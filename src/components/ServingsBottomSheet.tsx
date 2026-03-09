@@ -61,7 +61,7 @@ export function ServingsBottomSheet({
       <Pressable style={styles.sheetOverlay} onPress={onClose}>
         <Pressable
           style={styles.sheetContent}
-          onPress={(e) => e.stopPropagation()}
+          onPress={(e) => e?.stopPropagation?.()}
         >
           <Animated.View entering={FadeInUp.duration(250)}>
             <Text style={styles.sheetTitle}>ADJUST SERVINGS</Text>

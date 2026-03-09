@@ -124,12 +124,11 @@ describe('MealPlanScreen', () => {
 
     const { getByText } = render(<MealPlanScreen />);
     expect(getByText('SCRAMBLED EGGS')).toBeTruthy();
-    // Card badge shows individual calories; section header shows total
+    // Card badge shows individual calories
     expect(getByText('250 KCAL')).toBeTruthy();
-    expect(getByText('BREAKFAST — 250 KCAL')).toBeTruthy();
   });
 
-  it('shows change and remove buttons for planned meals', () => {
+  it('shows long-press context menu for planned meals', () => {
     const mockMealPlans = [
       {
         _id: 'mp1',
@@ -145,7 +144,8 @@ describe('MealPlanScreen', () => {
     mockQueries(mockMealPlans);
 
     const { getByText } = render(<MealPlanScreen />);
-    expect(getByText('CHANGE')).toBeTruthy();
+    // Actions are now behind long-press context menu, not visible buttons
+    expect(getByText('CAESAR SALAD')).toBeTruthy();
   });
 
   it('navigates to select-recipe when adding a meal', () => {

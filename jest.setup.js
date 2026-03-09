@@ -65,6 +65,24 @@ jest.mock('expo-clipboard', () => ({
   getStringAsync: jest.fn(() => Promise.resolve('')),
 }));
 
+// Mock react-native-gesture-handler
+jest.mock('react-native-gesture-handler', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    Swipeable: React.forwardRef(({ children }, ref) => {
+      React.useImperativeHandle(ref, () => ({ close: jest.fn() }));
+      return React.createElement(View, null, children);
+    }),
+    GestureHandlerRootView: ({ children, ...props }) =>
+      React.createElement(View, props, children),
+    PanGestureHandler: ({ children }) =>
+      React.createElement(View, null, children),
+    State: {},
+    Directions: {},
+  };
+});
+
 // Mock react-native-safe-area-context
 jest.mock('react-native-safe-area-context', () => {
   const inset = { top: 0, right: 0, bottom: 0, left: 0 };

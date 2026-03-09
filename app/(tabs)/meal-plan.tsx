@@ -2,15 +2,17 @@ import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQuery } from "convex/react";
 import { format } from "date-fns";
 import { router } from "expo-router";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  View,
+  View
 } from "react-native";
+import { Swipeable } from "react-native-gesture-handler";
 import Animated, {
   FadeInDown,
   FadeInRight,
@@ -21,6 +23,7 @@ import { Id } from "../../convex/_generated/dataModel";
 
 import { ServingsBottomSheet } from "../../src/components/ServingsBottomSheet";
 import { useToast } from "../../src/hooks/useToast";
+import { getMealTypeEmoji } from "../../src/lib/meal-types";
 import {
   borderRadius,
   borders,
@@ -30,7 +33,6 @@ import {
   spacing,
   typography,
 } from "../../src/styles/neobrutalism";
-import { getMealTypeEmoji } from "../../src/lib/meal-types";
 
 // Recipe type from Convex
 type ConvexRecipe = {
@@ -130,7 +132,81 @@ function DayItem({
   );
 }
 
-// Individual meal card within a slot
+// ── Daily Nutrition Summary ──────────────────────────────────────────
+function DailyNutritionSummary({ mealPlan }: { mealPlan: DayMealPlan }) {
+  const totals = useMemo(() => {
+    const allEntries = [
+      ...mealPlan.breakfast,
+      ...mealPlan.lunch,
+      ...mealPlan.dinner,
+    ];
+    return allEntries.reduce(
+      (acc, entry) => {
+        const n = entry.recipe.nutritionPerServing;
+        const s = entry.servings;
+        if (n) {
+          acc.calories += (n.calories || 0) * s;
+          acc.protein += (n.protein || 0) * s;
+          acc.carbs += (n.carbs || 0) * s;
+          acc.fat += (n.fat || 0) * s;
+        }
+        return acc;
+      },
+      { calories: 0, protein: 0, carbs: 0, fat: 0 }
+    );
+  }, [mealPlan]);
+
+  const hasMeals =
+    mealPlan.breakfast.length + mealPlan.lunch.length + mealPlan.dinner.length > 0;
+
+  if (!hasMeals) return null;
+
+  return (
+    <Animated.View
+      entering={FadeInDown.delay(150).duration(300)}
+      style={styles.nutritionSummary}
+    >
+      <View style={styles.nutritionItem}>
+        <Ionicons name="flame" size={14} color={colors.accent} />
+        <Text style={styles.nutritionValue}>{Math.round(totals.calories)}</Text>
+        <Text style={styles.nutritionLabel}>KCAL</Text>
+      </View>
+      <View style={styles.nutritionDivider} />
+      <View style={styles.nutritionItem}>
+        <View style={[styles.nutritionDot, { backgroundColor: colors.protein }]} />
+        <Text style={styles.nutritionValue}>{Math.round(totals.protein)}g</Text>
+        <Text style={styles.nutritionLabel}>PROTEIN</Text>
+      </View>
+      <View style={styles.nutritionDivider} />
+      <View style={styles.nutritionItem}>
+        <View style={[styles.nutritionDot, { backgroundColor: colors.carbs }]} />
+        <Text style={styles.nutritionValue}>{Math.round(totals.carbs)}g</Text>
+        <Text style={styles.nutritionLabel}>CARBS</Text>
+      </View>
+    </Animated.View>
+  );
+}
+
+// ── Swipe Action Panels ─────────────────────────────────────────────
+function renderLeftActions() {
+  return (
+    <View style={styles.swipeActionLeft}>
+      <Ionicons name="swap-horizontal" size={22} color={colors.textLight} />
+      <Text style={styles.swipeActionText}>CHANGE</Text>
+    </View>
+  );
+}
+
+function renderRightActions() {
+  return (
+    <View style={styles.swipeActionRight}>
+      <Text style={styles.swipeActionText}>DELETE</Text>
+      <Ionicons name="trash-outline" size={22} color={colors.textLight} />
+    </View>
+  );
+}
+
+// ── Individual meal card (simplified 2-row + swipe + long-press) ────
 function MealCard({
   entry,
   mealType,
@@ -145,36 +221,77 @@ function MealCard({
   onUpdateServings: (servings: number) => void;
 }) {
   const [showServingsSheet, setShowServingsSheet] = useState(false);
+  const swipeableRef = useRef<Swipeable>(null);
+
   const recipeMealType =
     entry.recipe.tags?.find((t: string) =>
       ["breakfast", "lunch", "dinner", "snack"].includes(t.toLowerCase())
     )?.toLowerCase() || mealType;
   const bgColor = getMealTypeColor(recipeMealType);
 
+  const handleSwipeLeft = useCallback(() => {
+    swipeableRef.current?.close();
+    onChangeMeal();
+  }, [onChangeMeal]);
+
+  const handleSwipeRight = useCallback(() => {
+    swipeableRef.current?.close();
+    onRemoveMeal();
+  }, [onRemoveMeal]);
+
+  const handleLongPress = useCallback(() => {
+    const options = [
+      { text: "View Recipe", onPress: () => router.push(`/recipe/${entry.recipe._id}?servings=${entry.servings}&fromMealPlan=1` as any) },
+      { text: "Change Meal", onPress: onChangeMeal },
+      { text: "Adjust Servings", onPress: () => setShowServingsSheet(true) },
+      { text: "Remove", style: "destructive" as const, onPress: onRemoveMeal },
+      { text: "Cancel", style: "cancel" as const },
+    ];
+    Alert.alert("Meal Options", entry.recipe.title, options);
+  }, [entry, onChangeMeal, onRemoveMeal]);
+
+  const calories = entry.recipe.nutritionPerServing?.calories || 0;
+
   return (
     <>
-      <Pressable
-        style={({ pressed }) => [styles.mealCard, pressed && styles.cardPressed]}
-        onPress={() => router.push(`/recipe/${entry.recipe._id}?servings=${entry.servings}&fromMealPlan=1` as any)}
+      <Swipeable
+        ref={swipeableRef}
+        renderLeftActions={renderLeftActions}
+        renderRightActions={renderRightActions}
+        onSwipeableOpen={(direction) => {
+          if (direction === "left") handleSwipeLeft();
+          else handleSwipeRight();
+        }}
+        overshootLeft={false}
+        overshootRight={false}
+        containerStyle={styles.swipeableContainer}
       >
-        <View style={styles.mealImageContainer}>
-          <View style={[styles.mealImage, { backgroundColor: bgColor }]}>
-            <Text style={styles.mealEmoji}>
-              {getMealTypeEmoji(recipeMealType)}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.mealInfo}>
-          <Text style={styles.mealTitle} numberOfLines={1}>
-            {entry.recipe.title.toUpperCase()}
-          </Text>
-          <View style={styles.mealBadgeRow}>
-            <View style={styles.mealBadge}>
-              <Text style={styles.mealBadgeText}>
-                {entry.recipe.nutritionPerServing?.calories || 0} KCAL
+        <Pressable
+          style={({ pressed }) => [styles.mealCard, pressed && styles.cardPressed]}
+          onPress={() => router.push(`/recipe/${entry.recipe._id}?servings=${entry.servings}&fromMealPlan=1` as any)}
+          onLongPress={handleLongPress}
+          delayLongPress={400}
+        >
+          {/* Emoji thumbnail */}
+          <View style={styles.mealImageContainer}>
+            <View style={[styles.mealImage, { backgroundColor: bgColor }]}>
+              <Text style={styles.mealEmoji}>
+                {getMealTypeEmoji(recipeMealType)}
               </Text>
             </View>
+          </View>
+
+          {/* Two-row info: title+kcal / servings */}
+          <View style={styles.mealInfo}>
+            <View style={styles.mealTitleRow}>
+              <Text style={styles.mealTitle} numberOfLines={1}>
+                {entry.recipe.title.toUpperCase()}
+              </Text>
+              <View style={styles.mealCalsBadge}>
+                <Text style={styles.mealCalsText}>{calories} KCAL</Text>
+              </View>
+            </View>
+
             <Pressable
               style={({ pressed }) => [
                 styles.servingsBadge,
@@ -192,35 +309,8 @@ function MealCard({
               <Ionicons name="chevron-down" size={12} color={colors.textSecondary} />
             </Pressable>
           </View>
-          <View style={styles.mealActions}>
-            <Pressable
-              style={({ pressed }) => [
-                styles.changeButton,
-                pressed && styles.changeButtonPressed,
-              ]}
-              onPress={(e) => {
-                e.stopPropagation();
-                onChangeMeal();
-              }}
-            >
-              <Ionicons name="swap-horizontal" size={14} color={colors.textLight} />
-              <Text style={styles.changeButtonText}>CHANGE</Text>
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [
-                styles.removeButton,
-                pressed && styles.removeButtonPressed,
-              ]}
-              onPress={(e) => {
-                e.stopPropagation();
-                onRemoveMeal();
-              }}
-            >
-              <Ionicons name="trash-outline" size={14} color={colors.surface} />
-            </Pressable>
-          </View>
-        </View>
-      </Pressable>
+        </Pressable>
+      </Swipeable>
 
       <ServingsBottomSheet
         visible={showServingsSheet}
@@ -233,7 +323,7 @@ function MealCard({
   );
 }
 
-// Meal Section Component
+// ── Meal Section Component ──────────────────────────────────────────
 function MealSection({
   type,
   label,
@@ -253,25 +343,33 @@ function MealSection({
   onRemoveMeal: (mealPlanId: Id<"mealPlans">) => void;
   onUpdateServings: (mealPlanId: Id<"mealPlans">, servings: number) => void;
 }) {
-  const totalCalories = meals.reduce(
-    (sum, entry) => sum + (entry.recipe.nutritionPerServing?.calories ?? 0),
-    0
-  );
-  const hasCalorieData = meals.some((e) => e.recipe.nutritionPerServing?.calories);
-  const headerLabel = hasCalorieData ? `${label} — ${totalCalories} KCAL` : label;
   const bgColor = getMealTypeColor(type);
+  const canAdd = meals.length < 3;
 
   return (
     <Animated.View
       entering={FadeInDown.delay(200 + index * 100).duration(400)}
       style={styles.mealSection}
     >
-      {/* Section Label */}
+      {/* Section header with inline + button */}
       <View style={styles.mealLabelContainer}>
         <View style={[styles.mealLabel, { backgroundColor: bgColor }]}>
-          <Text style={styles.mealLabelText}>{headerLabel}</Text>
+          <Text style={styles.mealLabelText}>{label}</Text>
         </View>
         <View style={styles.mealLabelLine} />
+        {canAdd && (
+          <Pressable
+            style={({ pressed }) => [
+              styles.sectionAddButton,
+              { backgroundColor: bgColor },
+              pressed && styles.sectionAddButtonPressed,
+            ]}
+            onPress={onAddMeal}
+            hitSlop={8}
+          >
+            <Ionicons name="add" size={18} color={colors.text} />
+          </Pressable>
+        )}
       </View>
 
       {/* Empty state */}
@@ -302,21 +400,6 @@ function MealSection({
           onUpdateServings={(servings) => onUpdateServings(entry.mealPlanId, servings)}
         />
       ))}
-
-      {/* Add another button (visible at 1–2 meals, hidden at 3) */}
-      {meals.length > 0 && meals.length < 3 && (
-        <Pressable
-          style={({ pressed }) => [
-            styles.addAnotherButton,
-            pressed && styles.buttonPressed,
-          ]}
-          onPress={onAddMeal}
-        >          
-          <Text style={styles.addAnotherButtonText}>
-            + ADD ANOTHER {label}
-          </Text>
-        </Pressable>
-      )}
     </Animated.View>
   );
 }
@@ -632,6 +715,9 @@ export default function MealPlanScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Daily Nutrition Summary */}
+        <DailyNutritionSummary mealPlan={mealPlan} />
+
         {/* Meal Sections */}
         <MealSection
           type="breakfast"
@@ -830,6 +916,95 @@ const styles = StyleSheet.create({
     backgroundColor: colors.borderLight,
     marginLeft: spacing.md,
   },
+  // ── Daily Nutrition Summary ──────────────────────────────────────
+  nutritionSummary: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surface,
+    borderWidth: borders.regular,
+    borderColor: borders.color,
+    borderRadius: borderRadius.lg,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.lg,
+    ...shadows.xs,
+  },
+  nutritionItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  nutritionDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  nutritionValue: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.bold,
+    color: colors.text,
+  },
+  nutritionLabel: {
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.medium,
+    color: colors.textMuted,
+    marginLeft: 1,
+  },
+  nutritionDivider: {
+    width: 1,
+    height: 16,
+    backgroundColor: colors.borderLight,
+    marginHorizontal: spacing.md,
+  },
+  // ── Section Add Button ─────────────────────────────────────────
+  sectionAddButton: {
+    width: 28,
+    height: 28,
+    borderWidth: borders.thin,
+    borderColor: borders.color,
+    borderRadius: borderRadius.sm,
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: spacing.sm,
+  },
+  sectionAddButtonPressed: {
+    opacity: 0.7,
+    transform: [{ scale: 0.92 }],
+  },
+  // ── Swipe Actions ──────────────────────────────────────────────
+  swipeableContainer: {
+    marginBottom: spacing.sm,
+    borderRadius: borderRadius.lg,
+    overflow: "hidden",
+  },
+  swipeActionLeft: {
+    backgroundColor: colors.cyan,
+    justifyContent: "center",
+    alignItems: "center",
+    width: 90,
+    borderRadius: borderRadius.lg,
+    marginRight: -borderRadius.lg,
+    paddingRight: borderRadius.lg,
+    gap: 4,
+  },
+  swipeActionRight: {
+    backgroundColor: colors.accent,
+    justifyContent: "center",
+    alignItems: "center",
+    width: 90,
+    borderRadius: borderRadius.lg,
+    marginLeft: -borderRadius.lg,
+    paddingLeft: borderRadius.lg,
+    gap: 4,
+  },
+  swipeActionText: {
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.bold,
+    color: colors.textLight,
+    letterSpacing: typography.letterSpacing.wide,
+  },
+  // ── Meal Card (simplified 2-row) ───────────────────────────────
   mealCard: {
     flexDirection: "row",
     backgroundColor: colors.surface,
@@ -848,30 +1023,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: spacing.xxl,
     borderStyle: "dashed",
+    marginBottom: spacing.sm,
   },
   emptyMealContent: {
     alignItems: "center",
     gap: spacing.sm,
-  },
-  addAnotherButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.surface,
-    borderWidth: borders.regular,
-    borderColor: borders.color,
-    borderStyle: "dashed",
-    borderRadius: borderRadius.md,
-    paddingVertical: spacing.md,
-    marginTop: spacing.sm,
-    gap: spacing.xs,
-    ...shadows.xs,
-  },
-  addAnotherButtonText: {
-    fontSize: typography.sizes.sm,
-    fontWeight: typography.weights.bold,
-    color: colors.text,
-    letterSpacing: typography.letterSpacing.wide,
   },
   emptyMealText: {
     fontSize: typography.sizes.sm,
@@ -881,35 +1037,35 @@ const styles = StyleSheet.create({
     marginRight: spacing.md,
   },
   mealImage: {
-    width: 70,
-    height: 70,
-    borderWidth: borders.regular,
+    width: 56,
+    height: 56,
+    borderWidth: borders.thin,
     borderColor: borders.color,
     borderRadius: borderRadius.md,
     alignItems: "center",
     justifyContent: "center",
   },
   mealEmoji: {
-    fontSize: 32,
+    fontSize: 26,
   },
   mealInfo: {
     flex: 1,
     justifyContent: "center",
+    gap: spacing.xs,
   },
-  mealTitle: {
-    fontSize: typography.sizes.md,
-    fontWeight: typography.weights.bold,
-    color: colors.text,
-    marginBottom: spacing.xs,
-  },
-  mealBadgeRow: {
+  mealTitleRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: spacing.sm,
+    gap: spacing.sm,
   },
-  mealBadge: {
-    alignSelf: "flex-start",
+  mealTitle: {
+    flex: 1,
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.bold,
+    color: colors.text,
+  },
+  mealCalsBadge: {
     backgroundColor: colors.primary,
     borderWidth: borders.thin,
     borderColor: borders.color,
@@ -917,7 +1073,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
   },
-  mealBadgeText: {
+  mealCalsText: {
     fontSize: typography.sizes.xs,
     fontWeight: typography.weights.bold,
     color: colors.text,
@@ -925,6 +1081,7 @@ const styles = StyleSheet.create({
   servingsBadge: {
     flexDirection: "row",
     alignItems: "center",
+    alignSelf: "flex-start",
     gap: 4,
     backgroundColor: colors.surfaceAlt,
     borderWidth: borders.thin,
@@ -942,43 +1099,6 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.bold,
     color: colors.textSecondary,
     letterSpacing: typography.letterSpacing.wide,
-  },
-  mealActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-  },
-  changeButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.cyan,
-    borderWidth: borders.thin,
-    borderColor: borders.color,
-    borderRadius: borderRadius.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    gap: spacing.xs,
-  },
-  changeButtonText: {
-    fontSize: typography.sizes.xs,
-    fontWeight: typography.weights.bold,
-    color: colors.textLight,
-  },
-  changeButtonPressed: {
-    opacity: 0.7,
-  },
-  removeButton: {
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.accent,
-    borderWidth: borders.thin,
-    borderColor: borders.color,
-    borderRadius: borderRadius.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  removeButtonPressed: {
-    opacity: 0.7,
   },
   generateButton: {
     flexDirection: "row",

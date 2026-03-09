@@ -1,5 +1,6 @@
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, within } from '@testing-library/react-native';
+import { Alert } from 'react-native';
 import { useQuery, useMutation } from 'convex/react';
 import { router } from 'expo-router';
 import MealPlanScreen from '../(tabs)/meal-plan';
@@ -21,6 +22,9 @@ jest.mock('../../src/hooks/useToast', () => ({
     showToast: jest.fn(),
   }),
 }));
+
+// Spy on Alert.alert for long-press context menu tests
+const alertSpy = jest.spyOn(Alert, 'alert');
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -154,16 +158,6 @@ describe('MealPlanScreen', () => {
     expect(getByText('400 KCAL')).toBeTruthy();
   });
 
-  it('shows CHANGE and remove buttons for planned meals', () => {
-    setupCyclingMocks({
-      mealPlans: [makeMealPlan('breakfast', 'Pancakes')],
-    });
-
-    const { getByText, getByTestId } = render(<MealPlanScreen />);
-    expect(getByText('CHANGE')).toBeTruthy();
-    expect(getByTestId('icon-trash-outline')).toBeTruthy();
-  });
-
   it('navigates to select-recipe when empty meal card is pressed', () => {
     setupCyclingMocks();
 
@@ -209,21 +203,47 @@ describe('MealPlanScreen', () => {
     );
   });
 
-  it('calls removeMeal when remove button is pressed', async () => {
+  it('shows long-press context menu with meal options', () => {
+    setupCyclingMocks({
+      mealPlans: [makeMealPlan('breakfast', 'Pancakes')],
+    });
+
+    const { getByText } = render(<MealPlanScreen />);
+    fireEvent(getByText('PANCAKES'), 'onLongPress');
+
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Meal Options',
+      'Pancakes',
+      expect.arrayContaining([
+        expect.objectContaining({ text: 'View Recipe' }),
+        expect.objectContaining({ text: 'Change Meal' }),
+        expect.objectContaining({ text: 'Adjust Servings' }),
+        expect.objectContaining({ text: 'Remove', style: 'destructive' }),
+        expect.objectContaining({ text: 'Cancel', style: 'cancel' }),
+      ])
+    );
+  });
+
+  it('calls removeMeal via long-press Remove option', async () => {
     mockRemoveMeal.mockResolvedValue({ success: true });
     setupCyclingMocks({
       mealPlans: [makeMealPlan('breakfast', 'Pancakes', 'mp-breakfast')],
     });
 
-    const { getByTestId } = render(<MealPlanScreen />);
-    fireEvent.press(getByTestId('icon-trash-outline'), mockPressEvent);
+    const { getByText } = render(<MealPlanScreen />);
+    fireEvent(getByText('PANCAKES'), 'onLongPress');
+
+    // Find and press the "Remove" option from Alert
+    const alertOptions = alertSpy.mock.calls[0][2] as any[];
+    const removeOption = alertOptions.find((o: any) => o.text === 'Remove');
+    removeOption.onPress();
 
     await waitFor(() => {
       expect(mockRemoveMeal).toHaveBeenCalledWith({ mealPlanId: 'mp-breakfast' });
     });
   });
 
-  it('calls changeMeal with mealPlanId when CHANGE is pressed', async () => {
+  it('calls changeMeal via long-press Change Meal option', async () => {
     mockChangeMeal.mockResolvedValue({ success: true });
     const recipes = [
       makeRecipe('r1', 'Oatmeal', ['breakfast']),
@@ -235,7 +255,11 @@ describe('MealPlanScreen', () => {
     });
 
     const { getByText } = render(<MealPlanScreen />);
-    fireEvent.press(getByText('CHANGE'), mockPressEvent);
+    fireEvent(getByText('PANCAKES'), 'onLongPress');
+
+    const alertOptions = alertSpy.mock.calls[0][2] as any[];
+    const changeOption = alertOptions.find((o: any) => o.text === 'Change Meal');
+    changeOption.onPress();
 
     await waitFor(() => {
       expect(mockChangeMeal).toHaveBeenCalledWith(
@@ -342,7 +366,7 @@ describe('MealPlanScreen', () => {
     expect(mockAddMeal).not.toHaveBeenCalled();
   });
 
-  it('does not call changeMeal when CHANGE pressed with no matching recipes', async () => {
+  it('does not call changeMeal via long-press when no matching recipes', async () => {
     const recipes = [
       makeRecipe('r1', 'Pasta', ['dinner']),
     ];
@@ -352,16 +376,18 @@ describe('MealPlanScreen', () => {
     });
 
     const { getByText } = render(<MealPlanScreen />);
-    fireEvent.press(getByText('CHANGE'), mockPressEvent);
+    fireEvent(getByText('PANCAKES'), 'onLongPress');
+
+    const alertOptions = alertSpy.mock.calls[0][2] as any[];
+    const changeOption = alertOptions.find((o: any) => o.text === 'Change Meal');
+    changeOption.onPress();
 
     await waitFor(() => {
       expect(mockChangeMeal).not.toHaveBeenCalled();
     });
   });
 
-  it('shows error toast when CHANGE pressed but no alternative recipes exist', async () => {
-    // allRecipes contains ONLY the same recipe that is already in the slot
-    // (same _id), so after excluding it from candidates matchingRecipes is empty
+  it('shows error toast when change pressed but no alternative recipes exist', async () => {
     const recipes = [
       makeRecipe('recipe-breakfast', 'Pancakes', ['breakfast']),
     ];
@@ -371,7 +397,11 @@ describe('MealPlanScreen', () => {
     });
 
     const { getByText } = render(<MealPlanScreen />);
-    fireEvent.press(getByText('CHANGE'), mockPressEvent);
+    fireEvent(getByText('PANCAKES'), 'onLongPress');
+
+    const alertOptions = alertSpy.mock.calls[0][2] as any[];
+    const changeOption = alertOptions.find((o: any) => o.text === 'Change Meal');
+    changeOption.onPress();
 
     await waitFor(() => {
       expect(mockChangeMeal).not.toHaveBeenCalled();
@@ -381,8 +411,6 @@ describe('MealPlanScreen', () => {
 
   it('calls changeMeal when allRecipes also contains the current recipe alongside alternatives', async () => {
     mockChangeMeal.mockResolvedValue({ success: true });
-    // Realistic production scenario: allRecipes includes the current recipe (same _id)
-    // plus another breakfast recipe as a valid alternative
     const recipes = [
       makeRecipe('recipe-breakfast', 'Pancakes', ['breakfast']),
       makeRecipe('r-alt', 'Oatmeal', ['breakfast']),
@@ -393,7 +421,11 @@ describe('MealPlanScreen', () => {
     });
 
     const { getByText } = render(<MealPlanScreen />);
-    fireEvent.press(getByText('CHANGE'), mockPressEvent);
+    fireEvent(getByText('PANCAKES'), 'onLongPress');
+
+    const alertOptions = alertSpy.mock.calls[0][2] as any[];
+    const changeOption = alertOptions.find((o: any) => o.text === 'Change Meal');
+    changeOption.onPress();
 
     await waitFor(() => {
       expect(mockChangeMeal).toHaveBeenCalledWith(
@@ -433,14 +465,18 @@ describe('MealPlanScreen', () => {
     expect(getByText('Loading...')).toBeTruthy();
   });
 
-  it('handles remove meal error gracefully', async () => {
+  it('handles remove meal error gracefully via long-press', async () => {
     mockRemoveMeal.mockRejectedValue(new Error('Remove failed'));
     setupCyclingMocks({
       mealPlans: [makeMealPlan('breakfast', 'Pancakes', 'mp-breakfast')],
     });
 
-    const { getByTestId } = render(<MealPlanScreen />);
-    fireEvent.press(getByTestId('icon-trash-outline'), mockPressEvent);
+    const { getByText } = render(<MealPlanScreen />);
+    fireEvent(getByText('PANCAKES'), 'onLongPress');
+
+    const alertOptions = alertSpy.mock.calls[0][2] as any[];
+    const removeOption = alertOptions.find((o: any) => o.text === 'Remove');
+    removeOption.onPress();
 
     await waitFor(() => {
       expect(mockShowError).toHaveBeenCalledWith('Failed to remove meal. Please try again.');
@@ -461,63 +497,54 @@ describe('MealPlanScreen', () => {
     expect(mockShowError).not.toHaveBeenCalled();
   });
 
-  // --- Multiple meals per slot ---
+  // --- Daily Nutrition Summary ---
 
-  it('shows section header with calorie total for a single meal', () => {
+  it('shows daily nutrition summary when meals are planned', () => {
+    setupCyclingMocks({
+      mealPlans: [makeMealPlan('breakfast', 'Pancakes', 'mp1', 2)],
+    });
+
+    const { getByText } = render(<MealPlanScreen />);
+    // 400 cal * 2 servings = 800 KCAL total
+    expect(getByText('800')).toBeTruthy();
+    expect(getByText('KCAL')).toBeTruthy();
+    expect(getByText('PROTEIN')).toBeTruthy();
+    expect(getByText('CARBS')).toBeTruthy();
+    expect(getByText('FAT')).toBeTruthy();
+  });
+
+  it('does not show daily nutrition summary when no meals planned', () => {
+    setupCyclingMocks();
+
+    const { queryByText } = render(<MealPlanScreen />);
+    expect(queryByText('PROTEIN')).toBeNull();
+  });
+
+  // --- Section header + button ---
+
+  it('shows section header with just meal type label (no calorie total)', () => {
     setupCyclingMocks({
       mealPlans: [makeMealPlan('breakfast', 'Pancakes')],
     });
 
-    const { getByText } = render(<MealPlanScreen />);
-    expect(getByText('BREAKFAST — 400 KCAL')).toBeTruthy();
-  });
-
-  it('shows aggregate calorie total in section header when slot has multiple meals', () => {
-    setupCyclingMocks({
-      mealPlans: [
-        { _id: 'mp1', mealType: 'breakfast', recipe: { _id: 'r1', title: 'Omelette', tags: ['breakfast'], prepTime: 5, cookTime: 5, nutritionPerServing: { calories: 320, protein: 20, carbs: 5, fat: 22 } } },
-        { _id: 'mp2', mealType: 'breakfast', recipe: { _id: 'r2', title: 'Croissant', tags: ['breakfast'], prepTime: 5, cookTime: 5, nutritionPerServing: { calories: 180, protein: 5, carbs: 26, fat: 8 } } },
-      ],
-    });
-
-    const { getByText } = render(<MealPlanScreen />);
-    expect(getByText('BREAKFAST — 500 KCAL')).toBeTruthy();
-  });
-
-  it('shows plain section label without KCAL total when meal has no calorie data', () => {
-    setupCyclingMocks({
-      mealPlans: [
-        { _id: 'mp1', mealType: 'lunch', recipe: { _id: 'r1', title: 'Mystery Dish', tags: ['lunch'], prepTime: 10, cookTime: 10 } },
-      ],
-    });
-
     const { getByText, queryByText } = render(<MealPlanScreen />);
-    expect(getByText('LUNCH')).toBeTruthy();
-    expect(queryByText('LUNCH — 0 KCAL')).toBeNull();
+    expect(getByText('BREAKFAST')).toBeTruthy();
+    // Calorie total is no longer in the section header
+    expect(queryByText('BREAKFAST — 400 KCAL')).toBeNull();
   });
 
-  it('shows "+ ADD ANOTHER BREAKFAST" button when breakfast slot has 1 meal', () => {
+  it('shows + button in section header when slot has fewer than 3 meals', () => {
     setupCyclingMocks({
-      mealPlans: [makeMealPlan('breakfast', 'Omelette')],
+      mealPlans: [makeMealPlan('breakfast', 'Pancakes')],
     });
 
-    const { getByText } = render(<MealPlanScreen />);
-    expect(getByText('+ ADD ANOTHER BREAKFAST')).toBeTruthy();
+    const { getAllByTestId } = render(<MealPlanScreen />);
+    // + icon buttons in section headers (one per section that can add)
+    const addIcons = getAllByTestId('icon-add');
+    expect(addIcons.length).toBeGreaterThanOrEqual(3); // all 3 sections have < 3 meals
   });
 
-  it('shows "+ ADD ANOTHER" button when slot has 2 meals', () => {
-    setupCyclingMocks({
-      mealPlans: [
-        makeMealPlan('dinner', 'Pasta', 'mp1'),
-        { _id: 'mp2', mealType: 'dinner', recipe: { _id: 'r2', title: 'Steak', tags: ['dinner'], prepTime: 10, cookTime: 20, nutritionPerServing: { calories: 550, protein: 40, carbs: 10, fat: 30 } } },
-      ],
-    });
-
-    const { getByText } = render(<MealPlanScreen />);
-    expect(getByText('+ ADD ANOTHER DINNER')).toBeTruthy();
-  });
-
-  it('hides "+ ADD ANOTHER" button when slot has 3 meals', () => {
+  it('hides + button in section header when slot has 3 meals', () => {
     setupCyclingMocks({
       mealPlans: [
         makeMealPlan('breakfast', 'Meal 1', 'mp1'),
@@ -526,38 +553,16 @@ describe('MealPlanScreen', () => {
       ],
     });
 
-    const { queryByText } = render(<MealPlanScreen />);
-    expect(queryByText('+ ADD ANOTHER BREAKFAST')).toBeNull();
+    const { getAllByTestId } = render(<MealPlanScreen />);
+    // When breakfast has 3 meals, only lunch and dinner headers + empty states show add icons
+    // Empty state has an "add" icon too, so we check there are fewer add icons
+    const addIcons = getAllByTestId('icon-add');
+    // lunch empty (1 icon in header + 1 in empty card) + dinner empty (1 + 1) = 4
+    // breakfast has NO header add icon = 0
+    expect(addIcons.length).toBe(4);
   });
 
-  it('renders individual CHANGE and remove buttons for each card in a multi-meal slot', () => {
-    setupCyclingMocks({
-      mealPlans: [
-        makeMealPlan('dinner', 'Pasta', 'mp1'),
-        { _id: 'mp2', mealType: 'dinner', recipe: { _id: 'r2', title: 'Steak', tags: ['dinner'], prepTime: 10, cookTime: 20, nutritionPerServing: { calories: 550, protein: 40, carbs: 10, fat: 30 } } },
-      ],
-    });
-
-    const { getAllByText, getAllByTestId } = render(<MealPlanScreen />);
-    expect(getAllByText('CHANGE').length).toBe(2);
-    expect(getAllByTestId('icon-trash-outline').length).toBe(2);
-  });
-
-  it('pressing "+ ADD ANOTHER" navigates to select-recipe with correct mealType', () => {
-    setupCyclingMocks({
-      mealPlans: [makeMealPlan('lunch', 'Salad')],
-    });
-
-    const { getByText } = render(<MealPlanScreen />);
-    fireEvent.press(getByText('+ ADD ANOTHER LUNCH'));
-
-    expect(router.push).toHaveBeenCalledWith(
-      expect.objectContaining({
-        pathname: '/select-recipe',
-        params: expect.objectContaining({ mealType: 'lunch' }),
-      })
-    );
-  });
+  // --- Servings ---
 
   it('displays servings badge on meal card', () => {
     setupCyclingMocks({
@@ -595,14 +600,20 @@ describe('MealPlanScreen', () => {
       mealPlans: [makeMealPlan('breakfast', 'Pancakes', 'mp1', 2)],
     });
 
-    const { getByText, getAllByTestId } = render(<MealPlanScreen />);
+    const { getByText } = render(<MealPlanScreen />);
 
     // Open the bottom sheet
     fireEvent.press(getByText('2 SERVINGS'), mockPressEvent);
 
-    // Increment servings in the sheet
-    const addButtons = getAllByTestId('icon-add');
-    fireEvent.press(addButtons[0]);
+    // Find the increment button scoped to the bottom sheet area
+    // The sheet title "ADJUST SERVINGS" is our anchor
+    const sheetTitle = getByText('ADJUST SERVINGS');
+    const sheetContainer = sheetTitle.parent?.parent; // Animated.View > Pressable (sheetContent)
+    if (sheetContainer) {
+      const sheetView = within(sheetContainer);
+      const addBtn = sheetView.getAllByTestId('icon-add');
+      fireEvent.press(addBtn[0]);
+    }
 
     // Save
     fireEvent.press(getByText('SAVE'));
