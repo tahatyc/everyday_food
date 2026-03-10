@@ -187,21 +187,24 @@ function DailyNutritionSummary({ mealPlan }: { mealPlan: DayMealPlan }) {
   );
 }
 
-// ── Swipe Action Panels ─────────────────────────────────────────────
-function renderLeftActions() {
+// ── Swipe Action Panel (both actions on swipe-left) ─────────────────
+function SwipeRightActions({
+  onChange,
+  onDelete,
+}: {
+  onChange: () => void;
+  onDelete: () => void;
+}) {
   return (
-    <View style={styles.swipeActionLeft}>
-      <Ionicons name="swap-horizontal" size={22} color={colors.textLight} />
-      <Text style={styles.swipeActionText}>CHANGE</Text>
-    </View>
-  );
-}
-
-function renderRightActions() {
-  return (
-    <View style={styles.swipeActionRight}>
-      <Text style={styles.swipeActionText}>DELETE</Text>
-      <Ionicons name="trash-outline" size={22} color={colors.textLight} />
+    <View style={styles.swipeActionsContainer}>
+      <Pressable style={styles.swipeActionChange} onPress={onChange}>
+        <Ionicons name="swap-horizontal" size={22} color={colors.textLight} />
+        <Text style={styles.swipeActionText}>CHANGE</Text>
+      </Pressable>
+      <Pressable style={styles.swipeActionDelete} onPress={onDelete}>
+        <Ionicons name="trash-outline" size={22} color={colors.textLight} />
+        <Text style={styles.swipeActionText}>DELETE</Text>
+      </Pressable>
     </View>
   );
 }
@@ -229,12 +232,12 @@ function MealCard({
     )?.toLowerCase() || mealType;
   const bgColor = getMealTypeColor(recipeMealType);
 
-  const handleSwipeLeft = useCallback(() => {
+  const handleChangePress = useCallback(() => {
     swipeableRef.current?.close();
     onChangeMeal();
   }, [onChangeMeal]);
 
-  const handleSwipeRight = useCallback(() => {
+  const handleDeletePress = useCallback(() => {
     swipeableRef.current?.close();
     onRemoveMeal();
   }, [onRemoveMeal]);
@@ -256,13 +259,12 @@ function MealCard({
     <>
       <Swipeable
         ref={swipeableRef}
-        renderLeftActions={renderLeftActions}
-        renderRightActions={renderRightActions}
-        onSwipeableOpen={(direction) => {
-          if (direction === "left") handleSwipeLeft();
-          else handleSwipeRight();
-        }}
-        overshootLeft={false}
+        renderRightActions={() => (
+          <SwipeRightActions
+            onChange={handleChangePress}
+            onDelete={handleDeletePress}
+          />
+        )}
         overshootRight={false}
         containerStyle={styles.swipeableContainer}
       >
@@ -978,24 +980,23 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     overflow: "hidden",
   },
-  swipeActionLeft: {
+  swipeActionsContainer: {
+    flexDirection: "row",
+  },
+  swipeActionChange: {
     backgroundColor: colors.cyan,
     justifyContent: "center",
     alignItems: "center",
-    width: 90,
-    borderRadius: borderRadius.lg,
-    marginRight: -borderRadius.lg,
-    paddingRight: borderRadius.lg,
+    width: 80,
     gap: 4,
   },
-  swipeActionRight: {
+  swipeActionDelete: {
     backgroundColor: colors.accent,
     justifyContent: "center",
     alignItems: "center",
-    width: 90,
-    borderRadius: borderRadius.lg,
-    marginLeft: -borderRadius.lg,
-    paddingLeft: borderRadius.lg,
+    width: 80,
+    borderTopRightRadius: borderRadius.lg,
+    borderBottomRightRadius: borderRadius.lg,
     gap: 4,
   },
   swipeActionText: {

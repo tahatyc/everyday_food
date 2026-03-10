@@ -16,9 +16,9 @@ import {
 import Animated, { FadeIn } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
 
-import { Badge, Card, IconButton, Input } from "../../src/components/ui";
+import { RecipeCard, RecipeCardData } from "../../src/components/RecipeCard";
+import { IconButton, Input } from "../../src/components/ui";
 import {
   COOK_TIME_OPTIONS,
   CUISINE_OPTIONS,
@@ -28,28 +28,10 @@ import {
   borderRadius,
   borders,
   colors,
-  getDifficultyColor,
-  getMealTypeColor,
   shadows,
   spacing,
   typography,
 } from "../../src/styles/neobrutalism";
-import { getMealTypeEmoji, getMealTypeFromTags } from "../../src/lib/meal-types";
-
-// Recipe type from Convex
-type ConvexRecipe = {
-  _id: Id<"recipes">;
-  title: string;
-  description?: string;
-  prepTime?: number;
-  cookTime?: number;
-  servings: number;
-  difficulty?: "easy" | "medium" | "hard";
-  isFavorite?: boolean;
-  isGlobal?: boolean;
-  cookCount?: number;
-  tags: string[];
-};
 
 // Advanced filter state
 type RecipeFilters = {
@@ -65,87 +47,6 @@ const DEFAULT_FILTERS: RecipeFilters = {
   cuisine: [],
   dietary: [],
 };
-
-// Recipe list item component
-function RecipeListItem({ recipe, onToggleFavorite }: { recipe: ConvexRecipe; onToggleFavorite: (recipe: ConvexRecipe) => void }) {
-  const totalTime = (recipe.prepTime || 0) + (recipe.cookTime || 0);
-
-  const mealType = getMealTypeFromTags(recipe.tags);
-
-  return (
-    <Card style={styles.recipeItem} onPress={() => router.push(`/recipe/${recipe._id}` as any)}>
-      {recipe.isGlobal && (
-        <View style={styles.globalBadge}>
-          <Ionicons name="globe-outline" size={12} color={colors.primary} />
-          <Text style={styles.globalBadgeText}>GLOBAL</Text>
-        </View>
-      )}
-
-      <View
-        style={[
-          styles.recipeImage,
-          { backgroundColor: getMealTypeColor(mealType) },
-        ]}
-      >
-        <Text style={styles.recipeEmoji}>
-          {getMealTypeEmoji(mealType)}
-        </Text>
-      </View>
-
-      <View style={styles.recipeContent}>
-        <Text style={styles.recipeTitle} numberOfLines={1}>
-          {recipe.title}
-        </Text>
-        <Text style={styles.recipeDescription} numberOfLines={2}>
-          {recipe.description}
-        </Text>
-
-        <View style={styles.recipeMeta}>
-          <View style={styles.recipeMetaItem}>
-            <Ionicons name="time-outline" size={14} color={colors.textSecondary} />
-            <Text style={styles.recipeMetaText}>{totalTime} min</Text>
-          </View>
-          <View style={styles.recipeMetaItem}>
-            <Ionicons name="people-outline" size={14} color={colors.textSecondary} />
-            <Text style={styles.recipeMetaText}>{recipe.servings} servings</Text>
-          </View>
-          {recipe.difficulty && (
-            <Badge
-              variant="default"
-              size="sm"
-              color={getDifficultyColor(recipe.difficulty)}
-            >
-              {recipe.difficulty}
-            </Badge>
-          )}
-        </View>
-
-        <View style={styles.recipeTags}>
-          {recipe.tags?.slice(0, 3).map((tag: string) => (
-            <Badge key={tag} variant="default" size="sm">
-              {tag}
-            </Badge>
-          ))}
-        </View>
-      </View>
-
-      <Pressable
-        style={({ pressed }) => [
-          styles.favoriteButton,
-          pressed && styles.favoriteButtonPressed,
-        ]}
-        onPress={() => onToggleFavorite(recipe)}
-        hitSlop={8}
-      >
-        <Ionicons
-          name={recipe.isFavorite ? "heart" : "heart-outline"}
-          size={22}
-          color={recipe.isFavorite ? colors.error : colors.primary}
-        />
-      </Pressable>
-    </Card>
-  );
-}
 
 // Filter chip component
 function FilterChip({
@@ -199,13 +100,16 @@ export default function RecipesScreen() {
   // Mutations lifted from RecipeListItem to avoid per-item hook registrations
   const toggleFavorite = useMutation(api.recipes.toggleFavorite);
   const toggleGlobalFavorite = useMutation(api.recipes.toggleGlobalRecipeFavorite);
-  const handleToggleFavorite = useCallback((recipe: ConvexRecipe) => {
-    if (recipe.isGlobal) {
-      toggleGlobalFavorite({ recipeId: recipe._id });
-    } else {
-      toggleFavorite({ recipeId: recipe._id });
-    }
-  }, [toggleFavorite, toggleGlobalFavorite]);
+  const handleToggleFavorite = useCallback(
+    (recipe: RecipeCardData) => {
+      if (recipe.isGlobal) {
+        toggleGlobalFavorite({ recipeId: recipe._id });
+      } else {
+        toggleFavorite({ recipeId: recipe._id });
+      }
+    },
+    [toggleFavorite, toggleGlobalFavorite]
+  );
 
   useEffect(() => {
     if (filter) {
@@ -258,7 +162,7 @@ export default function RecipesScreen() {
   const availableCuisines = useMemo(() => {
     if (!allRecipes) return [...CUISINE_OPTIONS];
     const recipeCuisines = new Set<string>();
-    (allRecipes as ConvexRecipe[]).forEach((r) => {
+    (allRecipes as RecipeCardData[]).forEach((r) => {
       r.tags?.forEach((tag: string) => {
         const normalized = tag.charAt(0).toUpperCase() + tag.slice(1).toLowerCase();
         if (CUISINE_OPTIONS.includes(normalized as any)) {
@@ -273,7 +177,7 @@ export default function RecipesScreen() {
   }, [allRecipes]);
 
   // Apply advanced filters to a recipe list
-  const applyAdvancedFilters = (recipes: ConvexRecipe[]): ConvexRecipe[] => {
+  const applyAdvancedFilters = (recipes: RecipeCardData[]): RecipeCardData[] => {
     if (activeFilterCount === 0) return recipes;
 
     return recipes.filter((recipe) => {
@@ -313,35 +217,35 @@ export default function RecipesScreen() {
   };
 
   // Filter recipes based on active tab filter (memoized to avoid duplicate computation)
-  const baseRecipes = useMemo((): ConvexRecipe[] => {
+  const baseRecipes = useMemo((): RecipeCardData[] => {
     if (searchQuery && searchResults) {
-      return searchResults as unknown as ConvexRecipe[];
+      return searchResults as unknown as RecipeCardData[];
     }
 
     if (!allRecipes) return [];
 
     if (activeFilter === "all") {
-      return allRecipes as ConvexRecipe[];
+      return allRecipes as RecipeCardData[];
     }
 
     if (activeFilter === "my-recipes") {
-      return (allRecipes as ConvexRecipe[]).filter(r => !r.isGlobal);
+      return (allRecipes as RecipeCardData[]).filter(r => !r.isGlobal);
     }
 
     if (activeFilter === "global") {
-      return (allRecipes as ConvexRecipe[]).filter(r => r.isGlobal);
+      return (allRecipes as RecipeCardData[]).filter(r => r.isGlobal);
     }
 
     if (activeFilter === "favorites") {
-      return (favoriteRecipes || []) as ConvexRecipe[];
+      return (favoriteRecipes || []) as RecipeCardData[];
     }
 
     if (activeFilter === "cooked") {
-      return (allRecipes as ConvexRecipe[]).filter(r => (r.cookCount || 0) > 0);
+      return (allRecipes as RecipeCardData[]).filter(r => (r.cookCount || 0) > 0);
     }
 
     // Filter by meal type tag
-    return (allRecipes as ConvexRecipe[]).filter((r) =>
+    return (allRecipes as RecipeCardData[]).filter((r) =>
       r.tags?.some((t: string) => t.toLowerCase() === activeFilter)
     );
   }, [searchQuery, searchResults, allRecipes, activeFilter, favoriteRecipes]);
@@ -483,7 +387,14 @@ export default function RecipesScreen() {
       <FlatList
         data={filteredRecipes}
         keyExtractor={(item) => item._id}
-        renderItem={({ item }) => <RecipeListItem recipe={item} onToggleFavorite={handleToggleFavorite} />}
+        renderItem={({ item, index }) => (
+          <RecipeCard
+            recipe={item}
+            action={{ type: "favorite", onPress: handleToggleFavorite }}
+            onCardPress={(recipe) => router.push(`/recipe/${recipe._id}` as any)}
+            index={index}
+          />
+        )}
         contentContainerStyle={styles.recipeList}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
@@ -696,62 +607,6 @@ const styles = StyleSheet.create({
     paddingBottom: 150,
     gap: spacing.md,
   },
-  recipeItem: {
-    flexDirection: "row",
-    padding: 0,
-    overflow: "hidden",
-  },
-  recipeImage: {
-    width: 100,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  recipeEmoji: {
-    fontSize: 36,
-  },
-  recipeContent: {
-    flex: 1,
-    padding: spacing.md,
-  },
-  recipeTitle: {
-    fontSize: typography.sizes.md,
-    fontWeight: typography.weights.bold,
-    color: colors.text,
-    marginBottom: spacing.xs,
-  },
-  recipeDescription: {
-    fontSize: typography.sizes.sm,
-    color: colors.textSecondary,
-    marginBottom: spacing.sm,
-  },
-  recipeMeta: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  recipeMetaItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-  },
-  recipeMetaText: {
-    fontSize: typography.sizes.xs,
-    color: colors.textSecondary,
-  },
-  recipeTags: {
-    flexDirection: "row",
-    gap: spacing.xs,
-    flexWrap: "wrap",
-  },
-  favoriteButton: {
-    padding: spacing.md,
-    alignSelf: "flex-start",
-  },
-  favoriteButtonPressed: {
-    opacity: 0.6,
-    transform: [{ scale: 0.85 }],
-  },
   emptyState: {
     alignItems: "center",
     justifyContent: "center",
@@ -772,29 +627,6 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.md,
     color: colors.textMuted,
   },
-  globalBadge: {
-    position: "absolute",
-    top: spacing.sm,
-    left: spacing.sm,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-    backgroundColor: colors.secondary,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.sm,
-    borderWidth: borders.thin,
-    borderColor: borders.color,
-    ...shadows.sm,
-    zIndex: 1,
-  },
-  globalBadgeText: {
-    fontSize: typography.sizes.xs,
-    fontWeight: typography.weights.bold,
-    color: colors.text,
-    textTransform: "uppercase",
-  },
-
   // Filter badge on icon
   filterBadge: {
     position: "absolute",

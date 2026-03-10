@@ -745,6 +745,88 @@ describe("GroceryListScreen", () => {
     });
   });
 
+  // ── Recipe Change (Swap) Detection ─────────────────────────────
+
+  describe("Recipe Change (Swap) Detection", () => {
+    it("shows change banner when a recipe is swapped (changedRecipes)", () => {
+      mockWeekParams();
+      mockQueriesSequential(sampleList, undefined, {
+        hasChanges: true,
+        addedEntries: [],
+        removedEntries: [],
+        changedServings: [],
+        changedRecipes: ["mp1"],
+      });
+
+      const { getByText } = render(<GroceryListScreen />);
+      expect(getByText("MEAL PLAN UPDATED")).toBeTruthy();
+      expect(getByText("1 recipe swapped")).toBeTruthy();
+    });
+
+    it("shows plural text when multiple recipes are swapped", () => {
+      mockWeekParams();
+      mockQueriesSequential(sampleList, undefined, {
+        hasChanges: true,
+        addedEntries: [],
+        removedEntries: [],
+        changedServings: [],
+        changedRecipes: ["mp1", "mp2"],
+      });
+
+      const { getByText } = render(<GroceryListScreen />);
+      expect(getByText("2 recipes swapped")).toBeTruthy();
+    });
+
+    it("shows combined change details when recipes swapped and meals added", () => {
+      mockWeekParams();
+      mockQueriesSequential(sampleList, undefined, {
+        hasChanges: true,
+        addedEntries: ["mp3"],
+        removedEntries: [],
+        changedServings: [],
+        changedRecipes: ["mp1"],
+      });
+
+      const { getByText } = render(<GroceryListScreen />);
+      expect(getByText("1 meal added, 1 recipe swapped")).toBeTruthy();
+    });
+
+    it("calls syncWithMealPlan when UPDATE LIST pressed after recipe swap", async () => {
+      mockWeekParams();
+      mockSyncWithMealPlan.mockResolvedValue({ success: true });
+      mockQueriesSequential(sampleList, undefined, {
+        hasChanges: true,
+        addedEntries: [],
+        removedEntries: [],
+        changedServings: [],
+        changedRecipes: ["mp1"],
+      });
+
+      const { getByText } = render(<GroceryListScreen />);
+      fireEvent.press(getByText("UPDATE LIST"));
+
+      await waitFor(() => {
+        expect(mockSyncWithMealPlan).toHaveBeenCalledWith({
+          listId: "list1",
+        });
+      });
+    });
+
+    it("does not show banner when changedRecipes is empty", () => {
+      mockWeekParams();
+      mockQueriesSequential(sampleList, undefined, {
+        hasChanges: false,
+        addedEntries: [],
+        removedEntries: [],
+        changedServings: [],
+        changedRecipes: [],
+      });
+
+      const { queryByText } = render(<GroceryListScreen />);
+      expect(queryByText("MEAL PLAN UPDATED")).toBeNull();
+    });
+  });
+
   // ── Edge Cases from Design Plan ──────────────────────────────────
 
   describe("Edge Cases", () => {

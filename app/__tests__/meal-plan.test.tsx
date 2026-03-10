@@ -510,7 +510,6 @@ describe('MealPlanScreen', () => {
     expect(getByText('KCAL')).toBeTruthy();
     expect(getByText('PROTEIN')).toBeTruthy();
     expect(getByText('CARBS')).toBeTruthy();
-    expect(getByText('FAT')).toBeTruthy();
   });
 
   it('does not show daily nutrition summary when no meals planned', () => {

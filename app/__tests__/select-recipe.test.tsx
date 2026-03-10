@@ -116,7 +116,7 @@ describe('SelectRecipeScreen', () => {
 
     // First useQuery call is for recipes.list — should include global recipes
     const firstCall = (useQuery as jest.Mock).mock.calls[0];
-    expect(firstCall[1]).toEqual({ includeGlobal: true });
+    expect(firstCall[1]).toEqual({ includeGlobal: true, globalOnly: false });
   });
 
   it('displays all recipes when "All" filter is active', () => {
@@ -199,13 +199,25 @@ describe('SelectRecipeScreen', () => {
     expect(getByText('4 servings')).toBeTruthy();
   });
 
-  it('shows servings picker when recipe is selected', () => {
+  it('navigates to recipe detail when card is tapped', () => {
     (useQuery as jest.Mock)
       .mockReturnValueOnce(mockRecipes)
       .mockReturnValueOnce(undefined);
 
     const { getByText } = render(<SelectRecipeScreen />);
     fireEvent.press(getByText('Pancakes'));
+
+    expect(router.push).toHaveBeenCalledWith('/recipe/r1');
+  });
+
+  it('shows servings picker when plus button is pressed', () => {
+    (useQuery as jest.Mock)
+      .mockReturnValueOnce(mockRecipes)
+      .mockReturnValueOnce(undefined);
+
+    const { getAllByTestId, getByText } = render(<SelectRecipeScreen />);
+    // Press the first add button (Pancakes is the only visible recipe with breakfast filter)
+    fireEvent.press(getAllByTestId('icon-add')[0]);
 
     expect(getByText('ADJUST SERVINGS')).toBeTruthy();
     expect(getByText('ADD MEAL')).toBeTruthy();
@@ -219,8 +231,8 @@ describe('SelectRecipeScreen', () => {
       return mockRecipes;
     });
 
-    const { getByText } = render(<SelectRecipeScreen />);
-    fireEvent.press(getByText('Pancakes'));
+    const { getAllByTestId, getByText } = render(<SelectRecipeScreen />);
+    fireEvent.press(getAllByTestId('icon-add')[0]);
 
     // Confirm with default servings
     fireEvent.press(getByText('ADD MEAL'));
@@ -242,8 +254,8 @@ describe('SelectRecipeScreen', () => {
       return mockRecipes;
     });
 
-    const { getByText, queryByText } = render(<SelectRecipeScreen />);
-    fireEvent.press(getByText('Pancakes'));
+    const { getAllByTestId, getByText, queryByText } = render(<SelectRecipeScreen />);
+    fireEvent.press(getAllByTestId('icon-add')[0]);
     expect(getByText('ADJUST SERVINGS')).toBeTruthy();
 
     fireEvent.press(getByText('CANCEL'));
@@ -285,13 +297,13 @@ describe('SelectRecipeScreen', () => {
       return mockRecipes;
     });
 
-    const { getByText } = render(<SelectRecipeScreen />);
+    const { getByText, getAllByTestId } = render(<SelectRecipeScreen />);
 
     // Change filter to "All" to see all recipes including breakfast
     fireEvent.press(getByText('All'));
 
-    // Select a breakfast-tagged recipe (Pancakes)
-    fireEvent.press(getByText('Pancakes'));
+    // Press the plus button on Pancakes (first add icon after filter change)
+    fireEvent.press(getAllByTestId('icon-add')[0]);
 
     // Confirm via servings picker
     fireEvent.press(getByText('ADD MEAL'));
@@ -324,5 +336,7 @@ describe('SelectRecipeScreen', () => {
     const { getByText } = render(<SelectRecipeScreen />);
     expect(getByText('My Recipe')).toBeTruthy();
     expect(getByText('Global Recipe')).toBeTruthy();
+    // Global badge should now be visible (unified with recipes page)
+    expect(getByText('GLOBAL')).toBeTruthy();
   });
 });

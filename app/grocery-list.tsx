@@ -195,7 +195,7 @@ function ChangeBanner({
 }: {
   onSync: () => void;
   onDismiss: () => void;
-  changes?: { addedEntries: string[]; removedEntries: string[]; changedServings: string[] };
+  changes?: { addedEntries: string[]; removedEntries: string[]; changedServings: string[]; changedRecipes?: string[] };
 }) {
   const details: string[] = [];
   if (changes?.addedEntries?.length) {
@@ -203,6 +203,9 @@ function ChangeBanner({
   }
   if (changes?.removedEntries?.length) {
     details.push(`${changes.removedEntries.length} meal${changes.removedEntries.length > 1 ? "s" : ""} removed`);
+  }
+  if (changes?.changedRecipes?.length) {
+    details.push(`${changes.changedRecipes.length} recipe${changes.changedRecipes.length > 1 ? "s" : ""} swapped`);
   }
   if (changes?.changedServings?.length) {
     details.push(`${changes.changedServings.length} serving${changes.changedServings.length > 1 ? "s" : ""} changed`);

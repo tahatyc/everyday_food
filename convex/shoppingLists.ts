@@ -819,6 +819,8 @@ export const detectMealPlanChanges = query({
 
     // Diff: servings changed on existing entries
     const changedServings: string[] = [];
+    // Diff: recipe swapped on existing entries (same mealPlanId, different recipeId)
+    const changedRecipes: string[] = [];
     for (const tracked of listRecipes) {
       if (!tracked.mealPlanId) continue;
       const currentEntry = currentEntries.find((e) => e._id.toString() === tracked.mealPlanId!.toString());
@@ -827,14 +829,19 @@ export const detectMealPlanChanges = query({
         if (currentServings !== tracked.servings) {
           changedServings.push(tracked.mealPlanId.toString());
         }
+        // Detect recipe swap (changeMeal keeps mealPlanId but updates recipeId)
+        if (currentEntry.recipeId && currentEntry.recipeId.toString() !== tracked.recipeId.toString()) {
+          changedRecipes.push(tracked.mealPlanId.toString());
+        }
       }
     }
 
     return {
-      hasChanges: addedEntries.length > 0 || removedEntries.length > 0 || changedServings.length > 0,
+      hasChanges: addedEntries.length > 0 || removedEntries.length > 0 || changedServings.length > 0 || changedRecipes.length > 0,
       addedEntries,
       removedEntries,
       changedServings,
+      changedRecipes,
     };
   },
 });
